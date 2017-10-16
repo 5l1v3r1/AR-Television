@@ -1,7 +1,6 @@
 # AR Television #
 
-This project implements an augmented reality (AR) application: virtual television. It enables users to watch television
-via their AR devices.
+This project implements an augmented reality (AR) application: virtual television. It enables users to watch television/movies via AR devices.
 
 Author: Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 
