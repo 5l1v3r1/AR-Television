@@ -13,27 +13,33 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\vojects">
+      <UniqueIdentifier>{9147b718-d5de-44d0-9d49-19945695866a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\vobjects">
+      <UniqueIdentifier>{c53fd82b-5f06-471e-982f-a38b4a68ee8a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\AREngine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\TV.cpp">
+    <ClCompile Include="..\VObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\Object.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\vobjects\VTelevision.cpp">
+      <Filter>Source Files\vobjects</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\TV.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Object.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\AREngine.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\VObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\vobjects\VTelevision.h">
+      <Filter>Header Files\vojects</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

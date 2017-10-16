@@ -18,13 +18,13 @@
     <ClInclude Include="..\CVUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\OSUtils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\ErrorCodes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\ARUtils.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\OSUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
