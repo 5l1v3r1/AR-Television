@@ -15,7 +15,7 @@ namespace ar
 	//	a required frame on call of the nextFrame method.
 	class FrameStream {
 	public:
-		virtual int nextFrame(cv::Mat& outputBuf) = 0;
+		virtual int NextFrame(cv::Mat& outputBuf) = 0;
 	};
 
 	class RealtimeLocalVideoStream : public FrameStream {
@@ -24,9 +24,9 @@ namespace ar
 		std::chrono::steady_clock::time_point start_time_;
 		int frame_cnt_;
 	public:
-		inline RealtimeLocalVideoStream() { restart(); }
-		void restart();
-		ERROR_CODE open(const char* videoPath);
-		ERROR_CODE nextFrame(cv::Mat& outputBuf);
+		inline RealtimeLocalVideoStream() { Restart(); }
+		void Restart();
+		ERROR_CODE Open(const char* videoPath);
+		ERROR_CODE NextFrame(cv::Mat& outputBuf);
 	};
 }

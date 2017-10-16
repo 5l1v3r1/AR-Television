@@ -14,7 +14,7 @@
 namespace ar {
 	typedef int ERROR_CODE;
 
-	const char* code2Message(ERROR_CODE errorCode) {
+	const char* ErrCode2Msg(ERROR_CODE errorCode) {
 		switch (errorCode)
 		{
 		case 0:

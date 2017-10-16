@@ -15,12 +15,12 @@ using namespace std;
 using namespace cv;
 
 namespace ar {
-	void RealtimeLocalVideoStream::restart() {
+	void RealtimeLocalVideoStream::Restart() {
 		start_time_ = chrono::steady_clock::now();
 		frame_cnt_ = 0;
 	}
 
-	ERROR_CODE RealtimeLocalVideoStream::open(const char* video_path) {
+	ERROR_CODE RealtimeLocalVideoStream::Open(const char* video_path) {
 		cap_ = VideoCapture(video_path);
 		if (!cap_.isOpened())
 			return AR_FILE_NOT_FOUND;
@@ -30,7 +30,7 @@ namespace ar {
 		return AR_SUCCESS;
 	}
 
-	ERROR_CODE RealtimeLocalVideoStream::nextFrame(Mat& output_buf) {
+	ERROR_CODE RealtimeLocalVideoStream::NextFrame(Mat& output_buf) {
 		if (!cap_.isOpened())
 			return AR_UNINITIALIZED;
 

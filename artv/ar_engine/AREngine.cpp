@@ -9,13 +9,13 @@
 using namespace cv;
 
 namespace ar {
-	ERROR_CODE AREngine::getMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
+	ERROR_CODE AREngine::GetMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
 		// TODO: This is only a fake function. Need real implementation.
 		mixed_scene = raw_scene;
 		return AR_SUCCESS;
 	}
 
-	ERROR_CODE AREngine::createScreen(cv::Point2i location, FrameStream& content_stream) {
+	ERROR_CODE AREngine::CreateScreen(cv::Point2i location, FrameStream& content_stream) {
 		// TODO: This is only a fake function. Need real implementation.
 		return AR_SUCCESS;
 	}

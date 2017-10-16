@@ -1,12 +1,13 @@
-#pragma once
-
-#include <common/CVUtils.h>
 ///////////////////////////////////////////////////////////
 // AR Television
 // Copyright(c) 2017 Carnegie Mellon University
 // Licensed under The MIT License[see LICENSE for details]
 // Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 ///////////////////////////////////////////////////////////
+#pragma once
+
+#include <common/ARUtils.hpp>
+#include <common/CVUtils.h>
 #include <unordered_map>
 
 namespace ar {
@@ -23,12 +24,12 @@ namespace ar {
 		std::unordered_map<int, VObject*> virtual_objects_;
 	public:
 		///////////////////////////////// General methods /////////////////////////////////
-		ERROR_CODE getMixedScene(const cv::Mat& raw_scene, cv::Mat& mixed_scene);
-		void removeVObject(int id) { virtual_objects_.erase(id); }
-		inline int getMaxIdlePeriod() const { return max_idle_period_; }
+		ERROR_CODE GetMixedScene(const cv::Mat& raw_scene, cv::Mat& mixed_scene);
+		void RemoveVObject(int id) { virtual_objects_.erase(id); }
+		inline int GetMaxIdlePeriod() const { return max_idle_period_; }
 
 		///////////////////////// Special object creating methods /////////////////////////
 		//!	Create a screen displaying the content at the location in the last input scene.
-		ERROR_CODE createScreen(cv::Point2i location, FrameStream& content_stream);
+		ERROR_CODE CreateScreen(cv::Point2i location, FrameStream& content_stream);
 	};
 }

@@ -23,13 +23,12 @@ struct MouseListenerMemory {
 	int mdx, mdy;
 	int rdx, rdy;
 	AREngine* ar_engine;
+	FrameStream* tv_show;
 };
 
-void mouseActionListener(int event, int x, int y, int flags, void* p)
-{
+void RespondMouseAction(int event, int x, int y, int flags, void* p) {
 	MouseListenerMemory* mem = (MouseListenerMemory*)p;
-	switch (event)
-	{
+	switch (event) {
 	case EVENT_LBUTTONDOWN:
 		break;
 	case EVENT_RBUTTONDOWN:
@@ -68,28 +67,32 @@ int main(int argc, char* argv[]) {
 	}
 	
 	RealtimeLocalVideoStream tv_show;
-	auto ret = tv_show.open(movie_path);
+	auto ret = tv_show.Open(movie_path);
 	if (ret < 0) {
-		cerr << "Cannot initialize the TV show: " << code2Message(ret) << endl;
+		cerr << "Cannot initialize the TV show: " << ErrCode2Msg(ret) << endl;
 		AR_PAUSE;
 		return -1;
 	}
 
-	AREngine arEngine;
+	AREngine ar_engine;
+
 	Mat raw_scene, mixed_scene;
 	//Create the windows
 	namedWindow("Origin scene");
 	namedWindow("Mixed scene");
 	//set the callback function for any mouse event.
-	setMouseCallback("Origin scene", mouseActionListener, NULL);
-	setMouseCallback("Mixed scene", mouseActionListener, NULL);
+	MouseListenerMemory mem;
+	mem.ar_engine = &ar_engine;
+	mem.tv_show = &tv_show;
+	setMouseCallback("Origin scene", RespondMouseAction, &mem);
+	setMouseCallback("Mixed scene", RespondMouseAction, &mem);
 	while (true) {
 		cap >> raw_scene;
 		if (raw_scene.empty())
 			break;
 		imshow("Origin scene", raw_scene);
 
-		arEngine.getMixedScene(raw_scene, mixed_scene);
+		ar_engine.GetMixedScene(raw_scene, mixed_scene);
 		imshow("Mixed scene", mixed_scene);
 
 		waitKey(1);

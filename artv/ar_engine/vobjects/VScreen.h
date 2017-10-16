@@ -22,5 +22,6 @@ namespace ar
 	public:
 		VScreen(AREngine& engine, int id, 
 			FrameStream& content_stream, cv::Point3d base_centroid, cv::Vec3d normal, int width, int height);
+		inline virtual VObjType GetType() { return SCREEN; }
 	};
 }

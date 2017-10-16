@@ -6,3 +6,8 @@
 ///////////////////////////////////////////////////////////
 #pragma once
 
+namespace ar {
+	enum VObjType {
+		SCREEN
+	};
+}
