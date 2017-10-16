@@ -16,16 +16,19 @@ namespace ar {
 	//	be fed into the engine, and the engine computes the mixed-reality scene with
 	//	holograms projected into the real world.
 	class AREngine {
-		// For objects in this engine, they should automatically disappear if not viewed
-		// for this long period (in milliseconds). This period might be dynamically
-		// adjusted according to the number of objects there are in the engine.
+		//! For objects in this engine, they should automatically disappear if not viewed
+		//	for this long period (in milliseconds). This period might be dynamically
+		//	adjusted according to the number of objects there are in the engine.
 		int max_idle_period_;
 		std::unordered_map<int, VObject*> virtual_objects_;
 	public:
+		///////////////////////////////// General methods /////////////////////////////////
 		ERROR_CODE getMixedScene(const cv::Mat& raw_scene, cv::Mat& mixed_scene);
-		// Create a TV at the location in the last input scene.
-		ERROR_CODE createTV(cv::Point2i location, FrameStream& content_stream);
 		void removeVObject(int id) { virtual_objects_.erase(id); }
 		inline int getMaxIdlePeriod() const { return max_idle_period_; }
+
+		///////////////////////// Special object creating methods /////////////////////////
+		//!	Create a screen displaying the content at the location in the last input scene.
+		ERROR_CODE createScreen(cv::Point2i location, FrameStream& content_stream);
 	};
 }

@@ -121,12 +121,12 @@
   <ItemGroup>
     <ClCompile Include="..\AREngine.cpp" />
     <ClCompile Include="..\VObject.cpp" />
-    <ClCompile Include="..\vobjects\VTelevision.cpp" />
+    <ClCompile Include="..\vobjects\VScreen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\AREngine.h" />
     <ClInclude Include="..\VObject.h" />
-    <ClInclude Include="..\vobjects\VTelevision.h" />
+    <ClInclude Include="..\vobjects\VScreen.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

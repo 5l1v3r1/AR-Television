@@ -27,7 +27,7 @@
     <ClCompile Include="..\VObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\vobjects\VTelevision.cpp">
+    <ClCompile Include="..\vobjects\VScreen.cpp">
       <Filter>Source Files\vobjects</Filter>
     </ClCompile>
   </ItemGroup>
@@ -38,7 +38,7 @@
     <ClInclude Include="..\VObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\vobjects\VTelevision.h">
+    <ClInclude Include="..\vobjects\VScreen.h">
       <Filter>Header Files\vojects</Filter>
     </ClInclude>
   </ItemGroup>

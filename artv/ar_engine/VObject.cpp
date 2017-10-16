@@ -10,7 +10,7 @@
 using namespace std;
 
 namespace ar {
-	VObject::VObject(int id, AREngine& engine): id_(id), engine_(engine) {
+	VObject::VObject(AREngine& engine, int id): engine_(engine), id_(id) {
 		updateViewedTime();
 		monitor_thread_ = thread(monitor, this);
 	}

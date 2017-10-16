@@ -13,15 +13,15 @@
 namespace ar {
 	//! Base class for any virtual objects in the AR engine.
 	class VObject {
+		AREngine& engine_;
 		int id_;
 		bool alive_ = false;
-		AREngine& engine_;
 		std::chrono::steady_clock::time_point last_viewed_time_;
 		// The object will tell the engine to remove itself after being idle for sometime.
 		std::thread monitor_thread_;
 		static void monitor(VObject* obj);
 	public:
-		VObject(int id, AREngine& engine);
+		VObject(AREngine& engine, int id);
 		inline void updateViewedTime() { last_viewed_time_ = std::chrono::steady_clock::now(); }
 		void disappear();
 	};
