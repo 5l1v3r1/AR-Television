@@ -6,8 +6,16 @@
 ///////////////////////////////////////////////////////////
 #pragma once
 
+#include <chrono>
+
 namespace ar {
 	enum VObjType {
 		SCREEN
+	};
+
+	//! Data collected by the motion sensors.
+	struct MotionData {
+		std::chrono::steady_clock::time_point shot_time;
+		//TODO: Fill the data here.
 	};
 }
