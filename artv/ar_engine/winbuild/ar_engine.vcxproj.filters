@@ -15,15 +15,24 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\ar_engine.cpp">
+    <ClCompile Include="..\AREngine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TV.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Object.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\ar_engine.hpp">
+    <ClInclude Include="..\TV.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\object.hpp">
+    <ClInclude Include="..\Object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\AREngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

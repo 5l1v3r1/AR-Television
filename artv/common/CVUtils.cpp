@@ -32,8 +32,8 @@ namespace ar {
 		int dest_frame_ind = (now - start_time_).count() * fps_ / 1000000000;
 		while (frame_cnt_++ < dest_frame_ind)
 			cap_.grab();
-		cap_.retrieve(output_buf);
-		if (output_buf.empty())
+		bool ret = cap_.retrieve(output_buf);
+		if (!ret || output_buf.empty())
 			return AR_NO_MORE_FRAMES;
 		else
 			return AR_SUCCESS;

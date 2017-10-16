@@ -9,6 +9,40 @@ using namespace std;
 using namespace cv;
 using namespace ar;
 
+struct MouseListenerMemory {
+	bool left_down = false;
+	bool middle_down = false;
+	bool right_down = false;
+	int ldx, ldy;
+	int mdx, mdy;
+	int rdx, rdy;
+	AREngine* ar_engine;
+};
+
+void mouseActionListener(int event, int x, int y, int flags, void* p)
+{
+	MouseListenerMemory* mem = (MouseListenerMemory*)p;
+	switch (event)
+	{
+	case EVENT_LBUTTONDOWN:
+		break;
+	case EVENT_RBUTTONDOWN:
+		break;
+	case EVENT_MBUTTONDOWN:
+		break;
+	case EVENT_LBUTTONUP:
+		break;
+	case EVENT_RBUTTONUP:
+		break;
+	case EVENT_MBUTTONUP:
+		break;
+	case EVENT_MOUSEMOVE:
+		break;
+	default:
+		break;
+	}
+}
+
 int main(int argc, char* argv[]) {
 	if (argc < 3) {
 		cout << "Usage: offline_demo [scene_video_path] [tv_show_path]" << endl;
@@ -37,6 +71,12 @@ int main(int argc, char* argv[]) {
 
 	AREngine arEngine;
 	Mat raw_scene, mixed_scene;
+	//Create the windows
+	namedWindow("Origin scene");
+	namedWindow("Mixed scene");
+	//set the callback function for any mouse event.
+	setMouseCallback("Origin scene", mouseActionListener, NULL);
+	setMouseCallback("Mixed scene", mouseActionListener, NULL);
 	while (true) {
 		cap >> raw_scene;
 		if (raw_scene.empty())
@@ -46,7 +86,7 @@ int main(int argc, char* argv[]) {
 		arEngine.getMixedScene(raw_scene, mixed_scene);
 		imshow("Mixed scene", mixed_scene);
 
-		// TODO: Listen mouse click action, and register TVs into the AR engine.
+		waitKey(1);
 	}
 
 	return 0;

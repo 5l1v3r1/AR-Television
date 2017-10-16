@@ -119,11 +119,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\ar_engine.cpp" />
+    <ClCompile Include="..\AREngine.cpp" />
+    <ClCompile Include="..\Object.cpp" />
+    <ClCompile Include="..\TV.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\ar_engine.hpp" />
-    <ClInclude Include="..\object.hpp" />
+    <ClInclude Include="..\AREngine.h" />
+    <ClInclude Include="..\Object.h" />
+    <ClInclude Include="..\TV.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

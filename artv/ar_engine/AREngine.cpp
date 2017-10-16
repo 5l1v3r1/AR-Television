@@ -8,4 +8,9 @@ namespace ar {
 		mixed_scene = raw_scene;
 		return AR_SUCCESS;
 	}
+
+	ERROR_CODE AREngine::createTV(cv::Point2i location, FrameStream& content_stream) {
+		// TODO: This is only a fake function. Need real implementation.
+		return AR_SUCCESS;
+	}
 }
