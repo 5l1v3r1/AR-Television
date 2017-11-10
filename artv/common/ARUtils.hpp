@@ -7,6 +7,9 @@
 #pragma once
 
 #include <chrono>
+#include <vector>
+
+#include <opencv2/opencv.hpp>
 
 namespace ar {
 	enum VObjType {
@@ -18,4 +21,8 @@ namespace ar {
 		std::chrono::steady_clock::time_point shot_time;
 		//TODO: Fill the data here.
 	};
+
+	cv::Mat RefineFundamentalMatrix(const cv::Mat& fundamentalMatrix,
+		const std::vector<cv::Point2d>& point1,
+		const std::vector<cv::Point2d>& point2);
 }

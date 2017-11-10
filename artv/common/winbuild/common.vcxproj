@@ -125,6 +125,7 @@
     <ClInclude Include="..\OSUtils.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\ARUtils.cpp" />
     <ClCompile Include="..\CVUtils.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
