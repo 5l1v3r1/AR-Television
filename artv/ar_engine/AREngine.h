@@ -20,6 +20,8 @@ namespace ar {
 	//	be fed into the engine, and the engine computes the mixed-reality scene with
 	//	holograms projected into the real world.
 	class AREngine {
+		static const int MAX_INTEREST_POINTS = 100;
+
 		//! For objects in this engine, they should automatically disappear if not viewed
 		//	for this long period (in milliseconds). This period might be dynamically
 		//	adjusted according to the number of objects there are in the engine.

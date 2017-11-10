@@ -39,17 +39,19 @@ namespace ar {
 			// TODO: Draw the virtual object on the mixed_scene.
 		}
 
-		// Remove the oldest location record of the interest points, and remove the 
-		// interest points that are determined not visible anymore.
-		int new_size = interest_points_.size();
-		for (int i = 0; i < new_size; ++i) {
-			interest_points_[i].RemoveOldestLoc();
-			if (interest_points_[i].ToDiscard()) {
-				interest_points_[i] = interest_points_[--new_size];
-				--i;
+		// If we have stored too many interest points, we remove the oldest location record
+		// of the interest points, and remove the interest points that are determined not visible anymore.
+		if (interest_points_.size() > MAX_INTEREST_POINTS) {
+			int new_size = interest_points_.size();
+			for (int i = 0; i < new_size; ++i) {
+				interest_points_[i].RemoveOldestLoc();
+				if (interest_points_[i].ToDiscard()) {
+					interest_points_[i] = interest_points_[--new_size];
+					--i;
+				}
 			}
+			interest_points_.resize(new_size);
 		}
-		interest_points_.resize(new_size);
 
 		return AR_SUCCESS;
 	}
