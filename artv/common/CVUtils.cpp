@@ -9,12 +9,17 @@
 #include <common/CVUtils.h>
 #include <common/ErrorCodes.h>
 
-using timepoint = std::chrono::steady_clock::time_point;
-
 using namespace std;
 using namespace cv;
 
+using timepoint = chrono::steady_clock::time_point;
+
 namespace ar {
+	vector<Point> DetectInterestPointsDoG(Mat image) {
+		// TODO: This is only a fake function. Need real implementation.
+		return vector<Point>();
+	}
+
 	void RealtimeLocalVideoStream::Restart() {
 		start_time_ = chrono::steady_clock::now();
 		frame_cnt_ = 0;

@@ -4,6 +4,7 @@
 // Licensed under The MIT License[see LICENSE for details]
 // Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 ///////////////////////////////////////////////////////////
+#include <vector>
 #include <opencv2/opencv.hpp>
 
 #include <common/ErrorCodes.h>
@@ -29,4 +30,7 @@ namespace ar
 		ERROR_CODE Open(const char* videoPath);
 		ERROR_CODE NextFrame(cv::Mat& outputBuf);
 	};
+
+	//! Detect interest points in an image by DoG.
+	std::vector<cv::Point> DetectInterestPointsDoG(cv::Mat image);
 }

@@ -16,11 +16,15 @@ using namespace cv;
 using namespace ar;
 
 struct MouseListenerMemory {
+	int holding_obj_id;
 	bool left_down = false;
 	bool middle_down = false;
 	bool right_down = false;
+	// Location of the mouse on pressing down the left button.
 	int ldx, ldy;
+	// Location of the mouse on pressing down the middle button.
 	int mdx, mdy;
+	// Location of the mouse on pressing down the right button.
 	int rdx, rdy;
 	AREngine* ar_engine;
 	FrameStream* tv_show;
@@ -28,20 +32,48 @@ struct MouseListenerMemory {
 
 void RespondMouseAction(int event, int x, int y, int flags, void* p) {
 	MouseListenerMemory* mem = (MouseListenerMemory*)p;
+	auto ar_engine = mem->ar_engine;
 	switch (event) {
 	case EVENT_LBUTTONDOWN:
+		if (!mem->right_down) {
+			mem->left_down = true;
+			mem->ldx = x;
+			mem->ldy = y;
+			mem->holding_obj_id = ar_engine->GetTopVObj(x, y);
+		}
 		break;
 	case EVENT_RBUTTONDOWN:
+		if (!mem->left_down) {
+			mem->right_down = true;
+			mem->rdx = x;
+			mem->rdy = y;
+			mem->holding_obj_id = ar_engine->GetTopVObj(x, y);
+		}
 		break;
 	case EVENT_MBUTTONDOWN:
+		mem->middle_down = true;
+		mem->mdx = x;
+		mem->mdy = y;
 		break;
 	case EVENT_LBUTTONUP:
-		break;
+		if (mem->left_down) {
+			// Place a television here!
+			ar_engine->CreateTelevision(cv::Point(x, y), *mem->tv_show);
+			mem->left_down = false;
+			break;
+		}
 	case EVENT_RBUTTONUP:
+		if (mem->right_down) {
+			if (mem->holding_obj_id != -1)
+				ar_engine->RemoveVObject(mem->holding_obj_id);
+			mem->right_down = false;
+		}
 		break;
 	case EVENT_MBUTTONUP:
 		break;
 	case EVENT_MOUSEMOVE:
+		if (mem->left_down)
+			ar_engine->DragVObj(mem->holding_obj_id, x, y);
 		break;
 	default:
 		break;

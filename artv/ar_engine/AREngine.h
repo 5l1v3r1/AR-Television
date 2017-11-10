@@ -10,6 +10,8 @@
 #include <common/CVUtils.h>
 #include <unordered_map>
 #include <vector>
+#include <queue>
+#include <optional>
 
 namespace ar {
 	class VObject;
@@ -26,6 +28,35 @@ namespace ar {
 		//	The virtual_objects_ is a map from IDs to virtual object pointers.
 		std::unordered_map<int, VObject*> virtual_objects_;
 		std::vector<MotionData> accumulated_motion_data_;
+
+		//! Buffered last frame and feature maps.
+		cv::Mat last_raw_frame_;
+
+		class InterestPoint {
+			//! Sequence of 2D location in the frames.
+			//	The optional does not contain a value if the point is not visible in one frame.
+			std::queue<std::optional<cv::Point>> loc2d_seq_;
+			//! Count the number of frames in which this point is visible.
+			int vis_cnt = 0;
+		public:
+			void AddLatestLoc(std::optional<cv::Point> p);
+			void RemoveOldestLoc();
+			inline bool ToDiscard() { return vis_cnt; }
+			inline auto& loc2d_seq() const { return loc2d_seq_; }
+			// TODO: Define a feature structure for interest point and declare a member variable
+			// representing the weighted average feature for the interest point.
+
+			//! The estimated 3D location of the point.
+			cv::Point3d loc3d;
+		};
+		std::vector<InterestPoint> interest_points_;
+
+		//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
+		std::vector<cv::Point> FindSurroundingBounder(const cv::Point& point);
+
+		//! Input the interest points in the current 2D frame, match them with the stored interest points,
+		//	and update their latest locations. Return the camera matrix.
+		cv::Mat UpdateInterestPoints(std::vector<cv::Point>& interest_points2d);
 	public:
 		///////////////////////////////// General methods /////////////////////////////////
 		void RemoveVObject(int id) { virtual_objects_.erase(id); }
@@ -56,6 +87,6 @@ namespace ar {
 
 		///////////////////////// Special object creating methods /////////////////////////
 		//!	Create a screen displaying the content at the location in the last input scene.
-		ERROR_CODE CreateScreen(cv::Point2i location, FrameStream& content_stream);
+		ERROR_CODE CreateTelevision(cv::Point location, FrameStream& content_stream);
 	};
 }
