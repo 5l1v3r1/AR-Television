@@ -13,13 +13,23 @@
 #include <queue>
 #include <optional>
 
+#ifdef _WIN32
+#ifdef ARENGINE_EXPORTS
+#define ARENGINE_API __declspec(dllexport)
+#else
+#define ARENGINE_API __declspec(dllimport)
+#endif
+#else
+#define ARENGINE_API
+#endif
+
 namespace ar {
 	class VObject;
 	//!	The class AREngine maintains the information of the percepted real world and
 	//	the living hologram objects. Raw scene images and user operation events should
 	//	be fed into the engine, and the engine computes the mixed-reality scene with
 	//	holograms projected into the real world.
-	class AREngine {
+	class ARENGINE_API AREngine {
 		static const int MAX_INTEREST_POINTS = 100;
 
 		//! For objects in this engine, they should automatically disappear if not viewed
@@ -33,6 +43,7 @@ namespace ar {
 
 		//! Buffered last frame and feature maps.
 		cv::Mat last_raw_frame_;
+		cv::Mat last_gray_frame_;
 
 		class InterestPoint {
 			//! Sequence of 2D location in the frames.

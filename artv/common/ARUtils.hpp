@@ -11,6 +11,16 @@
 
 #include <opencv2/opencv.hpp>
 
+#ifdef _WIN32
+#ifdef COMMON_EXPORTS
+#define COMMON_API __declspec(dllexport)
+#else
+#define COMMON_API __declspec(dllimport)
+#endif
+#else
+#define COMMON_API
+#endif
+
 namespace ar {
 	enum VObjType {
 		SCREEN
@@ -22,7 +32,7 @@ namespace ar {
 		//TODO: Fill the data here.
 	};
 
-	cv::Mat RefineFundamentalMatrix(const cv::Mat& fundamentalMatrix,
+	cv::Mat COMMON_API RefineFundamentalMatrix(const cv::Mat& fundamentalMatrix,
 		const std::vector<cv::Point2d>& point1,
 		const std::vector<cv::Point2d>& point2);
 }

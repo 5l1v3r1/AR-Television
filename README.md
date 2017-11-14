@@ -8,6 +8,8 @@ Author: Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 
 ## How to build ##
 
+This project requires C++17 standard.
+
 ### Windows ###
 1. Install Visual Studio 2017.
 2. Install OpenCV 3.3.0.

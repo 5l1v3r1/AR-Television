@@ -33,7 +33,7 @@ namespace ar {
 		while (obj->alive_) {
 			int max_idle_period = obj->engine_.GetMaxIdlePeriod();
 			auto now = chrono::steady_clock::now();
-			int time_left = max_idle_period - (now - obj->last_viewed_time_).count() / 1000000;
+			int64_t time_left = max_idle_period - (now - obj->last_viewed_time_).count() / 1000000;
 			if (time_left <= 0) {
 				obj->Disappear();
 				break;

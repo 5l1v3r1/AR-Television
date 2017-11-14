@@ -6,6 +6,9 @@
 ///////////////////////////////////////////////////////////
 #pragma once
 
+#ifndef ERRORCODES_H
+#define ERRORCODES_H
+
 #define AR_SUCCESS			0
 #define AR_FILE_NOT_FOUND	-1
 #define AR_UNINITIALIZED	-2
@@ -14,7 +17,7 @@
 namespace ar {
 	typedef int ERROR_CODE;
 
-	const char* ErrCode2Msg(ERROR_CODE errorCode) {
+	inline const char* ErrCode2Msg(ERROR_CODE errorCode) {
 		switch (errorCode)
 		{
 		case 0:
@@ -30,3 +33,5 @@ namespace ar {
 		}
 	}
 }
+
+#endif // !ERRORCODES_H

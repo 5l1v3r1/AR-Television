@@ -5,6 +5,7 @@
 // Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 ///////////////////////////////////////////////////////////
 #include <ar_engine/AREngine.h>
+#include <opencv2/features2d.hpp>
 
 using namespace std;
 using namespace cv;
@@ -20,6 +21,7 @@ namespace ar {
 	//	and update their estimated 3D locations. Return the camera matrix.
 	Mat AREngine::UpdateInterestPoints(std::vector<cv::Point>& interest_points2d) {
 		// TODO: Match the interest points with the stored ones.
+		auto orb = ORB::create();
 
 		// TODO: Update 3D locations, and simultaneously calculate the camera matrix.
 		return Mat();
@@ -27,6 +29,7 @@ namespace ar {
 
 	ERROR_CODE AREngine::GetMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
 		last_raw_frame_ = raw_scene;
+		cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);
 
 		// TODO: Accumulate the motion data.
 		accumulated_motion_data_.clear();
@@ -42,7 +45,7 @@ namespace ar {
 		// If we have stored too many interest points, we remove the oldest location record
 		// of the interest points, and remove the interest points that are determined not visible anymore.
 		if (interest_points_.size() > MAX_INTEREST_POINTS) {
-			int new_size = interest_points_.size();
+			int new_size = int(interest_points_.size());
 			for (int i = 0; i < new_size; ++i) {
 				interest_points_[i].RemoveOldestLoc();
 				if (interest_points_[i].ToDiscard()) {
@@ -91,7 +94,7 @@ namespace ar {
 	}
 
 	void AREngine::InterestPoint::RemoveOldestLoc() {
-		if (loc2d_seq_.front.has_value())
+		if (loc2d_seq_.front().has_value())
 			--vis_cnt;
 		loc2d_seq_.pop();
 	}
