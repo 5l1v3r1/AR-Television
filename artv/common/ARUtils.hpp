@@ -23,7 +23,7 @@
 
 namespace ar {
 	enum VObjType {
-		SCREEN
+		TV
 	};
 
 	//! Data collected by the motion sensors.

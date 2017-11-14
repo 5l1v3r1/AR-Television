@@ -69,9 +69,7 @@ namespace ar
 		void GenKeypointsDesc(const cv::Mat& frame, 
 							  std::vector<cv::KeyPoint>& keypoints,
 							  cv::Mat& descriptors);
-		std::vector<std::pair<int, int>> MatchKeypoints(const std::vector<cv::KeyPoint>& keypoints1,
-														const cv::Mat& descriptors1,
-														const std::vector<cv::KeyPoint>& keypoints2,
+		std::vector<std::pair<int, int>> MatchKeypoints(const cv::Mat& descriptors1,
 														const cv::Mat& descriptors2);
 	protected:
 		const double RANSAC_THRESH = 2.5f; // RANSAC inlier threshold

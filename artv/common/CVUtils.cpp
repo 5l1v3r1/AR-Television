@@ -51,9 +51,7 @@ namespace ar {
 		detector_->detectAndCompute(frame, noArray(), keypoints, descriptors);
 	}
 
-	std::vector<std::pair<int, int>> InterestPointsTracker::MatchKeypoints(const std::vector<cv::KeyPoint>& keypoints1,
-																		   const cv::Mat& descriptors1,
-																		   const std::vector<cv::KeyPoint>& keypoints2,
+	std::vector<std::pair<int, int>> InterestPointsTracker::MatchKeypoints(const cv::Mat& descriptors1,
 																		   const cv::Mat& descriptors2) {
 		std::vector<std::pair<int, int>> matches;
 		vector<vector<DMatch>> dmatches;

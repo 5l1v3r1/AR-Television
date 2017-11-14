@@ -24,6 +24,31 @@
 #endif
 
 namespace ar {
+	//! The class InterestPoint represents an interest point in the real world.
+	//	It stores the 2D locations of it in some consecutive frames as well as the currently
+	//	estimated 3D location of it in the real world.
+	class ARENGINE_API InterestPoint {
+	public:
+		typedef std::optional<std::pair<cv::KeyPoint, cv::Mat>> Status;
+		InterestPoint();
+		InterestPoint(const cv::KeyPoint& initial_loc,
+					  const cv::Mat& initial_desc);
+		void AddNewStatus(const Status& p);
+		void RemoveEarliestStatus();
+		inline bool ToDiscard() const { return vis_cnt; }
+		inline auto& status_seq() const { return status_seq_; }
+		// The weighted average feature for the interest point.
+		cv::Mat average_desc_;
+		//! The estimated 3D location of the point.
+		cv::Point3d loc3d;
+	private:
+		//! Sequence of statuses (2D locations and descriptors) in the frames.
+		//	The optional does not contain a value if the point is not visible in one frame.
+		std::queue<Status> status_seq_;
+		//! Count the number of frames in which this point is visible.
+		int vis_cnt;
+	};
+
 	class VObject;
 	//!	The class AREngine maintains the information of the percepted real world and
 	//	the living hologram objects. Raw scene images and user operation events should
@@ -45,28 +70,12 @@ namespace ar {
 		cv::Mat last_raw_frame_;
 		cv::Mat last_gray_frame_;
 
-		//! The class InterestPoint represents an interest point in the real world.
-		//	It stores the 2D locations of it in some consecutive frames as well as the currently
-		//	estimated 3D location of it in the real world.
-		class InterestPoint {
-			//! Sequence of 2D location in the frames.
-			//	The optional does not contain a value if the point is not visible in one frame.
-			std::queue<std::optional<cv::KeyPoint>> loc2d_seq_;
-			//! Count the number of frames in which this point is visible.
-			int vis_cnt = 0;
-		public:
-			void AddLatestLoc(std::optional<cv::KeyPoint> p);
-			void RemoveOldestLoc();
-			inline int GetNumLoc() const { return loc2d_seq_.size(); }
-			inline bool ToDiscard() const { return vis_cnt; }
-			inline auto& loc2d_seq() const { return loc2d_seq_; }
-			// The weighted average feature for the interest point.
-			cv::Mat average_desc_;
-			//! The estimated 3D location of the point.
-			cv::Point3d loc3d;
-		};
 		std::vector<InterestPoint> interest_points_;
 		InterestPointsTracker interest_points_tracker_;
+		void UpdateInterestPoints(const cv::Mat& scene);
+		//! If we have stored too many interest points, we remove the oldest location record
+		//	of the interest points, and remove the interest points that are determined not visible anymore.
+		void ReduceInterestPoints();
 
 		//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
 		//	@return the indices of the interest points.

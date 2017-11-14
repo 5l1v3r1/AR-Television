@@ -12,7 +12,7 @@
 
 namespace ar
 {
-	class VScreen : public VObject
+	class VTelevision : public VObject
 	{
 		FrameStream& content_stream_;
 		cv::Point3d base_centroid_;	// Coordinator of the centroid of the TV base in real-world coordinate system.
@@ -20,8 +20,13 @@ namespace ar
 		int width_;					// Width of the TV in real-world coordinate system.
 		int height_;				// Height of the TV in real-world coordinate system.
 	public:
-		VScreen(AREngine& engine, int id, 
-			FrameStream& content_stream, cv::Point3d base_centroid, cv::Vec3d normal, int width, int height);
-		inline virtual VObjType GetType() { return SCREEN; }
+		VTelevision(AREngine& engine,
+					int id,
+					FrameStream& content_stream,
+					const cv::Point3d& base_centroid,
+					const cv::Vec3d& normal,
+					int width,
+					int height);
+		inline virtual VObjType GetType() { return TV; }
 	};
 }

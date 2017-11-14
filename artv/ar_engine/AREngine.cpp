@@ -28,6 +28,67 @@ namespace ar {
 
 	}
 
+	//! If we have stored too many interest points, we remove the oldest location record
+	//	of the interest points, and remove the interest points that are determined not visible anymore.
+	void AREngine::ReduceInterestPoints() {
+		if (interest_points_.size() > MAX_INTEREST_POINTS) {
+			int new_size = int(interest_points_.size());
+			// We only remove points with status sequence length larger than the half of the maximum sequence
+			// length of all interest points. We initialize this as 2, so interest points with only one status
+			// will not be affected.
+			int max_seq_len = 2;
+			for (int i = 0; i < new_size; ++i) {
+				int len = interest_points_[i].status_seq().size();
+				if (len > max_seq_len)
+					max_seq_len = len;
+				if (len > max_seq_len >> 1) {
+					interest_points_[i].RemoveEarliestStatus();
+					if (interest_points_[i].ToDiscard()) {
+						interest_points_[i] = interest_points_[--new_size];
+						--i;
+					}
+				}
+			}
+			interest_points_.resize(new_size);
+		}
+	}
+
+
+	void AREngine::UpdateInterestPoints(const cv::Mat& scene) {
+		// Generate new keypoints.
+		std::vector<cv::KeyPoint> keypoints;
+		cv::Mat descriptors;
+		interest_points_tracker_.GenKeypointsDesc(scene, keypoints, descriptors);
+
+		// Match the new keypoints to the stored keypoints.
+		cv::Mat stored_descriptors;
+		for (int i = 0; i < interest_points_.size(); ++i)
+			vconcat(stored_descriptors, interest_points_[i].average_desc_);
+		auto matches = interest_points_tracker_.MatchKeypoints(descriptors, stored_descriptors);
+
+		// Update the stored keypoints.
+		bool* matched_new = new bool[keypoints.size()];
+		bool* matched_stored = new bool[interest_points_.size()];
+		memset(matched_new, 0, sizeof(bool) * keypoints.size());
+		memset(matched_stored, 0, sizeof(bool) * interest_points_.size());
+		for (auto match : matches) {
+			matched_new[match.first] = true;
+			matched_stored[match.second] = true;
+			interest_points_[match.second].AddNewStatus(InterestPoint::Status({ keypoints[match.first], descriptors.row(match.first) }));
+		}
+		// These interest points are not ever visible in the previous frames.
+		for (int i = 0; i < keypoints.size(); ++i)
+			if (!matched_new[i])
+				interest_points_.push_back(InterestPoint(keypoints[i], descriptors.row(i)));
+		// These interest points are not visible at this frame.
+		for (int i = 0; i < interest_points_.size(); ++i)
+			interest_points_[i].AddNewStatus(InterestPoint::Status());
+		delete[] matched_new;
+		delete[] matched_stored;
+
+		ReduceInterestPoints();
+	}
+
 	ERROR_CODE AREngine::GetMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
 		last_raw_frame_ = raw_scene;
 		cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);
@@ -35,52 +96,13 @@ namespace ar {
 		// TODO: Accumulate the motion data.
 		accumulated_motion_data_.clear();
 
-		// Generate new keypoints.
-		std::vector<cv::KeyPoint> keypoints;
-		cv::Mat descriptors;
-		interest_points_tracker_.GenKeypointsDesc(raw_scene, keypoints, descriptors);
-
-		// Match the new keypoints to the stored keypoints.
-		// TODO: Assemble the currently stored keypoints and average descriptors.
-		std::vector<cv::KeyPoint> stored_keypoints;
-		std::vector<int> corr_indices;
-		stored_keypoints.reserve(interest_points_.size());
-		corr_indices.reserve(interest_points_.size());
-		cv::Mat stored_descriptors;
-		for (int i = 0; i < interest_points_.size(); ++i) {
-			auto loc = interest_points_[i].loc2d_seq().back();
-			if (loc.has_value()) {
-				corr_indices.push_back(i);
-				stored_keypoints.push_back(loc.value());
-				vconcat(stored_descriptors, interest_points_[i].average_desc_);
-			}
-		}
-		auto matches = interest_points_tracker_.MatchKeypoints(keypoints, descriptors, stored_keypoints, stored_descriptors);
-		// TODO: Update the stored keypoints.
-		bool* matched = new bool[keypoints.size()];
-		memset(matched, 0, sizeof(bool) * keypoints.size());
-
-		delete[] matched;
+		UpdateInterestPoints(raw_scene);
 		
 		auto cam_mat = Estimate3DPointsAndCamMatrix();
 
 		mixed_scene = raw_scene;
 		for (auto vobj : virtual_objects_) {
 			// TODO: Draw the virtual object on the mixed_scene.
-		}
-
-		// If we have stored too many interest points, we remove the oldest location record
-		// of the interest points, and remove the interest points that are determined not visible anymore.
-		if (interest_points_.size() > MAX_INTEREST_POINTS) {
-			int new_size = int(interest_points_.size());
-			for (int i = 0; i < new_size; ++i) {
-				interest_points_[i].RemoveOldestLoc();
-				if (interest_points_[i].ToDiscard()) {
-					interest_points_[i] = interest_points_[--new_size];
-					--i;
-				}
-			}
-			interest_points_.resize(new_size);
 		}
 
 		return AR_SUCCESS;
@@ -114,15 +136,33 @@ namespace ar {
 		return AR_SUCCESS;
 	}
 
-	void AREngine::InterestPoint::AddLatestLoc(optional<KeyPoint> p) {
-		loc2d_seq_.push(p);
-		if (p.has_value())
-			++vis_cnt;
+	InterestPoint::InterestPoint(): vis_cnt(0) {}
+
+	InterestPoint::InterestPoint(const KeyPoint& initial_loc,
+								 const cv::Mat& initial_desc): vis_cnt(1) {
+		status_seq_.push(Status({ initial_loc, initial_desc }));
+		average_desc_ = initial_desc;
 	}
 
-	void AREngine::InterestPoint::RemoveOldestLoc() {
-		if (loc2d_seq_.front().has_value())
+	void InterestPoint::AddNewStatus(const Status& p) {
+		status_seq_.push(p);
+		if (p.has_value()) {
+			if (average_desc_.empty())
+				average_desc_ = p.value().second;
+			else
+				average_desc_ = (average_desc_ * vis_cnt + p.value().second) / (vis_cnt + 1);
+			++vis_cnt;
+		}
+	}
+
+	void InterestPoint::RemoveEarliestStatus() {
+		if (status_seq_.front().has_value()) {
 			--vis_cnt;
-		loc2d_seq_.pop();
+			if (vis_cnt)
+				average_desc_ = (average_desc_ * (vis_cnt + 1) - status_seq_.front().value().second) / vis_cnt;
+			else
+				average_desc_ = Mat();
+		}
+		status_seq_.pop();
 	}
 }

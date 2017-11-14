@@ -129,12 +129,12 @@
   <ItemGroup>
     <ClCompile Include="..\AREngine.cpp" />
     <ClCompile Include="..\VObject.cpp" />
-    <ClCompile Include="..\vobjects\VScreen.cpp" />
+    <ClCompile Include="..\vobjects\VTelevision.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\AREngine.h" />
     <ClInclude Include="..\VObject.h" />
-    <ClInclude Include="..\vobjects\VScreen.h" />
+    <ClInclude Include="..\vobjects\VTelevision.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\common\winbuild\common.vcxproj">
