@@ -46,6 +46,7 @@ namespace ar {
 		virtual ~VObject();
 		inline void UpdateViewedTime() { last_viewed_time_ = std::chrono::steady_clock::now(); }
 		void Disappear();
+		virtual void Draw(cv::Mat& scene, const cv::Mat& camera_matrix) = 0;
 		virtual VObjType GetType() = 0;
 	};
 }

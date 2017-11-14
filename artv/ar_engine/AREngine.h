@@ -6,7 +6,7 @@
 ///////////////////////////////////////////////////////////
 #pragma once
 
-#include <common/ARUtils.hpp>
+#include <common/ARUtils.h>
 #include <common/CVUtils.h>
 #include <unordered_map>
 #include <vector>
@@ -70,7 +70,7 @@ namespace ar {
 		cv::Mat last_raw_frame_;
 		cv::Mat last_gray_frame_;
 
-		std::vector<InterestPoint> interest_points_;
+		std::vector<cv::Ptr<InterestPoint>> interest_points_;
 		InterestPointsTracker interest_points_tracker_;
 		void UpdateInterestPoints(const cv::Mat& scene);
 		//! If we have stored too many interest points, we remove the oldest location record

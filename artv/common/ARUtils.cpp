@@ -1,4 +1,4 @@
-#include <common/ARUtils.hpp>
+#include <common/ARUtils.h>
 
 using namespace std;
 using namespace cv;

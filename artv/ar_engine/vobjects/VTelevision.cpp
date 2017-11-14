@@ -12,13 +12,21 @@ namespace ar
 {
 	VTelevision::VTelevision(AREngine& engine,
 							 int id,
-							 FrameStream& content_stream,
-							 const Point3d& base_centroid,
-							 const Vec3d& normal,
-							 int width, int height) :
+							 FrameStream& content_stream) :
 		VObject(engine, id),
-		content_stream_(content_stream), base_centroid_(base_centroid), normal_(normal), width_(width), height_(height)
+		content_stream_(content_stream)
 	{
+		// TODO: Need implementation.
+	}
+
+	void VTelevision::locate(const Ptr<InterestPoint>& left_upper,
+							 const Ptr<InterestPoint>& left_lower,
+							 const Ptr<InterestPoint>& right_upper,
+							 const Ptr<InterestPoint>& right_lower) {
+		// TODO: Need implementation.
+	}
+
+	void VTelevision::Draw(cv::Mat& scene, const cv::Mat& camera_matrix) {
 		// TODO: Need implementation.
 	}
 }

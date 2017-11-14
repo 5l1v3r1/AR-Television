@@ -38,12 +38,12 @@ namespace ar {
 			// will not be affected.
 			int max_seq_len = 2;
 			for (int i = 0; i < new_size; ++i) {
-				int len = interest_points_[i].status_seq().size();
+				int len = interest_points_[i]->status_seq().size();
 				if (len > max_seq_len)
 					max_seq_len = len;
 				if (len > max_seq_len >> 1) {
-					interest_points_[i].RemoveEarliestStatus();
-					if (interest_points_[i].ToDiscard()) {
+					interest_points_[i]->RemoveEarliestStatus();
+					if (interest_points_[i]->ToDiscard()) {
 						interest_points_[i] = interest_points_[--new_size];
 						--i;
 					}
@@ -63,7 +63,7 @@ namespace ar {
 		// Match the new keypoints to the stored keypoints.
 		cv::Mat stored_descriptors;
 		for (int i = 0; i < interest_points_.size(); ++i)
-			vconcat(stored_descriptors, interest_points_[i].average_desc_);
+			vconcat(stored_descriptors, interest_points_[i]->average_desc_);
 		auto matches = interest_points_tracker_.MatchKeypoints(descriptors, stored_descriptors);
 
 		// Update the stored keypoints.
@@ -74,15 +74,15 @@ namespace ar {
 		for (auto match : matches) {
 			matched_new[match.first] = true;
 			matched_stored[match.second] = true;
-			interest_points_[match.second].AddNewStatus(InterestPoint::Status({ keypoints[match.first], descriptors.row(match.first) }));
+			interest_points_[match.second]->AddNewStatus(InterestPoint::Status({ keypoints[match.first], descriptors.row(match.first) }));
 		}
 		// These interest points are not ever visible in the previous frames.
 		for (int i = 0; i < keypoints.size(); ++i)
 			if (!matched_new[i])
-				interest_points_.push_back(InterestPoint(keypoints[i], descriptors.row(i)));
+				interest_points_.push_back(Ptr<InterestPoint>(new InterestPoint(keypoints[i], descriptors.row(i))));
 		// These interest points are not visible at this frame.
 		for (int i = 0; i < interest_points_.size(); ++i)
-			interest_points_[i].AddNewStatus(InterestPoint::Status());
+			interest_points_[i]->AddNewStatus(InterestPoint::Status());
 		delete[] matched_new;
 		delete[] matched_stored;
 

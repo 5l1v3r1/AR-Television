@@ -127,7 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\ARUtils.hpp" />
+    <ClInclude Include="..\ARUtils.h" />
     <ClInclude Include="..\CVUtils.h" />
     <ClInclude Include="..\ErrorCodes.h" />
     <ClInclude Include="..\OSUtils.h" />

@@ -60,10 +60,10 @@ namespace ar
 			int ratio;
 		};
 
-		InterestPointsTracker(cv::Ptr<cv::Feature2D> _detector,
-							  cv::Ptr<cv::DescriptorMatcher>& _matcher) :
-			detector_(_detector),
-			matcher_(_matcher)
+		InterestPointsTracker(cv::Ptr<cv::Feature2D> detector,
+							  cv::Ptr<cv::DescriptorMatcher>& matcher) :
+			detector_(detector),
+			matcher_(matcher)
 		{}
 
 		void GenKeypointsDesc(const cv::Mat& frame, 

@@ -15,18 +15,17 @@ namespace ar
 	class VTelevision : public VObject
 	{
 		FrameStream& content_stream_;
-		cv::Point3d base_centroid_;	// Coordinator of the centroid of the TV base in real-world coordinate system.
-		cv::Vec3d normal_;			// The normal of the TV surface.
-		int width_;					// Width of the TV in real-world coordinate system.
-		int height_;				// Height of the TV in real-world coordinate system.
 	public:
 		VTelevision(AREngine& engine,
 					int id,
-					FrameStream& content_stream,
-					const cv::Point3d& base_centroid,
-					const cv::Vec3d& normal,
-					int width,
-					int height);
+					FrameStream& content_stream);
+
+		void locate(const cv::Ptr<InterestPoint>& left_upper,
+					const cv::Ptr<InterestPoint>& left_lower,
+					const cv::Ptr<InterestPoint>& right_upper,
+					const cv::Ptr<InterestPoint>& right_lower);
+
 		inline virtual VObjType GetType() { return TV; }
+		void Draw(cv::Mat& scene, const cv::Mat& camera_matrix);
 	};
 }
