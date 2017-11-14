@@ -50,9 +50,6 @@ namespace ar
 		ERROR_CODE NextFrame(cv::Mat& outputBuf);
 	};
 
-	//! Detect interest points in an image by DoG.
-	std::vector<cv::Point> COMMON_API DetectInterestPointsDoG(cv::Mat image);
-
 	class COMMON_API InterestPointsTracker
 	{
 	public:
@@ -63,13 +60,19 @@ namespace ar
 			int ratio;
 		};
 
-		InterestPointsTracker(cv::Ptr<cv::Feature2D> _detector, cv::Ptr<cv::DescriptorMatcher> _matcher) :
+		InterestPointsTracker(cv::Ptr<cv::Feature2D> _detector,
+							  cv::Ptr<cv::DescriptorMatcher>& _matcher) :
 			detector_(_detector),
 			matcher_(_matcher)
 		{}
 
-		void GenKeypointsDesc(const cv::Mat& frame, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors);
-		void MatchNewKeypoints(const cv::Mat& frame, cv::Mat& former_desc, std::vector<cv::KeyPoint>& former_kp);
+		void GenKeypointsDesc(const cv::Mat& frame, 
+							  std::vector<cv::KeyPoint>& keypoints,
+							  cv::Mat& descriptors);
+		std::vector<std::pair<int, int>> MatchKeypoints(const std::vector<cv::KeyPoint>& keypoints1,
+														const cv::Mat& descriptors1,
+														const std::vector<cv::KeyPoint>& keypoints2,
+														const cv::Mat& descriptors2);
 	protected:
 		const double RANSAC_THRESH = 2.5f; // RANSAC inlier threshold
 		const double NN_MATCH_RATIO = 0.8f; // Nearest-neighbour matching ratio

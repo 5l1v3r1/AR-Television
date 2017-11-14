@@ -45,33 +45,39 @@ namespace ar {
 		cv::Mat last_raw_frame_;
 		cv::Mat last_gray_frame_;
 
+		//! The class InterestPoint represents an interest point in the real world.
+		//	It stores the 2D locations of it in some consecutive frames as well as the currently
+		//	estimated 3D location of it in the real world.
 		class InterestPoint {
 			//! Sequence of 2D location in the frames.
 			//	The optional does not contain a value if the point is not visible in one frame.
-			std::queue<std::optional<cv::Point>> loc2d_seq_;
+			std::queue<std::optional<cv::KeyPoint>> loc2d_seq_;
 			//! Count the number of frames in which this point is visible.
 			int vis_cnt = 0;
 		public:
-			void AddLatestLoc(std::optional<cv::Point> p);
+			void AddLatestLoc(std::optional<cv::KeyPoint> p);
 			void RemoveOldestLoc();
-			inline bool ToDiscard() { return vis_cnt; }
+			inline int GetNumLoc() const { return loc2d_seq_.size(); }
+			inline bool ToDiscard() const { return vis_cnt; }
 			inline auto& loc2d_seq() const { return loc2d_seq_; }
-			// TODO: Define a feature structure for interest point and declare a member variable
-			// representing the weighted average feature for the interest point.
-
+			// The weighted average feature for the interest point.
+			cv::Mat average_desc_;
 			//! The estimated 3D location of the point.
 			cv::Point3d loc3d;
 		};
 		std::vector<InterestPoint> interest_points_;
+		InterestPointsTracker interest_points_tracker_;
 
 		//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
-		std::vector<cv::Point> FindSurroundingBounder(const cv::Point& point);
+		//	@return the indices of the interest points.
+		std::vector<int> FindSurroundingBounder(const cv::Point& point);
 
 		//! Input the interest points in the current 2D frame, match them with the stored interest points,
 		//	and update their latest locations. Return the camera matrix.
-		cv::Mat UpdateInterestPoints(std::vector<cv::Point>& interest_points2d);
+		cv::Mat Estimate3DPointsAndCamMatrix();
 	public:
 		///////////////////////////////// General methods /////////////////////////////////
+		AREngine();
 		void RemoveVObject(int id) { virtual_objects_.erase(id); }
 		inline int GetMaxIdlePeriod() const { return max_idle_period_; }
 

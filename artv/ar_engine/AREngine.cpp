@@ -12,19 +12,20 @@ using namespace cv;
 
 namespace ar {
 	//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
-	vector<Point> AREngine::FindSurroundingBounder(const cv::Point& point) {
+	//	@return the indices of the interest points.
+	vector<int> AREngine::FindSurroundingBounder(const Point& point) {
 		// TODO: This is only a fake function. Need real implementation.
-		return vector<Point>();
+		return vector<int>();
 	}
 
-	//! Input the interest points in the current 2D frame, match them with the stored interest points,
-	//	and update their estimated 3D locations. Return the camera matrix.
-	Mat AREngine::UpdateInterestPoints(std::vector<cv::Point>& interest_points2d) {
-		// TODO: Match the interest points with the stored ones.
-		auto orb = ORB::create();
-
+	//! Update the estimated 3D locations of the interest points. Return the camera matrix.
+	Mat AREngine::Estimate3DPointsAndCamMatrix() {
 		// TODO: Update 3D locations, and simultaneously calculate the camera matrix.
 		return Mat();
+	}
+
+	AREngine::AREngine() : interest_points_tracker_(ORB::create(), DescriptorMatcher::create("FLANNBASED")) {
+
 	}
 
 	ERROR_CODE AREngine::GetMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
@@ -34,8 +35,34 @@ namespace ar {
 		// TODO: Accumulate the motion data.
 		accumulated_motion_data_.clear();
 
-		auto interest_points2d = DetectInterestPointsDoG(raw_scene);
-		auto cam_mat = UpdateInterestPoints(interest_points2d);
+		// Generate new keypoints.
+		std::vector<cv::KeyPoint> keypoints;
+		cv::Mat descriptors;
+		interest_points_tracker_.GenKeypointsDesc(raw_scene, keypoints, descriptors);
+
+		// Match the new keypoints to the stored keypoints.
+		// TODO: Assemble the currently stored keypoints and average descriptors.
+		std::vector<cv::KeyPoint> stored_keypoints;
+		std::vector<int> corr_indices;
+		stored_keypoints.reserve(interest_points_.size());
+		corr_indices.reserve(interest_points_.size());
+		cv::Mat stored_descriptors;
+		for (int i = 0; i < interest_points_.size(); ++i) {
+			auto loc = interest_points_[i].loc2d_seq().back();
+			if (loc.has_value()) {
+				corr_indices.push_back(i);
+				stored_keypoints.push_back(loc.value());
+				vconcat(stored_descriptors, interest_points_[i].average_desc_);
+			}
+		}
+		auto matches = interest_points_tracker_.MatchKeypoints(keypoints, descriptors, stored_keypoints, stored_descriptors);
+		// TODO: Update the stored keypoints.
+		bool* matched = new bool[keypoints.size()];
+		memset(matched, 0, sizeof(bool) * keypoints.size());
+
+		delete[] matched;
+		
+		auto cam_mat = Estimate3DPointsAndCamMatrix();
 
 		mixed_scene = raw_scene;
 		for (auto vobj : virtual_objects_) {
@@ -87,7 +114,7 @@ namespace ar {
 		return AR_SUCCESS;
 	}
 
-	void AREngine::InterestPoint::AddLatestLoc(optional<Point> p) {
+	void AREngine::InterestPoint::AddLatestLoc(optional<KeyPoint> p) {
 		loc2d_seq_.push(p);
 		if (p.has_value())
 			++vis_cnt;
