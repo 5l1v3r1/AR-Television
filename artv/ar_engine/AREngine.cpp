@@ -106,16 +106,23 @@ namespace ar {
 
 		UpdateInterestPoints(raw_scene);
 
+		// TODO: Estimate the camera matrix.
+		
+		// TODO: Estimate the essential matrix.
+
+		// TODO: Call RecoverRotationAndTranslation to recover rotation and translation.
+
 		if (last_keyframe_.scene.empty()) {
 			last_keyframe_.scene = raw_scene;
 			for (auto ip : interest_points_)
 				last_keyframe_.interest_points.push_back(ip);
 		}
 		else {
-			// TODO: Check whether we need to update the keyframe.
-		}
+			// TODO: Call CalculateRelativeRotationAndTranslation to calculate relative rotation and translation to the last key frame.
 
-		// TODO: Estimate the camera matrix.
+			// TODO: If the translation is greater than some proportion of the depth, update the keyframe.
+
+		}
 
 		mixed_scene = raw_scene;
 		for (auto vobj : virtual_objects_) {

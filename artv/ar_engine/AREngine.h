@@ -67,6 +67,10 @@ namespace ar {
 		struct KeyFrame {
 			cv::Mat scene;
 			std::vector<std::shared_ptr<InterestPoint>> interest_points;
+			//! Rotation relative to the world coordinate.
+			cv::Mat rotation;
+			//! Translation relative to the world coordinate.
+			cv::Mat t;
 		};
 
 		static const int MAX_INTEREST_POINTS = 100;

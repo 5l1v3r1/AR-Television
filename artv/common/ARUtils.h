@@ -35,4 +35,13 @@ namespace ar {
 	cv::Mat COMMON_API RefineFundamentalMatrix(const cv::Mat& fundamentalMatrix,
 		const std::vector<cv::Point2d>& point1,
 		const std::vector<cv::Point2d>& point2);
+
+	//! Recover rotation and translation from an essential matrix.
+	//	This operation produces four posible results, each is a pair of
+	//	rotation matrix and translation vector.
+	std::vector<std::pair<cv::Mat, cv::Mat>> RecoverRotationAndTranslation(const cv::Mat& essential_matrix);
+
+	//! Calculate the relative rotation and translation from camera 1 to camera 2,
+	//	given their own rotations and translations with respect to the world coordinate.
+	std::pair<cv::Mat, cv::Mat> CalculateRelativeRotationAndTranslation(cv::Mat R1, cv::Mat t1, cv::Mat R2, cv::Mat t2);
 }
