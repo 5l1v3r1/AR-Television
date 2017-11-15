@@ -4,28 +4,42 @@
 // Licensed under The MIT License[see LICENSE for details]
 // Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 ///////////////////////////////////////////////////////////
-#include <ar_engine/AREngine.h>
 #include <opencv2/features2d.hpp>
+
+#include <ar_engine/AREngine.h>
+#include <common/OSUtils.h>
 
 using namespace std;
 using namespace cv;
 
 namespace ar {
-	//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
-	//	@return the indices of the interest points.
-	vector<int> AREngine::FindSurroundingBounder(const Point& point) {
-		// TODO: This is only a fake function. Need real implementation.
-		return vector<int>();
+	//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
+	void AREngine::EstimateMap() {
+		// TODO: Need implementation.
 	}
 
-	//! Update the estimated 3D locations of the interest points. Return the camera matrix.
-	Mat AREngine::Estimate3DPointsAndCamMatrix() {
-		// TODO: Update 3D locations, and simultaneously calculate the camera matrix.
-		return Mat();
+	void AREngine::MapEstimationLoop() {
+		++thread_cnt_;
+		while (interest_points_.empty() && !to_terminate_)
+			AR_SLEEP(1);
+		while (!to_terminate_)
+			EstimateMap();
+		--thread_cnt_;
+	}
+
+	void AREngine::CallMapEstimationLoop(AREngine* engine) {
+		engine->MapEstimationLoop();
+	}
+
+	AREngine::~AREngine() {
+		to_terminate_ = true;
+		do {
+			AR_SLEEP(1);
+		} while (thread_cnt_);
 	}
 
 	AREngine::AREngine() : interest_points_tracker_(ORB::create(), DescriptorMatcher::create("FLANNBASED")) {
-
+		mapping_thread_ = thread(AREngine::CallMapEstimationLoop, this);
 	}
 
 	//! If we have stored too many interest points, we remove the oldest location record
@@ -33,16 +47,11 @@ namespace ar {
 	void AREngine::ReduceInterestPoints() {
 		if (interest_points_.size() > MAX_INTEREST_POINTS) {
 			int new_size = int(interest_points_.size());
-			// We only remove points with status sequence length larger than the half of the maximum sequence
-			// length of all interest points. We initialize this as 2, so interest points with only one status
-			// will not be affected.
-			int max_seq_len = 2;
 			for (int i = 0; i < new_size; ++i) {
-				int len = interest_points_[i]->status_seq().size();
-				if (len > max_seq_len)
-					max_seq_len = len;
-				if (len > max_seq_len >> 1) {
-					interest_points_[i]->RemoveEarliestStatus();
+				int len = interest_points_[i]->observation_seq().size();
+				// Interest points being used somewhere else should also remain.
+				if (len > MAX_OBSERVATIONS && interest_points_[i].use_count() <= 1) {
+					interest_points_[i]->RemoveEarlyObservations(len - MAX_OBSERVATIONS);
 					if (interest_points_[i]->ToDiscard()) {
 						interest_points_[i] = interest_points_[--new_size];
 						--i;
@@ -52,7 +61,6 @@ namespace ar {
 			interest_points_.resize(new_size);
 		}
 	}
-
 
 	void AREngine::UpdateInterestPoints(const cv::Mat& scene) {
 		// Generate new keypoints.
@@ -74,15 +82,15 @@ namespace ar {
 		for (auto match : matches) {
 			matched_new[match.first] = true;
 			matched_stored[match.second] = true;
-			interest_points_[match.second]->AddNewStatus(InterestPoint::Status({ keypoints[match.first], descriptors.row(match.first) }));
+			interest_points_[match.second]->AddObservation(InterestPoint::Observation(keypoints[match.first], descriptors.row(match.first)));
 		}
 		// These interest points are not ever visible in the previous frames.
 		for (int i = 0; i < keypoints.size(); ++i)
 			if (!matched_new[i])
-				interest_points_.push_back(Ptr<InterestPoint>(new InterestPoint(keypoints[i], descriptors.row(i))));
+				interest_points_.push_back(shared_ptr<InterestPoint>(new InterestPoint(keypoints[i], descriptors.row(i))));
 		// These interest points are not visible at this frame.
 		for (int i = 0; i < interest_points_.size(); ++i)
-			interest_points_[i]->AddNewStatus(InterestPoint::Status());
+			interest_points_[i]->AddObservation(InterestPoint::Observation());
 		delete[] matched_new;
 		delete[] matched_stored;
 
@@ -97,8 +105,17 @@ namespace ar {
 		accumulated_motion_data_.clear();
 
 		UpdateInterestPoints(raw_scene);
-		
-		auto cam_mat = Estimate3DPointsAndCamMatrix();
+
+		if (last_keyframe_.scene.empty()) {
+			last_keyframe_.scene = raw_scene;
+			for (auto ip : interest_points_)
+				last_keyframe_.interest_points.push_back(ip);
+		}
+		else {
+			// TODO: Check whether we need to update the keyframe.
+		}
+
+		// TODO: Estimate the camera matrix.
 
 		mixed_scene = raw_scene;
 		for (auto vobj : virtual_objects_) {
@@ -106,6 +123,13 @@ namespace ar {
 		}
 
 		return AR_SUCCESS;
+	}
+
+	//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
+	//	@return the indices of the interest points.
+	vector<int> AREngine::FindSurroundingBounder(const Point& point) {
+		// TODO: This is only a fake function. Need real implementation.
+		return vector<int>();
 	}
 
 	ERROR_CODE AREngine::CreateTelevision(cv::Point location, FrameStream& content_stream) {
@@ -140,29 +164,38 @@ namespace ar {
 
 	InterestPoint::InterestPoint(const KeyPoint& initial_loc,
 								 const cv::Mat& initial_desc): vis_cnt(1) {
-		status_seq_.push(Status({ initial_loc, initial_desc }));
+		observation_seq_.push(Observation(initial_loc, initial_desc));
 		average_desc_ = initial_desc;
 	}
 
-	void InterestPoint::AddNewStatus(const Status& p) {
-		status_seq_.push(p);
-		if (p.has_value()) {
+	void InterestPoint::AddObservation(const Observation& p) {
+		observation_seq_.push(p);
+		if (p.visible) {
 			if (average_desc_.empty())
-				average_desc_ = p.value().second;
+				average_desc_ = p.desc;
 			else
-				average_desc_ = (average_desc_ * vis_cnt + p.value().second) / (vis_cnt + 1);
+				average_desc_ = (average_desc_ * vis_cnt + p.desc) / (vis_cnt + 1);
 			++vis_cnt;
 		}
 	}
 
-	void InterestPoint::RemoveEarliestStatus() {
-		if (status_seq_.front().has_value()) {
-			--vis_cnt;
-			if (vis_cnt)
-				average_desc_ = (average_desc_ * (vis_cnt + 1) - status_seq_.front().value().second) / vis_cnt;
-			else
-				average_desc_ = Mat();
+	InterestPoint::Observation::Observation(): visible(false) {}
+
+	InterestPoint::Observation::Observation(const cv::KeyPoint& _pt,
+											const cv::Mat& _desc):
+		pt(_pt), desc(_desc), visible(true) {}
+
+	void InterestPoint::RemoveEarlyObservations(int cnt) {
+		Mat removed_desc_acc;
+		int removed_visible_cnt = 0;
+		for (int i = 0; i < cnt; ++i) {
+			if (observation_seq_.front().visible) {
+				++removed_visible_cnt;
+				removed_desc_acc += observation_seq_.front().desc;
+			}
+			observation_seq_.pop();
 		}
-		status_seq_.pop();
+		average_desc_ = (average_desc_ * vis_cnt - removed_desc_acc) / (vis_cnt - removed_visible_cnt);
+		vis_cnt -= removed_visible_cnt;
 	}
 }

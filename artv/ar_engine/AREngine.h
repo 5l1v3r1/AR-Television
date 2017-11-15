@@ -6,12 +6,12 @@
 ///////////////////////////////////////////////////////////
 #pragma once
 
-#include <common/ARUtils.h>
-#include <common/CVUtils.h>
 #include <unordered_map>
 #include <vector>
 #include <queue>
-#include <optional>
+#include <thread>
+#include <common/ARUtils.h>
+#include <common/CVUtils.h>
 
 #ifdef _WIN32
 #ifdef ARENGINE_EXPORTS
@@ -29,22 +29,28 @@ namespace ar {
 	//	estimated 3D location of it in the real world.
 	class ARENGINE_API InterestPoint {
 	public:
-		typedef std::optional<std::pair<cv::KeyPoint, cv::Mat>> Status;
+		struct Observation {
+			bool visible;
+			cv::KeyPoint pt;
+			cv::Mat desc;
+			Observation();
+			Observation(const cv::KeyPoint& _pt,
+						const cv::Mat& _desc);
+		};
 		InterestPoint();
 		InterestPoint(const cv::KeyPoint& initial_loc,
 					  const cv::Mat& initial_desc);
-		void AddNewStatus(const Status& p);
-		void RemoveEarliestStatus();
+		void AddObservation(const Observation& p);
+		void RemoveEarlyObservations(int cnt = 1);
 		inline bool ToDiscard() const { return vis_cnt; }
-		inline auto& status_seq() const { return status_seq_; }
+		inline auto& observation_seq() const { return observation_seq_; }
 		// The weighted average feature for the interest point.
 		cv::Mat average_desc_;
 		//! The estimated 3D location of the point.
 		cv::Point3d loc3d;
 	private:
-		//! Sequence of statuses (2D locations and descriptors) in the frames.
-		//	The optional does not contain a value if the point is not visible in one frame.
-		std::queue<Status> status_seq_;
+		//! Sequence of observations (2D locations and descriptors) in the frames.
+		std::queue<Observation> observation_seq_;
 		//! Count the number of frames in which this point is visible.
 		int vis_cnt;
 	};
@@ -55,7 +61,16 @@ namespace ar {
 	//	be fed into the engine, and the engine computes the mixed-reality scene with
 	//	holograms projected into the real world.
 	class ARENGINE_API AREngine {
+		bool to_terminate_ = false;
+		int thread_cnt_ = 0;
+
+		struct KeyFrame {
+			cv::Mat scene;
+			std::vector<std::shared_ptr<InterestPoint>> interest_points;
+		};
+
 		static const int MAX_INTEREST_POINTS = 100;
+		static const int MAX_OBSERVATIONS = 100;
 
 		//! For objects in this engine, they should automatically disappear if not viewed
 		//	for this long period (in milliseconds). This period might be dynamically
@@ -70,7 +85,8 @@ namespace ar {
 		cv::Mat last_raw_frame_;
 		cv::Mat last_gray_frame_;
 
-		std::vector<cv::Ptr<InterestPoint>> interest_points_;
+		//! The interest points in recent frames. The observation sequence.
+		std::vector<std::shared_ptr<InterestPoint>> interest_points_;
 		InterestPointsTracker interest_points_tracker_;
 		void UpdateInterestPoints(const cv::Mat& scene);
 		//! If we have stored too many interest points, we remove the oldest location record
@@ -80,13 +96,18 @@ namespace ar {
 		//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
 		//	@return the indices of the interest points.
 		std::vector<int> FindSurroundingBounder(const cv::Point& point);
+		
+		//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
+		void EstimateMap();
+		void MapEstimationLoop();
+		static void CallMapEstimationLoop(AREngine* engine);
 
-		//! Input the interest points in the current 2D frame, match them with the stored interest points,
-		//	and update their latest locations. Return the camera matrix.
-		cv::Mat Estimate3DPointsAndCamMatrix();
+		KeyFrame last_keyframe_;
+		std::thread mapping_thread_;
 	public:
 		///////////////////////////////// General methods /////////////////////////////////
 		AREngine();
+		~AREngine();
 		void RemoveVObject(int id) { virtual_objects_.erase(id); }
 		inline int GetMaxIdlePeriod() const { return max_idle_period_; }
 

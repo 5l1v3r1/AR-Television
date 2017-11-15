@@ -20,10 +20,10 @@ namespace ar
 					int id,
 					FrameStream& content_stream);
 
-		void locate(const cv::Ptr<InterestPoint>& left_upper,
-					const cv::Ptr<InterestPoint>& left_lower,
-					const cv::Ptr<InterestPoint>& right_upper,
-					const cv::Ptr<InterestPoint>& right_lower);
+		void locate(const std::shared_ptr<InterestPoint>& left_upper,
+					const std::shared_ptr<InterestPoint>& left_lower,
+					const std::shared_ptr<InterestPoint>& right_upper,
+					const std::shared_ptr<InterestPoint>& right_lower);
 
 		inline virtual VObjType GetType() { return TV; }
 		void Draw(cv::Mat& scene, const cv::Mat& camera_matrix);

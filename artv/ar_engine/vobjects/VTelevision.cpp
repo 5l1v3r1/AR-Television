@@ -6,6 +6,7 @@
 ///////////////////////////////////////////////////////////
 #include <ar_engine/vobjects/VTelevision.h>
 
+using namespace std;
 using namespace cv;
 
 namespace ar
@@ -19,10 +20,10 @@ namespace ar
 		// TODO: Need implementation.
 	}
 
-	void VTelevision::locate(const Ptr<InterestPoint>& left_upper,
-							 const Ptr<InterestPoint>& left_lower,
-							 const Ptr<InterestPoint>& right_upper,
-							 const Ptr<InterestPoint>& right_lower) {
+	void VTelevision::locate(const shared_ptr<InterestPoint>& left_upper,
+							 const shared_ptr<InterestPoint>& left_lower,
+							 const shared_ptr<InterestPoint>& right_upper,
+							 const shared_ptr<InterestPoint>& right_lower) {
 		// TODO: Need implementation.
 	}
 
