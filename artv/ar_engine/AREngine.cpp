@@ -15,7 +15,7 @@ using namespace cv;
 namespace ar {
 	//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
 	void AREngine::EstimateMap() {
-		// TODO: Need implementation.
+		// TODO: Need implementation. Remember to calculate the average depth!
 	}
 
 	void AREngine::MapEstimationLoop() {
@@ -97,6 +97,14 @@ namespace ar {
 		ReduceInterestPoints();
 	}
 
+	AREngine::Keyframe::Keyframe(Mat _scene,
+								 vector<shared_ptr<InterestPoint>> _interest_points,
+								 Mat _R,
+								 Mat _t,
+								 double _average_depth) :
+		scene(_scene), interest_points(_interest_points), R(_R), t(_t), average_depth(_average_depth) {
+	}
+
 	ERROR_CODE AREngine::GetMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
 		last_raw_frame_ = raw_scene;
 		cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);
@@ -107,21 +115,27 @@ namespace ar {
 		UpdateInterestPoints(raw_scene);
 
 		// TODO: Estimate the camera matrix.
+		// TODO: Estimate the average depth.
+		int average_depth;
 		
 		// TODO: Estimate the essential matrix.
 
-		// TODO: Call RecoverRotationAndTranslation to recover rotation and translation.
+		// TODO: Call RecoverRotAndTranslation to recover rotation and translation.
+		cv::Mat R, t;
 
-		if (last_keyframe_.scene.empty()) {
-			last_keyframe_.scene = raw_scene;
-			for (auto ip : interest_points_)
-				last_keyframe_.interest_points.push_back(ip);
-		}
+		if (recent_keyframes_.empty())
+			recent_keyframes_.push(Keyframe(raw_scene, interest_points_, R, t, average_depth));
 		else {
-			// TODO: Call CalculateRelativeRotationAndTranslation to calculate relative rotation and translation to the last key frame.
-
-			// TODO: If the translation is greater than some proportion of the depth, update the keyframe.
-
+			auto& last_keyframe = recent_keyframes_.back();
+			// Calculate relative rotation and translation to the last key frame.
+			auto Rt = CalRelRotAndTranslation(R, t, last_keyframe.R, last_keyframe.t);
+			// If the translation is greater than some proportion of the depth, update the keyframes.
+			double distance = cv::norm(Rt.second, cv::NormTypes::NORM_L2);
+			if (distance > last_keyframe.average_depth / 5) {
+				recent_keyframes_.push(Keyframe(raw_scene, interest_points_, R, t, average_depth));
+				if (recent_keyframes_.size() > MAX_KEYFRAMES)
+					recent_keyframes_.pop();
+			}
 		}
 
 		mixed_scene = raw_scene;
@@ -140,9 +154,9 @@ namespace ar {
 	}
 
 	ERROR_CODE AREngine::CreateTelevision(cv::Point location, FrameStream& content_stream) {
-		// TODO: This is only a fake function. Need real implementation.
+		// TODO: Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
 
-		// TODO: Find the 
+		// TODO: Create a virtual television, and locate it with respect to these interest points.
 
 		return AR_SUCCESS;
 	}

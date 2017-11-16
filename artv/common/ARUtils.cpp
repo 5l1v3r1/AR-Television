@@ -20,7 +20,7 @@ namespace ar {
 	//! Recover rotation and translation from an essential matrix.
 	//	This operation produces four posible results, each is a 3x4 matrix that combines
 	//	rotation and translation.
-	vector<pair<Mat, Mat>> RecoverRotationAndTranslation(const Mat& essential_matrix) {
+	vector<pair<Mat, Mat>> RecoverRotAndTranslation(const Mat& essential_matrix) {
 		Mat U, W, Vt;
 		auto svd = SVD();
 		svd.compute(essential_matrix, U, W, Vt);
@@ -50,7 +50,7 @@ namespace ar {
 
 	//! Calculate the relative rotation and translation from camera 1 to camera 2,
 	//	given their own rotations and translations with respect to the world coordinate.
-	pair<Mat, Mat> CalculateRelativeRotationAndTranslation(Mat R1, Mat t1, Mat R2, Mat t2) {
+	pair<Mat, Mat> CalRelRotAndTranslation(Mat R1, Mat t1, Mat R2, Mat t2) {
 		return { R1.t() * R2, R1.t() * (t2 - t1) };
 	}
 }

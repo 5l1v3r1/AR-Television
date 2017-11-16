@@ -10,6 +10,7 @@
 #include <vector>
 #include <queue>
 #include <thread>
+#include <mutex>
 #include <common/ARUtils.h>
 #include <common/CVUtils.h>
 
@@ -64,17 +65,24 @@ namespace ar {
 		bool to_terminate_ = false;
 		int thread_cnt_ = 0;
 
-		struct KeyFrame {
+		struct Keyframe {
 			cv::Mat scene;
 			std::vector<std::shared_ptr<InterestPoint>> interest_points;
 			//! Rotation relative to the world coordinate.
-			cv::Mat rotation;
+			cv::Mat R;
 			//! Translation relative to the world coordinate.
 			cv::Mat t;
+			double average_depth;
+			Keyframe(cv::Mat scene,
+					 std::vector<std::shared_ptr<InterestPoint>> interest_points,
+					 cv::Mat R,
+					 cv::Mat t,
+					 double average_depth);
 		};
 
 		static const int MAX_INTEREST_POINTS = 100;
 		static const int MAX_OBSERVATIONS = 100;
+		static const int MAX_KEYFRAMES = 5;
 
 		//! For objects in this engine, they should automatically disappear if not viewed
 		//	for this long period (in milliseconds). This period might be dynamically
@@ -85,9 +93,13 @@ namespace ar {
 		std::unordered_map<int, VObject*> virtual_objects_;
 		std::vector<MotionData> accumulated_motion_data_;
 
-		//! Buffered last frame and feature maps.
+		//! Buffered last frame and estimations.
 		cv::Mat last_raw_frame_;
 		cv::Mat last_gray_frame_;
+		//! Rotation of the camera at the last frame with respect to the world coordinate.
+		cv::Mat last_R_;
+		//! Translation of the camera at the last frame with respect to the world coordinate.
+		cv::Mat last_t_;
 
 		//! The interest points in recent frames. The observation sequence.
 		std::vector<std::shared_ptr<InterestPoint>> interest_points_;
@@ -106,7 +118,7 @@ namespace ar {
 		void MapEstimationLoop();
 		static void CallMapEstimationLoop(AREngine* engine);
 
-		KeyFrame last_keyframe_;
+		std::queue<Keyframe> recent_keyframes_;
 		std::thread mapping_thread_;
 	public:
 		///////////////////////////////// General methods /////////////////////////////////
