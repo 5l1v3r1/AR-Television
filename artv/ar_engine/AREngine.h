@@ -66,14 +66,14 @@ namespace ar {
 		int thread_cnt_ = 0;
 
 		struct Keyframe {
-			cv::Mat scene;
+			cv::Mat intrinsics;
 			std::vector<std::shared_ptr<InterestPoint>> interest_points;
 			//! Rotation relative to the world coordinate.
 			cv::Mat R;
 			//! Translation relative to the world coordinate.
 			cv::Mat t;
 			double average_depth;
-			Keyframe(cv::Mat scene,
+			Keyframe(cv::Mat intrinsics,
 					 std::vector<std::shared_ptr<InterestPoint>> interest_points,
 					 cv::Mat R,
 					 cv::Mat t,
@@ -92,8 +92,8 @@ namespace ar {
 		//	The virtual_objects_ is a map from IDs to virtual object pointers.
 		std::unordered_map<int, VObject*> virtual_objects_;
 		std::vector<MotionData> accumulated_motion_data_;
+		cv::Mat intrinsics_;
 
-		//! Buffered last frame and estimations.
 		cv::Mat last_raw_frame_;
 		cv::Mat last_gray_frame_;
 		//! Rotation of the camera at the last frame with respect to the world coordinate.
@@ -140,6 +140,9 @@ namespace ar {
 		//	and size might be adjusted to fit the new location.
 		ERROR_CODE FixVObj(int id);
 
+		//! Feed a scene but do not get mixed scene. Should at least call this once before calling
+		//	the GetMixedScene.
+		ERROR_CODE FeedScene(const cv::Mat& raw_scene);
 		//! Return a mixed scene with both fixed and floating virtual objects overlaid to
 		//	the raw scene.
 		ERROR_CODE GetMixedScene(const cv::Mat& raw_scene, cv::Mat& mixed_scene);

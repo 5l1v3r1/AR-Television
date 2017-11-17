@@ -11,6 +11,8 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <common/ErrorCodes.h>
+
 #ifdef _WIN32
 #ifdef COMMON_EXPORTS
 #define COMMON_API __declspec(dllexport)
@@ -44,4 +46,10 @@ namespace ar {
 	//! Calculate the relative rotation and translation from camera 1 to camera 2,
 	//	given their own rotations and translations with respect to the world coordinate.
 	std::pair<cv::Mat, cv::Mat> CalRelRotAndTranslation(cv::Mat R1, cv::Mat t1, cv::Mat R2, cv::Mat t2);
+
+	//! Input a series of camera matrices and 2D points. The 2D points are all matched in order to relate to some 3D points.
+	//	Output the estimation of 3D points and estimation error.
+	ERROR_CODE triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>>& camera_matrices_and_2d_points,
+						   cv::Mat& points3d,
+						   int* error = NULL);
 }

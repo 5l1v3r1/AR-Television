@@ -97,46 +97,62 @@ namespace ar {
 		ReduceInterestPoints();
 	}
 
-	AREngine::Keyframe::Keyframe(Mat _scene,
+	AREngine::Keyframe::Keyframe(Mat _intrinsics,
 								 vector<shared_ptr<InterestPoint>> _interest_points,
 								 Mat _R,
 								 Mat _t,
 								 double _average_depth) :
-		scene(_scene), interest_points(_interest_points), R(_R), t(_t), average_depth(_average_depth) {
+		intrinsics(_intrinsics), interest_points(_interest_points), R(_R), t(_t), average_depth(_average_depth) {
 	}
 
-	ERROR_CODE AREngine::GetMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
+	ERROR_CODE AREngine::FeedScene(const Mat& raw_scene) {
 		last_raw_frame_ = raw_scene;
 		cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);
 
-		// TODO: Accumulate the motion data.
-		accumulated_motion_data_.clear();
-
 		UpdateInterestPoints(raw_scene);
 
-		// TODO: Estimate the camera matrix.
-		// TODO: Estimate the average depth.
-		int average_depth;
-		
-		// TODO: Estimate the essential matrix.
-
-		// TODO: Call RecoverRotAndTranslation to recover rotation and translation.
-		cv::Mat R, t;
-
 		if (recent_keyframes_.empty())
-			recent_keyframes_.push(Keyframe(raw_scene, interest_points_, R, t, average_depth));
+			// Initial keyframe.
+			recent_keyframes_.push(Keyframe(intrinsics_,
+											interest_points_,
+											Mat::eye(3, 3, CV_64F),
+											Mat::zeros(3, 1, CV_64F),
+											0));
 		else {
 			auto& last_keyframe = recent_keyframes_.back();
-			// Calculate relative rotation and translation to the last key frame.
-			auto Rt = CalRelRotAndTranslation(R, t, last_keyframe.R, last_keyframe.t);
-			// If the translation is greater than some proportion of the depth, update the keyframes.
-			double distance = cv::norm(Rt.second, cv::NormTypes::NORM_L2);
+
+			// TODO: Estimate the fundamental matrix from the last keyframe.
+			Mat fundamental_matrix;
+
+			// Estimate the essential matrix.
+			Mat essential_matrix = intrinsics_.t() * fundamental_matrix * last_keyframe.intrinsics;
+
+			// TODO: Call RecoverRotAndTranslation to recover rotation and translation.
+			auto candidates = RecoverRotAndTranslation(essential_matrix);
+			Mat R, t;
+
+			// TODO: Estimate the average depth.
+			int average_depth;
+
+			// If the translation from the last keyframe is greater than some proportion of the depth, update the keyframes.
+			double distance = cv::norm(t, cv::NormTypes::NORM_L2);
 			if (distance > last_keyframe.average_depth / 5) {
-				recent_keyframes_.push(Keyframe(raw_scene, interest_points_, R, t, average_depth));
+				recent_keyframes_.push(Keyframe(intrinsics_,
+												interest_points_,
+												last_keyframe.R * R,
+												last_keyframe.t + t,
+												average_depth));
 				if (recent_keyframes_.size() > MAX_KEYFRAMES)
 					recent_keyframes_.pop();
 			}
 		}
+	}
+
+	ERROR_CODE AREngine::GetMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
+		FeedScene(raw_scene);
+
+		// TODO: Accumulate the motion data.
+		accumulated_motion_data_.clear();
 
 		mixed_scene = raw_scene;
 		for (auto vobj : virtual_objects_) {

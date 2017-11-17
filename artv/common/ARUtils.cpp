@@ -53,4 +53,20 @@ namespace ar {
 	pair<Mat, Mat> CalRelRotAndTranslation(Mat R1, Mat t1, Mat R2, Mat t2) {
 		return { R1.t() * R2, R1.t() * (t2 - t1) };
 	}
+
+	//! Input a series of camera matrices and 2D points. The 2D points are all matched in order to relate to some 3D points.
+	//	Output the estimation of 3D points and estimation error.
+	ERROR_CODE triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>>& camera_matrices_and_2d_points,
+						   cv::Mat& points3d,
+						   int* error = NULL) {
+		int num_pts = -1;
+		for (auto& p : camera_matrices_and_2d_points) {
+			if (num_pts < 0)
+				num_pts = p.second.rows;
+			else if (p.second.rows != num_pts)
+				return AR_INVALID_INPUT;
+		}
+
+		// TODO: Estimate the 3D points with all the information.
+	}
 }
