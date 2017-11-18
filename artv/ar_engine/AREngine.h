@@ -37,7 +37,11 @@ namespace ar {
 			Observation();
 			Observation(const cv::KeyPoint& _pt,
 						const cv::Mat& _desc);
+			double l2dist_sqr(const Observation& o) const;
+			double l2dist_sqr(const cv::Point2f& p) const;
 		};
+		inline auto last_observation() const { return observation_seq_.back(); }
+		inline auto last_loc() const { return last_observation().pt.pt; }
 		InterestPoint();
 		InterestPoint(const cv::KeyPoint& initial_loc,
 					  const cv::Mat& initial_desc);
@@ -96,6 +100,7 @@ namespace ar {
 
 		cv::Mat last_raw_frame_;
 		cv::Mat last_gray_frame_;
+		cv::Mat last_canny_map_;
 		//! Rotation of the camera at the last frame with respect to the world coordinate.
 		cv::Mat last_R_;
 		//! Translation of the camera at the last frame with respect to the world coordinate.

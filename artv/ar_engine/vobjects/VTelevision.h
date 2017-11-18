@@ -5,6 +5,10 @@
 // Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 ///////////////////////////////////////////////////////////
 #pragma once
+
+#ifndef VTELEVISION_H
+#define VTELEVISION_H
+
 #include <opencv2/opencv.hpp>
 
 #include <common/CVUtils.h>
@@ -16,6 +20,8 @@ namespace ar
 	{
 		FrameStream& content_stream_;
 	public:
+		static const double MEAN_TV_SIZE_RATE;
+
 		VTelevision(AREngine& engine,
 					int id,
 					FrameStream& content_stream);
@@ -28,4 +34,8 @@ namespace ar
 		inline virtual VObjType GetType() { return TV; }
 		void Draw(cv::Mat& scene, const cv::Mat& camera_matrix);
 	};
+
+	const double VTelevision::MEAN_TV_SIZE_RATE = 0.1;
 }
+
+#endif // !VTELEVISION_H
