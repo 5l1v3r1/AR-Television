@@ -337,8 +337,17 @@ namespace ar {
 	}
 
 	int AREngine::GetTopVObj(int x, int y) const {
-		// TODO: This is only a fake function. Need real implementation.
-		return -1;
+		int highest_level = 0;
+		int top = -1;
+		for (auto vobj : virtual_objects_) {
+			if (vobj.second->IsSelected(Point2f(x, y), frame_id_)) {
+				if (vobj.second->layer_ind_ > highest_level) {
+					top = vobj.first;
+					highest_level = vobj.second->layer_ind_;
+				}
+			}
+		}
+		return top;
 	}
 
 	//!	Drag a virtual object to a location. The virtual object is stripped from the

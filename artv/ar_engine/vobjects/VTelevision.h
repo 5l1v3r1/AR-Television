@@ -19,6 +19,11 @@ namespace ar
 	class VTelevision : public VObject
 	{
 		FrameStream& content_stream_;
+
+		shared_ptr<const InterestPoint> left_upper_;
+		shared_ptr<const InterestPoint> left_lower_;
+		shared_ptr<const InterestPoint> right_upper_;
+		shared_ptr<const InterestPoint> right_lower_;
 	public:
 		static const double MEAN_TV_SIZE_RATE;
 
@@ -26,12 +31,13 @@ namespace ar
 					int id,
 					FrameStream& content_stream);
 
-		void locate(const std::shared_ptr<InterestPoint>& left_upper,
-					const std::shared_ptr<InterestPoint>& left_lower,
-					const std::shared_ptr<InterestPoint>& right_upper,
-					const std::shared_ptr<InterestPoint>& right_lower);
+		void locate(const std::shared_ptr<const InterestPoint>& left_upper,
+					const std::shared_ptr<const InterestPoint>& left_lower,
+					const std::shared_ptr<const InterestPoint>& right_upper,
+					const std::shared_ptr<const InterestPoint>& right_lower);
 
-		inline virtual VObjType GetType() { return TV; }
+		inline VObjType GetType() { return TV; }
+		bool IsSelected(cv::Point2f pt2d, int frame_id);
 		void Draw(cv::Mat& scene, const cv::Mat& camera_matrix);
 	};
 }

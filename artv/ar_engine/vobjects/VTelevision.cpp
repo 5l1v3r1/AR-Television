@@ -16,20 +16,35 @@ namespace ar
 	VTelevision::VTelevision(AREngine& engine,
 							 int id,
 							 FrameStream& content_stream) :
-		VObject(engine, id),
+		VObject(engine, id, INT_MAX),
 		content_stream_(content_stream)
 	{
-		// TODO: Need implementation.
 	}
 
-	void VTelevision::locate(const shared_ptr<InterestPoint>& left_upper,
-							 const shared_ptr<InterestPoint>& left_lower,
-							 const shared_ptr<InterestPoint>& right_upper,
-							 const shared_ptr<InterestPoint>& right_lower) {
-		// TODO: Need implementation.
+	bool VTelevision::IsSelected(Point2f pt2d, int frame_id) {
+		Point2f lu = left_upper_->observation(frame_id).pt.pt;
+		Point2f ll = left_lower_->observation(frame_id).pt.pt;
+		Point2f ru = right_upper_->observation(frame_id).pt.pt;
+		Point2f rl = right_lower_->observation(frame_id).pt.pt;
+
+		return (ru - lu).cross(pt2d - lu) > 0
+			&& (rl - ru).cross(pt2d - ru) > 0
+			&& (ll - rl).cross(pt2d - rl) > 0
+			&& (lu - ll).cross(pt2d - ll) > 0;
+	}
+
+	void VTelevision::locate(const shared_ptr<const InterestPoint>& left_upper,
+							 const shared_ptr<const InterestPoint>& left_lower,
+							 const shared_ptr<const InterestPoint>& right_upper,
+							 const shared_ptr<const InterestPoint>& right_lower) {
+		left_upper_ = left_upper;
+		left_lower_ = left_lower;
+		right_upper_ = right_upper;
+		right_lower_ = right_lower;
 	}
 
 	void VTelevision::Draw(cv::Mat& scene, const cv::Mat& camera_matrix) {
-		// TODO: Need implementation.
+		// TODO: Need implementation. Use the camera matrix to project the television and the
+		// video content on the scene.
 	}
 }

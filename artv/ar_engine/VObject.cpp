@@ -17,7 +17,7 @@ namespace ar {
 
 	}
 
-	VObject::VObject(AREngine& engine, int id): engine_(engine), id_(id) {
+	VObject::VObject(AREngine& engine, int id, int layer_ind): engine_(engine), id_(id), layer_ind_(layer_ind) {
 		UpdateViewedTime();
 		monitor_thread_ = thread(Monitor, this);
 	}

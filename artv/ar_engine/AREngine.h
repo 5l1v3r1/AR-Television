@@ -45,6 +45,7 @@ namespace ar {
 			double l2dist_sqr(const Point2f& p) const;
 		};
 		inline auto& observation(int frame_id) { return observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS]; }
+		inline auto& observation(int frame_id) const { return observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS]; }
 		inline auto& last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
 		inline auto& last_loc() { return last_observation().pt.pt; }
 		InterestPoint(int initial_frame_id);
