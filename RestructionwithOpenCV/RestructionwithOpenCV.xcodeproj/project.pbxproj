@@ -7,18 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		85141EE21FB3990E00BDE133 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141EE11FB3990E00BDE133 /* main.cpp */; };
-		85141F011FB5102800BDE133 /* eightpoint.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141EFF1FB5102800BDE133 /* eightpoint.cpp */; };
-		85141F071FB5108100BDE133 /* rodrigues.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141F051FB5108100BDE133 /* rodrigues.cpp */; };
-		85141F0A1FB510B600BDE133 /* invRodrigues.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141F081FB510B600BDE133 /* invRodrigues.cpp */; };
-		85141F0D1FB510D800BDE133 /* rodriguesResidual.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141F0B1FB510D800BDE133 /* rodriguesResidual.cpp */; };
-		85141F101FB5110600BDE133 /* reconstruction.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141F0E1FB5110600BDE133 /* reconstruction.cpp */; };
-		85141F131FB5115A00BDE133 /* bundleAdjustment.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141F111FB5115A00BDE133 /* bundleAdjustment.cpp */; };
-		85141F1A1FB5245000BDE133 /* epipolarCorrespondence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141F191FB5245000BDE133 /* epipolarCorrespondence.cpp */; };
+		85141F281FB52AA700BDE133 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85141F271FB52AA700BDE133 /* main.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		85141EDC1FB3990E00BDE133 /* CopyFiles */ = {
+		85141F221FB52AA700BDE133 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -30,26 +23,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		85141EDE1FB3990E00BDE133 /* Reconstruction */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Reconstruction; sourceTree = BUILT_PRODUCTS_DIR; };
-		85141EE11FB3990E00BDE133 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
-		85141EE81FB3A12A00BDE133 /* Frame.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Frame.h; sourceTree = "<group>"; };
-		85141EE91FB3CEFE00BDE133 /* utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = utils.h; sourceTree = "<group>"; };
-		85141EFF1FB5102800BDE133 /* eightpoint.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = eightpoint.cpp; sourceTree = "<group>"; };
-		85141F051FB5108100BDE133 /* rodrigues.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rodrigues.cpp; sourceTree = "<group>"; };
-		85141F081FB510B600BDE133 /* invRodrigues.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = invRodrigues.cpp; sourceTree = "<group>"; };
-		85141F0B1FB510D800BDE133 /* rodriguesResidual.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rodriguesResidual.cpp; sourceTree = "<group>"; };
-		85141F0E1FB5110600BDE133 /* reconstruction.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = reconstruction.cpp; sourceTree = "<group>"; };
-		85141F111FB5115A00BDE133 /* bundleAdjustment.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = bundleAdjustment.cpp; sourceTree = "<group>"; };
-		85141F141FB511E200BDE133 /* eightpoint.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = eightpoint.h; sourceTree = "<group>"; };
-		85141F151FB5121F00BDE133 /* rodriguesResidual.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = rodriguesResidual.h; sourceTree = "<group>"; };
-		85141F161FB5128D00BDE133 /* rodrigues.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = rodrigues.h; sourceTree = "<group>"; };
-		85141F171FB512AF00BDE133 /* invRodrigues.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = invRodrigues.h; sourceTree = "<group>"; };
-		85141F181FB51CFD00BDE133 /* bundleAdjustment.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bundleAdjustment.h; sourceTree = "<group>"; };
-		85141F191FB5245000BDE133 /* epipolarCorrespondence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = epipolarCorrespondence.cpp; sourceTree = "<group>"; };
+		85141F241FB52AA700BDE133 /* RestructionwithOpenCV */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = RestructionwithOpenCV; sourceTree = BUILT_PRODUCTS_DIR; };
+		85141F271FB52AA700BDE133 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		85141F2E1FB52F2A00BDE133 /* Frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Frame.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		85141EDB1FB3990E00BDE133 /* Frameworks */ = {
+		85141F211FB52AA700BDE133 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -59,116 +39,96 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		85141ED51FB3990E00BDE133 = {
+		85141F1B1FB52AA700BDE133 = {
 			isa = PBXGroup;
 			children = (
-				85141EE01FB3990E00BDE133 /* Reconstruction */,
-				85141EDF1FB3990E00BDE133 /* Products */,
+				85141F261FB52AA700BDE133 /* RestructionwithOpenCV */,
+				85141F251FB52AA700BDE133 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		85141EDF1FB3990E00BDE133 /* Products */ = {
+		85141F251FB52AA700BDE133 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				85141EDE1FB3990E00BDE133 /* Reconstruction */,
+				85141F241FB52AA700BDE133 /* RestructionwithOpenCV */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		85141EE01FB3990E00BDE133 /* Reconstruction */ = {
+		85141F261FB52AA700BDE133 /* RestructionwithOpenCV */ = {
 			isa = PBXGroup;
 			children = (
-				85141EE11FB3990E00BDE133 /* main.cpp */,
-				85141EE81FB3A12A00BDE133 /* Frame.h */,
-				85141EE91FB3CEFE00BDE133 /* utils.h */,
-				85141EFF1FB5102800BDE133 /* eightpoint.cpp */,
-				85141F051FB5108100BDE133 /* rodrigues.cpp */,
-				85141F081FB510B600BDE133 /* invRodrigues.cpp */,
-				85141F0B1FB510D800BDE133 /* rodriguesResidual.cpp */,
-				85141F0E1FB5110600BDE133 /* reconstruction.cpp */,
-				85141F111FB5115A00BDE133 /* bundleAdjustment.cpp */,
-				85141F141FB511E200BDE133 /* eightpoint.h */,
-				85141F151FB5121F00BDE133 /* rodriguesResidual.h */,
-				85141F161FB5128D00BDE133 /* rodrigues.h */,
-				85141F171FB512AF00BDE133 /* invRodrigues.h */,
-				85141F181FB51CFD00BDE133 /* bundleAdjustment.h */,
-				85141F191FB5245000BDE133 /* epipolarCorrespondence.cpp */,
+				85141F2E1FB52F2A00BDE133 /* Frame.h */,
+				85141F271FB52AA700BDE133 /* main.cpp */,
 			);
-			path = Reconstruction;
+			path = RestructionwithOpenCV;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		85141EDD1FB3990E00BDE133 /* Reconstruction */ = {
+		85141F231FB52AA700BDE133 /* RestructionwithOpenCV */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 85141EE51FB3990E00BDE133 /* Build configuration list for PBXNativeTarget "Reconstruction" */;
+			buildConfigurationList = 85141F2B1FB52AA700BDE133 /* Build configuration list for PBXNativeTarget "RestructionwithOpenCV" */;
 			buildPhases = (
-				85141EDA1FB3990E00BDE133 /* Sources */,
-				85141EDB1FB3990E00BDE133 /* Frameworks */,
-				85141EDC1FB3990E00BDE133 /* CopyFiles */,
+				85141F201FB52AA700BDE133 /* Sources */,
+				85141F211FB52AA700BDE133 /* Frameworks */,
+				85141F221FB52AA700BDE133 /* CopyFiles */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = Reconstruction;
-			productName = Reconstruction;
-			productReference = 85141EDE1FB3990E00BDE133 /* Reconstruction */;
+			name = RestructionwithOpenCV;
+			productName = RestructionwithOpenCV;
+			productReference = 85141F241FB52AA700BDE133 /* RestructionwithOpenCV */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		85141ED61FB3990E00BDE133 /* Project object */ = {
+		85141F1C1FB52AA700BDE133 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastUpgradeCheck = 0910;
 				ORGANIZATIONNAME = "Qiqi Xiao";
 				TargetAttributes = {
-					85141EDD1FB3990E00BDE133 = {
+					85141F231FB52AA700BDE133 = {
 						CreatedOnToolsVersion = 9.1;
 						ProvisioningStyle = Automatic;
 					};
 				};
 			};
-			buildConfigurationList = 85141ED91FB3990E00BDE133 /* Build configuration list for PBXProject "Reconstruction" */;
+			buildConfigurationList = 85141F1F1FB52AA700BDE133 /* Build configuration list for PBXProject "RestructionwithOpenCV" */;
 			compatibilityVersion = "Xcode 8.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 			);
-			mainGroup = 85141ED51FB3990E00BDE133;
-			productRefGroup = 85141EDF1FB3990E00BDE133 /* Products */;
+			mainGroup = 85141F1B1FB52AA700BDE133;
+			productRefGroup = 85141F251FB52AA700BDE133 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				85141EDD1FB3990E00BDE133 /* Reconstruction */,
+				85141F231FB52AA700BDE133 /* RestructionwithOpenCV */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		85141EDA1FB3990E00BDE133 /* Sources */ = {
+		85141F201FB52AA700BDE133 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				85141F0D1FB510D800BDE133 /* rodriguesResidual.cpp in Sources */,
-				85141F1A1FB5245000BDE133 /* epipolarCorrespondence.cpp in Sources */,
-				85141F011FB5102800BDE133 /* eightpoint.cpp in Sources */,
-				85141EE21FB3990E00BDE133 /* main.cpp in Sources */,
-				85141F131FB5115A00BDE133 /* bundleAdjustment.cpp in Sources */,
-				85141F101FB5110600BDE133 /* reconstruction.cpp in Sources */,
-				85141F0A1FB510B600BDE133 /* invRodrigues.cpp in Sources */,
-				85141F071FB5108100BDE133 /* rodrigues.cpp in Sources */,
+				85141F281FB52AA700BDE133 /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		85141EE31FB3990E00BDE133 /* Debug */ = {
+		85141F291FB52AA700BDE133 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -223,7 +183,7 @@
 			};
 			name = Debug;
 		};
-		85141EE41FB3990E00BDE133 /* Release */ = {
+		85141F2A1FB52AA700BDE133 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -271,7 +231,7 @@
 			};
 			name = Release;
 		};
-		85141EE61FB3990E00BDE133 /* Debug */ = {
+		85141F2C1FB52AA700BDE133 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -295,12 +255,13 @@
 					"-lopencv_video",
 					"-lopencv_videoio",
 					"-lopencv_videostab",
+					"-lopencv_sfm",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
 		};
-		85141EE71FB3990E00BDE133 /* Release */ = {
+		85141F2D1FB52AA700BDE133 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -324,6 +285,7 @@
 					"-lopencv_video",
 					"-lopencv_videoio",
 					"-lopencv_videostab",
+					"-lopencv_sfm",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -332,25 +294,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		85141ED91FB3990E00BDE133 /* Build configuration list for PBXProject "Reconstruction" */ = {
+		85141F1F1FB52AA700BDE133 /* Build configuration list for PBXProject "RestructionwithOpenCV" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				85141EE31FB3990E00BDE133 /* Debug */,
-				85141EE41FB3990E00BDE133 /* Release */,
+				85141F291FB52AA700BDE133 /* Debug */,
+				85141F2A1FB52AA700BDE133 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		85141EE51FB3990E00BDE133 /* Build configuration list for PBXNativeTarget "Reconstruction" */ = {
+		85141F2B1FB52AA700BDE133 /* Build configuration list for PBXNativeTarget "RestructionwithOpenCV" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				85141EE61FB3990E00BDE133 /* Debug */,
-				85141EE71FB3990E00BDE133 /* Release */,
+				85141F2C1FB52AA700BDE133 /* Debug */,
+				85141F2D1FB52AA700BDE133 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 85141ED61FB3990E00BDE133 /* Project object */;
+	rootObject = 85141F1C1FB52AA700BDE133 /* Project object */;
 }
