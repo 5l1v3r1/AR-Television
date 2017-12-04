@@ -80,12 +80,23 @@ void RespondMouseAction(int event, int x, int y, int flags, void* p) {
 	}
 }
 
+double test(int N, int n) {
+    vector<std::pair<cv::Mat, cv::Mat>> cameras = generate_data(N, n);
+    cv::Mat& points3d;
+    double error;
+    triangulate(pts, points3d, &error);
+    return error;
+}
+
+
 int main(int argc, char* argv[]) {
 	if (argc < 3) {
 		cout << "Usage: offline_demo [scene_video_path] [tv_show_path]" << endl;
 		AR_PAUSE;
 		return 0;
 	}
+    double error = test(100, 2);
+    cout << error << endl;
 
 	const char* scene_video_path = argv[1];
 	const char* movie_path = argv[2];
