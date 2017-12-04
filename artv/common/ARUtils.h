@@ -51,5 +51,5 @@ namespace ar {
 	//	Output the estimation of 3D points and estimation error.
 	ERROR_CODE COMMON_API triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>>& camera_matrices_and_2d_points,
 									  cv::Mat& points3d,
-									  int* error = NULL);
+									  double* error = NULL);
 }

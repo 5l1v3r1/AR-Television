@@ -44,11 +44,11 @@ namespace ar {
 			double l2dist_sqr(const Observation& o) const;
 			double l2dist_sqr(const Point2f& p) const;
 		};
-		inline auto& observation(int frame_ind) { return observation_seq_[(frame_ind - initial_frame_ind_) % MAX_OBSERVATIONS]; }
+		inline auto& observation(int frame_id) { return observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS]; }
 		inline auto& last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
 		inline auto& last_loc() { return last_observation().pt.pt; }
-		InterestPoint(int initial_frame_ind);
-		InterestPoint(int initial_frame_ind,
+		InterestPoint(int initial_frame_id);
+		InterestPoint(int initial_frame_id,
 					  const KeyPoint& initial_loc,
 					  const Mat& initial_desc);
 		void AddObservation(const Observation& p);
@@ -58,7 +58,7 @@ namespace ar {
 		//! The estimated 3D location of the point.
 		Point3d loc3d_;
 	private:
-		int initial_frame_ind_;
+		int initial_frame_id_;
 		//! Looped queue of observations (2D locations and descriptors) in the frames.
 		Observation observation_seq_[MAX_OBSERVATIONS];
 		int observation_seq_tail_ = -1;
@@ -67,6 +67,7 @@ namespace ar {
 	};
 
 	struct Keyframe {
+		int frame_id = 0;
 		Mat intrinsics;
 		vector<shared_ptr<InterestPoint>> interest_points;
 		//! Rotation relative to the world coordinate.
@@ -74,7 +75,8 @@ namespace ar {
 		//! Translation relative to the world coordinate.
 		Mat t;
 		double average_depth = 0;
-		Keyframe(Mat intrinsics,
+		Keyframe(int frame_id, 
+				 Mat intrinsics,
 				 vector<shared_ptr<InterestPoint>> interest_points,
 				 Mat R,
 				 Mat t,
@@ -129,9 +131,10 @@ namespace ar {
 		void MapEstimationLoop();
 		static void CallMapEstimationLoop(AREngine* engine);
 
-		int frame_ind_ = -1;
+		int frame_id_ = -1;
 		Keyframe recent_keyframes_[MAX_KEYFRAMES];
 		int keyframe_seq_tail_ = -1;
+		void AddKeyframe(Keyframe& keyframe);
 		inline auto& keyframe(int ind) { return recent_keyframes_[keyframe_seq_tail_ % MAX_KEYFRAMES]; }
 		thread mapping_thread_;
 	public:

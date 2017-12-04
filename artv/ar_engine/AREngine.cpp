@@ -85,7 +85,7 @@ namespace ar {
 		for (int i = 0; i < keypoints.size(); ++i)
 			if (!matched_new[i])
 				interest_points_.push_back(shared_ptr<InterestPoint>(
-					new InterestPoint(frame_ind_, keypoints[i], descriptors.row(i))));
+					new InterestPoint(frame_id_, keypoints[i], descriptors.row(i))));
 		// These interest points are not visible at this frame.
 		for (int i = 0; i < interest_points_.size(); ++i)
 			interest_points_[i]->AddObservation(InterestPoint::Observation());
@@ -95,16 +95,26 @@ namespace ar {
 		ReduceInterestPoints();
 	}
 
-	Keyframe::Keyframe(Mat _intrinsics,
+	Keyframe::Keyframe(int _frame_id,
+					   Mat _intrinsics,
 					   vector<shared_ptr<InterestPoint>> _interest_points,
 					   Mat _R,
 					   Mat _t,
 					   double _average_depth) :
-		intrinsics(_intrinsics), interest_points(_interest_points), R(_R), t(_t), average_depth(_average_depth) {
+		frame_id(_frame_id), 
+		intrinsics(_intrinsics), 
+		interest_points(_interest_points),
+		R(_R), t(_t),
+		average_depth(_average_depth) {}
+
+	void AREngine::AddKeyframe(Keyframe& kf) {
+		keyframe(++keyframe_seq_tail_) = kf;
+		if (keyframe_seq_tail_ >= (MAX_KEYFRAMES << 1))
+			keyframe_seq_tail_ -= MAX_KEYFRAMES;
 	}
 
 	ERROR_CODE AREngine::FeedScene(const Mat& raw_scene) {
-		++frame_ind_;
+		++frame_id_;
 
 		last_raw_frame_ = raw_scene;
 		cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);
@@ -113,11 +123,12 @@ namespace ar {
 
 		if (keyframe_seq_tail_ == -1)
 			// Initial keyframe.
-			recent_keyframes_[++keyframe_seq_tail_] = Keyframe(intrinsics_,
-															   interest_points_,
-															   Mat::eye(3, 3, CV_64F),
-															   Mat::zeros(3, 1, CV_64F),
-															   0);
+			AddKeyframe(Keyframe(frame_id_,
+								 intrinsics_,
+								 interest_points_,
+								 Mat::eye(3, 3, CV_64F),
+								 Mat::zeros(3, 1, CV_64F),
+								 0));
 		else {
 			auto& last_keyframe = keyframe(keyframe_seq_tail_);
 
@@ -130,11 +141,72 @@ namespace ar {
 			// Call RecoverRotAndTranslation to recover rotation and translation.
 			auto candidates = RecoverRotAndTranslation(essential_matrix);
 			Mat R, t;
+			Mat pts3d;
 			// TODO: Test for the only valid rotation and translation combination.
-			vector<pair<Mat, Mat>> pts;
-			for (auto M2 : candidates) {
-				auto cam_mat = intrinsics_ * M2;
-				Mat pts3d;
+			{
+				// Utilize at most 2 previous keyframes for bundled estimation.
+				// Find the interest points that are visible in these keyframes.
+				vector<int> utilized_interest_points;
+				utilized_interest_points.reserve(interest_points_.size());
+				for (int i = 0; i < interest_points_.size(); ++i) {
+					bool usable = true;
+					for (int j = 0; j <= max(1, keyframe_seq_tail_); ++j) {
+						int frame_id = keyframe(keyframe_seq_tail_ - j).frame_id;
+						if (!interest_points_[i]->observation(frame_id).visible) {
+							usable = false;
+							break;
+						}
+					}
+					if (usable)
+						utilized_interest_points.push_back(i);
+				}
+				// Fill the data for 3D reconstruction from the previous keyframes.
+				vector<pair<Mat, Mat>> data;
+				for (int i = 0; i < max(1, keyframe_seq_tail_); ++i) {
+					auto& kf = keyframe(keyframe_seq_tail_ - i);
+					int frame_id = kf.frame_id;
+					Mat pts(utilized_interest_points.size(), 2, CV_32F);
+					for (auto ip_id : utilized_interest_points)
+						pts.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id).pt.pt, false);
+					Mat extrinsics;
+					hconcat(kf.R, kf.t, extrinsics);
+					data.push_back(make_pair(kf.intrinsics * extrinsics, pts));
+				}
+				// Fill the data from the current frame.
+				Mat pts(utilized_interest_points.size(), 2, CV_32F);
+				for (auto ip_id : utilized_interest_points)
+					pts.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id_).pt.pt, false);
+				data.push_back(make_pair(Mat(), pts));
+				// Try each candidate of extrinsics.
+				Mat bestM2;
+				double least_error = DBL_MAX;
+				for (int i = 0; i < interest_points_.size(); ++i)
+					if (interest_points_[i]->observation(frame_id_).visible &&
+						interest_points_[i]->observation(frame_id_ - 1).visible &&
+						interest_points_[i]->observation(frame_id_ - 2).visible)
+						for (auto& M2 : candidates) {
+							data.back().first = intrinsics_ * M2;
+							Mat estimated_pts3d;
+							double err;
+							triangulate(data, estimated_pts3d, &err);
+							// These 3D points are valid if they are in front of the camera in the previous keyframes.
+							bool valid = true;
+							for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
+								auto& kf = keyframe(keyframe_seq_tail_ - j);
+								Mat transformed_pts3d = kf.R * estimated_pts3d + kf.t;
+								for (int k = 0; k < transformed_pts3d.rows; ++k)
+									if (transformed_pts3d.at<float>(k, 3) < 0) {
+										valid = false;
+										break;
+									}
+							}
+							if (valid)
+								if (err < least_error) {
+									least_error = err;
+									bestM2 = M2;
+									pts3d = estimated_pts3d;
+								}
+						}
 			}
 
 			// TODO: Estimate the average depth.
@@ -143,11 +215,12 @@ namespace ar {
 			// If the translation from the last keyframe is greater than some proportion of the depth, update the keyframes.
 			double distance = cv::norm(t, cv::NormTypes::NORM_L2);
 			if (distance > last_keyframe.average_depth / 5)
-				keyframe(++keyframe_seq_tail_) = Keyframe(intrinsics_,
-														  interest_points_,
-														  last_keyframe.R * R,
-														  last_keyframe.t + t,
-														  average_depth);
+				AddKeyframe(Keyframe(frame_id_,
+									 intrinsics_,
+									 interest_points_,
+									 last_keyframe.R * R,
+									 last_keyframe.t + t,
+									 average_depth));
 		}
 		return AR_SUCCESS;
 	}
@@ -274,11 +347,11 @@ namespace ar {
 		return AR_SUCCESS;
 	}
 
-	InterestPoint::InterestPoint(int initial_frame_ind): vis_cnt_(0), initial_frame_ind_(initial_frame_ind) {}
+	InterestPoint::InterestPoint(int initial_frame_id): vis_cnt_(0), initial_frame_id_(initial_frame_id) {}
 
-	InterestPoint::InterestPoint(int initial_frame_ind,
+	InterestPoint::InterestPoint(int initial_frame_id,
 								 const KeyPoint& initial_loc,
-								 const cv::Mat& initial_desc): vis_cnt_(1), initial_frame_ind_(initial_frame_ind) {
+								 const cv::Mat& initial_desc): vis_cnt_(1), initial_frame_id_(initial_frame_id) {
 		observation(++observation_seq_tail_) = Observation(initial_loc, initial_desc);
 		average_desc_ = initial_desc;
 	}
@@ -303,6 +376,8 @@ namespace ar {
 			++vis_cnt_;
 		}
 		observation(++observation_seq_tail_) = p;
+		if (observation_seq_tail_ >= (MAX_OBSERVATIONS << 1))
+			observation_seq_tail_ -= MAX_OBSERVATIONS;
 	}
 
 	InterestPoint::Observation::Observation(): visible(false) {}

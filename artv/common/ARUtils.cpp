@@ -63,7 +63,7 @@ namespace ar {
 	//	Output the estimation of 3D points and estimation error.
 	ERROR_CODE triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>>& camera_matrices_and_2d_points,
 						   cv::Mat& points3d,
-						   int* error) {
+						   double* error) {
 		int num_pts = -1;
 		for (auto& p : camera_matrices_and_2d_points) {
 			if (num_pts < 0)
