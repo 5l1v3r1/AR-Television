@@ -14,6 +14,7 @@
 #define AR_UNINITIALIZED	-2
 #define AR_NO_MORE_FRAMES	-3
 #define AR_INVALID_INPUT    -4
+#define AR_UNIMPLEMENTED    -5
 
 namespace ar {
 	typedef int ERROR_CODE;

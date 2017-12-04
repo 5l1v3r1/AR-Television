@@ -15,6 +15,7 @@ using namespace cv;
 
 namespace ar {
 	//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
+	//	Perform bundle adjustment based on the rough estimation of the extrinsics.
 	void AREngine::EstimateMap() {
 		// TODO: Need implementation. Remember to calculate the average depth!
 	}
@@ -142,7 +143,7 @@ namespace ar {
 			auto candidates = RecoverRotAndTranslation(essential_matrix);
 			Mat R, t;
 			Mat pts3d;
-			// TODO: Test for the only valid rotation and translation combination.
+			// Test for the only valid rotation and translation combination.
 			{
 				// Utilize at most 2 previous keyframes for bundled estimation.
 				// Find the interest points that are visible in these keyframes.
@@ -236,17 +237,16 @@ namespace ar {
 
 		mixed_scene = raw_scene;
 		for (auto vobj : virtual_objects_) {
-			// TODO: Draw the virtual object on the mixed_scene.
+			switch (vobj.second->GetType()) {
+			case VObjType::TV:
+				// TODO: Draw the virtual television on the mixed_scene.
+				break;
+			default:
+				return AR_UNIMPLEMENTED;
+			}
 		}
 
 		return AR_SUCCESS;
-	}
-
-	//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
-	//	@return the indices of the interest points.
-	vector<int> AREngine::FindSurroundingBounder(const Point& point) {
-		// TODO: This is only a fake function. Need real implementation.
-		return vector<int>();
 	}
 
 	double InterestPoint::Observation::l2dist_sqr(const Observation& o) const {
@@ -325,7 +325,13 @@ namespace ar {
 			}
 		}
 
-		// TODO: Create a virtual television, and locate it with respect to these interest points.
+		// Create a virtual television, and locate it with respect to these interest points.
+		int id = rand();
+		while (virtual_objects_.count(id))
+			id = rand();
+		auto handle = new VTelevision(*this, id, content_stream);
+		handle->locate(lu_corner, ll_corner, ru_corner, rl_corner);
+		virtual_objects_[id] = handle;
 
 		return AR_SUCCESS;
 	}

@@ -121,10 +121,6 @@ namespace ar {
 		//! If we have stored too many interest points, we remove the oldest location record
 		//	of the interest points, and remove the interest points that are determined not visible anymore.
 		void ReduceInterestPoints();
-
-		//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
-		//	@return the indices of the interest points.
-		vector<int> FindSurroundingBounder(const Point& point);
 		
 		//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
 		void EstimateMap();
