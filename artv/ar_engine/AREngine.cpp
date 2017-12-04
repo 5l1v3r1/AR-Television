@@ -207,10 +207,13 @@ namespace ar {
 									pts3d = estimated_pts3d;
 								}
 						}
+				R = bestM2.colRange(0, 2);
+				t = bestM2.col(3);
 			}
 
-			// TODO: Estimate the average depth.
-			int average_depth = 0;
+			// Estimate the average depth.
+			Mat transformed_pts3d = R * pts3d + t;
+			int average_depth = sum(transformed_pts3d.col(2))[0];
 
 			// If the translation from the last keyframe is greater than some proportion of the depth, update the keyframes.
 			double distance = cv::norm(t, cv::NormTypes::NORM_L2);
