@@ -108,6 +108,10 @@ int main(int argc, char* argv[]) {
 
 	AREngine ar_engine;
 
+	double width = cap.get(VideoCaptureProperties::CAP_PROP_FRAME_WIDTH);
+	double height = cap.get(VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT);
+	VideoWriter recorder("demo.avi", VideoWriter::fourcc('M', 'J', 'P', 'G'), 10, Size(width, height));
+
 	Mat raw_scene, mixed_scene;
 	//Create the windows
 	namedWindow("Origin scene");
@@ -125,8 +129,8 @@ int main(int argc, char* argv[]) {
 		imshow("Origin scene", raw_scene);
 
 		ar_engine.GetMixedScene(raw_scene, mixed_scene);
+		recorder << mixed_scene;
 		imshow("Mixed scene", mixed_scene);
-
 		waitKey(1);
 	}
 

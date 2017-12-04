@@ -25,39 +25,61 @@
 #endif
 
 namespace ar {
+	using namespace std;
+	using namespace cv;
+
 	//! The class InterestPoint represents an interest point in the real world.
 	//	It stores the 2D locations of it in some consecutive frames as well as the currently
 	//	estimated 3D location of it in the real world.
 	class ARENGINE_API InterestPoint {
 	public:
+		static const int MAX_OBSERVATIONS = 100;
 		struct Observation {
 			bool visible;
-			cv::KeyPoint pt;
-			cv::Mat desc;
+			KeyPoint pt;
+			Mat desc;
 			Observation();
-			Observation(const cv::KeyPoint& _pt,
-						const cv::Mat& _desc);
+			Observation(const KeyPoint& _pt,
+						const Mat& _desc);
 			double l2dist_sqr(const Observation& o) const;
-			double l2dist_sqr(const cv::Point2f& p) const;
+			double l2dist_sqr(const Point2f& p) const;
 		};
-		inline auto last_observation() const { return observation_seq_.back(); }
-		inline auto last_loc() const { return last_observation().pt.pt; }
-		InterestPoint();
-		InterestPoint(const cv::KeyPoint& initial_loc,
-					  const cv::Mat& initial_desc);
+		inline auto& observation(int frame_ind) { return observation_seq_[(frame_ind - initial_frame_ind_) % MAX_OBSERVATIONS]; }
+		inline auto& last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
+		inline auto& last_loc() { return last_observation().pt.pt; }
+		InterestPoint(int initial_frame_ind);
+		InterestPoint(int initial_frame_ind,
+					  const KeyPoint& initial_loc,
+					  const Mat& initial_desc);
 		void AddObservation(const Observation& p);
-		void RemoveEarlyObservations(int cnt = 1);
-		inline bool ToDiscard() const { return vis_cnt; }
-		inline auto& observation_seq() const { return observation_seq_; }
-		// The weighted average feature for the interest point.
-		cv::Mat average_desc_;
+		inline bool ToDiscard() const { return vis_cnt_; }
+		//! The weighted average feature for the interest point.
+		Mat average_desc_;
 		//! The estimated 3D location of the point.
-		cv::Point3d loc3d;
+		Point3d loc3d_;
 	private:
-		//! Sequence of observations (2D locations and descriptors) in the frames.
-		std::queue<Observation> observation_seq_;
+		int initial_frame_ind_;
+		//! Looped queue of observations (2D locations and descriptors) in the frames.
+		Observation observation_seq_[MAX_OBSERVATIONS];
+		int observation_seq_tail_ = -1;
 		//! Count the number of frames in which this point is visible.
-		int vis_cnt;
+		int vis_cnt_;
+	};
+
+	struct Keyframe {
+		Mat intrinsics;
+		vector<shared_ptr<InterestPoint>> interest_points;
+		//! Rotation relative to the world coordinate.
+		Mat R;
+		//! Translation relative to the world coordinate.
+		Mat t;
+		double average_depth = 0;
+		Keyframe(Mat intrinsics,
+				 vector<shared_ptr<InterestPoint>> interest_points,
+				 Mat R,
+				 Mat t,
+				 double average_depth);
+		Keyframe() {}
 	};
 
 	class VObject;
@@ -69,23 +91,7 @@ namespace ar {
 		bool to_terminate_ = false;
 		int thread_cnt_ = 0;
 
-		struct Keyframe {
-			cv::Mat intrinsics;
-			std::vector<std::shared_ptr<InterestPoint>> interest_points;
-			//! Rotation relative to the world coordinate.
-			cv::Mat R;
-			//! Translation relative to the world coordinate.
-			cv::Mat t;
-			double average_depth;
-			Keyframe(cv::Mat intrinsics,
-					 std::vector<std::shared_ptr<InterestPoint>> interest_points,
-					 cv::Mat R,
-					 cv::Mat t,
-					 double average_depth);
-		};
-
 		static const int MAX_INTEREST_POINTS = 100;
-		static const int MAX_OBSERVATIONS = 100;
 		static const int MAX_KEYFRAMES = 5;
 
 		//! For objects in this engine, they should automatically disappear if not viewed
@@ -94,37 +100,40 @@ namespace ar {
 		int max_idle_period_;
 		//!	Virtual objects are labeled with random positive integers in the AR engine.
 		//	The virtual_objects_ is a map from IDs to virtual object pointers.
-		std::unordered_map<int, VObject*> virtual_objects_;
-		std::vector<MotionData> accumulated_motion_data_;
-		cv::Mat intrinsics_;
+		unordered_map<int, VObject*> virtual_objects_;
+		vector<MotionData> accumulated_motion_data_;
+		Mat intrinsics_;
 
-		cv::Mat last_raw_frame_;
-		cv::Mat last_gray_frame_;
-		cv::Mat last_canny_map_;
+		Mat last_raw_frame_;
+		Mat last_gray_frame_;
+		Mat last_canny_map_;
 		//! Rotation of the camera at the last frame with respect to the world coordinate.
-		cv::Mat last_R_;
+		Mat last_R_;
 		//! Translation of the camera at the last frame with respect to the world coordinate.
-		cv::Mat last_t_;
+		Mat last_t_;
 
 		//! The interest points in recent frames. The observation sequence.
-		std::vector<std::shared_ptr<InterestPoint>> interest_points_;
+		vector<shared_ptr<InterestPoint>> interest_points_;
 		InterestPointsTracker interest_points_tracker_;
-		void UpdateInterestPoints(const cv::Mat& scene);
+		void UpdateInterestPoints(const Mat& scene);
 		//! If we have stored too many interest points, we remove the oldest location record
 		//	of the interest points, and remove the interest points that are determined not visible anymore.
 		void ReduceInterestPoints();
 
 		//! Find in the current 2D frame the bounder surrounding the surface specified by a given point.
 		//	@return the indices of the interest points.
-		std::vector<int> FindSurroundingBounder(const cv::Point& point);
+		vector<int> FindSurroundingBounder(const Point& point);
 		
 		//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
 		void EstimateMap();
 		void MapEstimationLoop();
 		static void CallMapEstimationLoop(AREngine* engine);
 
-		std::queue<Keyframe> recent_keyframes_;
-		std::thread mapping_thread_;
+		int frame_ind_ = -1;
+		Keyframe recent_keyframes_[MAX_KEYFRAMES];
+		int keyframe_seq_tail_ = -1;
+		inline auto& keyframe(int ind) { return recent_keyframes_[keyframe_seq_tail_ % MAX_KEYFRAMES]; }
+		thread mapping_thread_;
 	public:
 		///////////////////////////////// General methods /////////////////////////////////
 		AREngine();
@@ -147,10 +156,10 @@ namespace ar {
 
 		//! Feed a scene but do not get mixed scene. Should at least call this once before calling
 		//	the GetMixedScene.
-		ERROR_CODE FeedScene(const cv::Mat& raw_scene);
+		ERROR_CODE FeedScene(const Mat& raw_scene);
 		//! Return a mixed scene with both fixed and floating virtual objects overlaid to
 		//	the raw scene.
-		ERROR_CODE GetMixedScene(const cv::Mat& raw_scene, cv::Mat& mixed_scene);
+		ERROR_CODE GetMixedScene(const Mat& raw_scene, Mat& mixed_scene);
 
 		//! Feed the motion data collected by the motion sensors at the moment.
 		//	The data will be accumulated and used on computing the next mixed scene,
@@ -160,6 +169,6 @@ namespace ar {
 
 		///////////////////////// Special object creating methods /////////////////////////
 		//!	Create a screen displaying the content at the location in the last input scene.
-		ERROR_CODE CreateTelevision(cv::Point location, FrameStream& content_stream);
+		ERROR_CODE CreateTelevision(Point location, FrameStream& content_stream);
 	};
 }

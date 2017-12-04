@@ -20,7 +20,7 @@ namespace ar {
 	//! Recover rotation and translation from an essential matrix.
 	//	This operation produces four posible results, each is a 3x4 matrix that combines
 	//	rotation and translation.
-	vector<pair<Mat, Mat>> RecoverRotAndTranslation(const Mat& essential_matrix) {
+	vector<Mat> RecoverRotAndTranslation(const Mat& essential_matrix) {
 		Mat U, W, Vt;
 		auto svd = SVD();
 		svd.compute(essential_matrix, U, W, Vt);
@@ -36,15 +36,20 @@ namespace ar {
 		if (determinant(U * W * Vt) < 0)
 			W = -W;
 
-		vector<pair<Mat, Mat>> res;
+		vector<Mat> res;
 		res.reserve(4);
 		Mat R1 = U * W * Vt;
 		Mat R2 = U * W.t() * Vt;
-		Mat t = t / max({ abs(U.at<double>(2, 0)), abs(U.at<double>(2, 1)), abs(U.at<double>(2, 2)) });
-		res.push_back({ R1, t });
-		res.push_back({ R1, -t });
-		res.push_back({ R2, t });
-		res.push_back({ R2, -t });
+		Mat t = U.col(2) / max({ abs(U.at<double>(2, 0)), abs(U.at<double>(2, 1)), abs(U.at<double>(2, 2)) });
+		Mat candidate;
+		hconcat(R1, t, candidate);
+		res.push_back(candidate);
+		hconcat(R1, -t, candidate);
+		res.push_back(candidate);
+		hconcat(R2, t, candidate);
+		res.push_back(candidate);
+		hconcat(R2, -t, candidate);
+		res.push_back(candidate);
 		return res;
 	}
 
@@ -58,7 +63,7 @@ namespace ar {
 	//	Output the estimation of 3D points and estimation error.
 	ERROR_CODE triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>>& camera_matrices_and_2d_points,
 						   cv::Mat& points3d,
-						   int* error = NULL) {
+						   int* error) {
 		int num_pts = -1;
 		for (auto& p : camera_matrices_and_2d_points) {
 			if (num_pts < 0)

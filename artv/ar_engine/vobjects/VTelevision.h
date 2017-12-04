@@ -34,8 +34,6 @@ namespace ar
 		inline virtual VObjType GetType() { return TV; }
 		void Draw(cv::Mat& scene, const cv::Mat& camera_matrix);
 	};
-
-	const double VTelevision::MEAN_TV_SIZE_RATE = 0.1;
 }
 
 #endif // !VTELEVISION_H

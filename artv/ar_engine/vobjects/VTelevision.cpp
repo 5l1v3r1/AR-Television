@@ -11,6 +11,8 @@ using namespace cv;
 
 namespace ar
 {
+	const double VTelevision::MEAN_TV_SIZE_RATE = 0.1;
+
 	VTelevision::VTelevision(AREngine& engine,
 							 int id,
 							 FrameStream& content_stream) :
