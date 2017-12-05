@@ -75,10 +75,10 @@ namespace ar {
         // TODO: Estimate the 3D points with all the information.
         int N = pts[0].second.rows;
         int n = pts.size();
-        points3d = Mat(N, 3, float);
+        points3d = Mat(N, 3, CV_32F);
         error = 0;
         for (int i = 0; i < N; ++i) {
-            Mat A = Mat(2*n, 4);
+            Mat A = Mat(2*n, 4, CV_32F);
             for (int j = 0; j < n; ++j) {
                 A.row(2*j) = pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2);
                 A.row(2*j+1) = pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2);
@@ -89,31 +89,13 @@ namespace ar {
             Mat p = VT.row(V.cols);
             p = p / p.at<float>(0, 3);
             for (int k = 0; k < n; ++k) {
-                Mat proj = p * pts[k].first.t;
+                Mat proj = p * pts[k].first.t();
                 proj = proj.colRange(0, 2) / proj.at<float>(0, 2);
                 Mat diff = proj - pts[k].second.row(i);
-                error += diff.at<float>(0, 0)*diff.at<float>(0, 0) + diff.at<float>(0, 1) * diff.at<float>(0, 1);
+                *error += diff.at<float>(0, 0)*diff.at<float>(0, 0) + diff.at<float>(0, 1) * diff.at<float>(0, 1);
             }
             points3d.row(i) = p.colRange(0, 3);
         }
         return AR_SUCCESS;
 	}
-    
-    
-    std::vector<std::pair<cv::Mat, cv::Mat>> generate_data(int N, int n) {
-        Mat points3d = Mat(N, 3, double);
-        double low = -500.0;
-        double high = +500.0;
-        randu(mat, Scalar(low), Scalar(high));
-        std::vector<std::pair<cv::Mat, cv::Mat>> pts(n);
-        for (int i = 0; i < n; ++i) {
-            Mat extrinsic = Mat(3, 4, double);
-            Mat pts_2D = extrinsic.colRange(0, 3) * pts + extrinsic.colRange(3, 3);
-            pts[i] = make_pair(extrinsic, pts_2D);
-        }
-        return pts;
-    }
-    
-    
-    
 }

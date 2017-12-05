@@ -10,6 +10,7 @@
 #define AR_PAUSE system("PAUSE")
 #define AR_SLEEP(x) Sleep(x)
 #else
-#define AR_PAUSE getc()
+#include <cstdio>
+#define AR_PAUSE getc(stdin)
 #define AR_SLEEP(x) usleep(x * 1000)
 #endif
