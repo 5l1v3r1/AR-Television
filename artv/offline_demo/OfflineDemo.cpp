@@ -80,12 +80,41 @@ void RespondMouseAction(int event, int x, int y, int flags, void* p) {
 	}
 }
 
+std::vector<std::pair<cv::Mat, cv::Mat>> generate_data(int N, int n) {
+    Mat points3d = Mat(N, 3, CV_32F);
+    double low = -500.0;
+    double high = +500.0;
+    randu(points3d, Scalar(low), Scalar(high));
+    std::vector<std::pair<cv::Mat, cv::Mat>> pts(n);
+    Mat a = Mat::ones(N, 1, CV_32F);
+    for (int i = 0; i < n; ++i) {
+        Mat extrinsic = Mat(3, 4, CV_32F);
+        Mat b;
+        hconcat(points3d, a, b);
+        Mat pts_2D = b * extrinsic.colRange(0, 4).t();
+        pts_2D = pts_2D.colRange(0, 3) / pts_2D.colRange(3, 3);
+        pts[i] = make_pair(extrinsic, pts_2D);
+    }
+    return pts;
+}
+
+double test(int numPoints, int numCam) {
+    cout << "Testing triangulate with " << numPoints << " points and " << numCam << " cameras." << endl;
+    vector<std::pair<cv::Mat, cv::Mat>> cameras = generate_data(numPoints, numCam);
+    cv::Mat points3d;
+    double error;
+    triangulate(cameras, points3d, &error);
+    return error;
+}
+
 int main(int argc, char* argv[]) {
 	if (argc < 3) {
 		cout << "Usage: offline_demo [scene_video_path] [tv_show_path]" << endl;
 		AR_PAUSE;
 		return 0;
 	}
+    double error = test(100, 2);
+    cout << error << endl;
 
 	const char* scene_video_path = argv[1];
 	const char* movie_path = argv[2];
