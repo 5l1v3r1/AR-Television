@@ -9,10 +9,10 @@
 #include <common/CVUtils.h>
 #include <common/ErrorCodes.h>
 
-using timepoint = std::chrono::steady_clock::time_point;
-
 using namespace std;
 using namespace cv;
+
+using timepoint = chrono::steady_clock::time_point;
 
 namespace ar {
 	void RealtimeLocalVideoStream::Restart() {
@@ -35,7 +35,7 @@ namespace ar {
 			return AR_UNINITIALIZED;
 
 		auto now = chrono::steady_clock::now();
-		int dest_frame_ind = (now - start_time_).count() * fps_ / 1000000000;
+		int dest_frame_ind = int((now - start_time_).count() * fps_ / 1000000000);
 		while (frame_cnt_++ < dest_frame_ind)
 			cap_.grab();
 		bool ret = cap_.retrieve(output_buf);
@@ -43,5 +43,22 @@ namespace ar {
 			return AR_NO_MORE_FRAMES;
 		else
 			return AR_SUCCESS;
+	}
+
+	void InterestPointsTracker::GenKeypointsDesc(const Mat& frame,
+												 vector<KeyPoint>& keypoints,
+												 Mat& descriptors) {
+		detector_->detectAndCompute(frame, noArray(), keypoints, descriptors);
+	}
+
+	std::vector<std::pair<int, int>> InterestPointsTracker::MatchKeypoints(const cv::Mat& descriptors1,
+																		   const cv::Mat& descriptors2) {
+		std::vector<std::pair<int, int>> matches;
+		vector<vector<DMatch>> dmatches;
+		matcher_->knnMatch(descriptors1, descriptors2, dmatches, 2);
+		for (unsigned i = 0; i < dmatches.size(); i++)
+			if (dmatches[i][0].distance < NN_MATCH_RATIO * dmatches[i][1].distance)
+				matches.push_back({ dmatches[i][0].queryIdx, dmatches[i][0].trainIdx });
+		return matches;
 	}
 }

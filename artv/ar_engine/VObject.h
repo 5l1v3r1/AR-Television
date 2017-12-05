@@ -42,10 +42,15 @@ namespace ar {
 		TimerKiller monitor_killer_;
 		static void Monitor(VObject* obj);
 	public:
-		VObject(AREngine& engine, int id);
+		//! Layer index for dealing with virtual objects' overlapping.
+		//	INT_MAX means the object is not overlappable.
+		int layer_ind_;
+		VObject(AREngine& engine, int id, int layer_ind);
 		virtual ~VObject();
 		inline void UpdateViewedTime() { last_viewed_time_ = std::chrono::steady_clock::now(); }
 		void Disappear();
+		virtual bool IsSelected(cv::Point2f pt2d, int frame_id) = 0;
+		virtual void Draw(cv::Mat& scene, const cv::Mat& camera_matrix) = 0;
 		virtual VObjType GetType() = 0;
 	};
 }

@@ -21,15 +21,18 @@
     <ClInclude Include="..\ErrorCodes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\ARUtils.hpp">
+    <ClInclude Include="..\OSUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\OSUtils.h">
+    <ClInclude Include="..\ARUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\CVUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ARUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

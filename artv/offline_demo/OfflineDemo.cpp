@@ -16,11 +16,15 @@ using namespace cv;
 using namespace ar;
 
 struct MouseListenerMemory {
+	int holding_obj_id;
 	bool left_down = false;
 	bool middle_down = false;
 	bool right_down = false;
+	// Location of the mouse on pressing down the left button.
 	int ldx, ldy;
+	// Location of the mouse on pressing down the middle button.
 	int mdx, mdy;
+	// Location of the mouse on pressing down the right button.
 	int rdx, rdy;
 	AREngine* ar_engine;
 	FrameStream* tv_show;
@@ -28,24 +32,79 @@ struct MouseListenerMemory {
 
 void RespondMouseAction(int event, int x, int y, int flags, void* p) {
 	MouseListenerMemory* mem = (MouseListenerMemory*)p;
+	auto ar_engine = mem->ar_engine;
 	switch (event) {
 	case EVENT_LBUTTONDOWN:
+		if (!mem->right_down) {
+			mem->left_down = true;
+			mem->ldx = x;
+			mem->ldy = y;
+			mem->holding_obj_id = ar_engine->GetTopVObj(x, y);
+		}
 		break;
 	case EVENT_RBUTTONDOWN:
+		if (!mem->left_down) {
+			mem->right_down = true;
+			mem->rdx = x;
+			mem->rdy = y;
+			mem->holding_obj_id = ar_engine->GetTopVObj(x, y);
+		}
 		break;
 	case EVENT_MBUTTONDOWN:
+		mem->middle_down = true;
+		mem->mdx = x;
+		mem->mdy = y;
 		break;
 	case EVENT_LBUTTONUP:
-		break;
+		if (mem->left_down) {
+			// Place a television here!
+			ar_engine->CreateTelevision(cv::Point(x, y), *mem->tv_show);
+			mem->left_down = false;
+			break;
+		}
 	case EVENT_RBUTTONUP:
+		if (mem->right_down) {
+			if (mem->holding_obj_id != -1)
+				ar_engine->RemoveVObject(mem->holding_obj_id);
+			mem->right_down = false;
+		}
 		break;
 	case EVENT_MBUTTONUP:
 		break;
 	case EVENT_MOUSEMOVE:
+		if (mem->left_down)
+			ar_engine->DragVObj(mem->holding_obj_id, x, y);
 		break;
 	default:
 		break;
 	}
+}
+
+std::vector<std::pair<cv::Mat, cv::Mat>> generate_data(int N, int n) {
+    Mat points3d = Mat(N, 3, CV_32F);
+    double low = -500.0;
+    double high = +500.0;
+    randu(points3d, Scalar(low), Scalar(high));
+    std::vector<std::pair<cv::Mat, cv::Mat>> pts(n);
+    Mat a = Mat::ones(N, 1, CV_32F);
+    for (int i = 0; i < n; ++i) {
+        Mat extrinsic = Mat(3, 4, CV_32F);
+        Mat b;
+        hconcat(points3d, a, b);
+        Mat pts_2D = b * extrinsic.colRange(0, 4).t();
+        pts_2D = pts_2D.colRange(0, 3) / pts_2D.colRange(3, 3);
+        pts[i] = make_pair(extrinsic, pts_2D);
+    }
+    return pts;
+}
+
+double test(int numPoints, int numCam) {
+    cout << "Testing triangulate with " << numPoints << " points and " << numCam << " cameras." << endl;
+    vector<std::pair<cv::Mat, cv::Mat>> cameras = generate_data(numPoints, numCam);
+    cv::Mat points3d;
+    double error;
+    triangulate(cameras, points3d, &error);
+    return error;
 }
 
 int main(int argc, char* argv[]) {
@@ -54,6 +113,8 @@ int main(int argc, char* argv[]) {
 		AR_PAUSE;
 		return 0;
 	}
+    double error = test(100, 2);
+    cout << error << endl;
 
 	const char* scene_video_path = argv[1];
 	const char* movie_path = argv[2];
@@ -76,6 +137,10 @@ int main(int argc, char* argv[]) {
 
 	AREngine ar_engine;
 
+	double width = cap.get(VideoCaptureProperties::CAP_PROP_FRAME_WIDTH);
+	double height = cap.get(VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT);
+	VideoWriter recorder("demo.avi", VideoWriter::fourcc('M', 'J', 'P', 'G'), 10, Size(width, height));
+
 	Mat raw_scene, mixed_scene;
 	//Create the windows
 	namedWindow("Origin scene");
@@ -93,8 +158,8 @@ int main(int argc, char* argv[]) {
 		imshow("Origin scene", raw_scene);
 
 		ar_engine.GetMixedScene(raw_scene, mixed_scene);
+		recorder << mixed_scene;
 		imshow("Mixed scene", mixed_scene);
-
 		waitKey(1);
 	}
 
