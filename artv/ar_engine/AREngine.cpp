@@ -134,8 +134,17 @@ namespace ar {
 			auto& last_keyframe = keyframe(keyframe_seq_tail_);
 
 			// TODO: Estimate the fundamental matrix from the last keyframe.
-			Mat fundamental_matrix;
-
+            vector<Point2f> points1, points2;
+            for (auto ip : interest_points_) {
+                if (ip->observation(last_keyframe.frame_id).visible && ip->observation(frame_id_).visible) {
+                    Point2f loc1 = ip->observation(last_keyframe.frame_id).pt.pt;
+                    Point2f loc2 = ip->observation(frame_id_).pt.pt;
+                    points1.push_back(loc1);
+                    points2.push_back(loc2);
+                }
+            }
+            Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_8POINT);
+            
 			// Estimate the essential matrix.
 			Mat essential_matrix = intrinsics_.t() * fundamental_matrix * last_keyframe.intrinsics;
 
