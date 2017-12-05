@@ -122,15 +122,16 @@ namespace ar {
 
 		UpdateInterestPoints(raw_scene);
 
-		if (keyframe_seq_tail_ == -1)
+        if (keyframe_seq_tail_ == -1) {
 			// Initial keyframe.
-			AddKeyframe(Keyframe(frame_id_,
-								 intrinsics_,
-								 interest_points_,
-								 Mat::eye(3, 3, CV_64F),
-								 Mat::zeros(3, 1, CV_64F),
-								 0));
-		else {
+            auto kf = Keyframe(frame_id_,
+                               intrinsics_,
+                               interest_points_,
+                               Mat::eye(3, 3, CV_64F),
+                               Mat::zeros(3, 1, CV_64F),
+                               0);
+			AddKeyframe(kf);
+        } else {
 			auto& last_keyframe = keyframe(keyframe_seq_tail_);
 
 			// TODO: Estimate the fundamental matrix from the last keyframe.
@@ -218,13 +219,15 @@ namespace ar {
 
 			// If the translation from the last keyframe is greater than some proportion of the depth, update the keyframes.
 			double distance = cv::norm(t, cv::NormTypes::NORM_L2);
-			if (distance > last_keyframe.average_depth / 5)
-				AddKeyframe(Keyframe(frame_id_,
-									 intrinsics_,
-									 interest_points_,
-									 last_keyframe.R * R,
-									 last_keyframe.t + t,
-									 average_depth));
+            if (distance > last_keyframe.average_depth / 5) {
+                auto kf = Keyframe(frame_id_,
+                                   intrinsics_,
+                                   interest_points_,
+                                   last_keyframe.R * R,
+                                   last_keyframe.t + t,
+                                   average_depth);
+				AddKeyframe(kf);
+            }
 		}
 		return AR_SUCCESS;
 	}
