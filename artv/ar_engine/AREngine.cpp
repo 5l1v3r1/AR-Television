@@ -14,6 +14,8 @@ using namespace std;
 using namespace cv;
 
 namespace ar {
+	InterestPoint::Observation EMPTY_OBSERVATION;
+
 	//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
 	//	Perform bundle adjustment based on the rough estimation of the extrinsics.
 	void AREngine::EstimateMap() {
@@ -38,6 +40,16 @@ namespace ar {
 		do {
 			AR_SLEEP(1);
 		} while (thread_cnt_);
+	}
+
+	InterestPoint::Observation& InterestPoint::observation(int frame_id) {
+		return frame_id < initial_frame_id_ ? EMPTY_OBSERVATION :
+			observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS];
+	}
+
+	const InterestPoint::Observation& InterestPoint::observation(int frame_id) const {
+		return frame_id < initial_frame_id_ ? EMPTY_OBSERVATION :
+			observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS];
 	}
 
 	AREngine::AREngine() : interest_points_tracker_(ORB::create(), DescriptorMatcher::create("FLANNBASED")) {
@@ -332,6 +344,8 @@ namespace ar {
 		auto handle = new VTelevision(*this, id, content_stream);
 		handle->locate(lu_corner, ll_corner, ru_corner, rl_corner);
 		virtual_objects_[id] = handle;
+
+		max_idle_period_ = 60000 - virtual_objects_.size();
 
 		return AR_SUCCESS;
 	}
