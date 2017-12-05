@@ -70,7 +70,6 @@ namespace ar {
 	struct Keyframe {
 		int frame_id = 0;
 		Mat intrinsics;
-		vector<shared_ptr<InterestPoint>> interest_points;
 		//! Rotation relative to the world coordinate.
 		Mat R;
 		//! Translation relative to the world coordinate.
@@ -78,7 +77,6 @@ namespace ar {
 		double average_depth = 0;
 		Keyframe(int frame_id, 
 				 Mat intrinsics,
-				 vector<shared_ptr<InterestPoint>> interest_points,
 				 Mat R,
 				 Mat t,
 				 double average_depth);

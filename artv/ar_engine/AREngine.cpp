@@ -110,13 +110,11 @@ namespace ar {
 
 	Keyframe::Keyframe(int _frame_id,
 					   Mat _intrinsics,
-					   vector<shared_ptr<InterestPoint>> _interest_points,
 					   Mat _R,
 					   Mat _t,
 					   double _average_depth) :
 		frame_id(_frame_id), 
-		intrinsics(_intrinsics), 
-		interest_points(_interest_points),
+		intrinsics(_intrinsics),
 		R(_R), t(_t),
 		average_depth(_average_depth) {}
 
@@ -138,7 +136,6 @@ namespace ar {
 			// Initial keyframe.
             auto kf = Keyframe(frame_id_,
                                intrinsics_,
-                               interest_points_,
                                Mat::eye(3, 3, CV_64F),
                                Mat::zeros(3, 1, CV_64F),
                                0);
@@ -234,7 +231,6 @@ namespace ar {
             if (distance > last_keyframe.average_depth / 5) {
                 auto kf = Keyframe(frame_id_,
                                    intrinsics_,
-                                   interest_points_,
                                    last_keyframe.R * R,
                                    last_keyframe.t + t,
                                    average_depth);
