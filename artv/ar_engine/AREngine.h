@@ -97,10 +97,6 @@ namespace ar {
 		static const int MAX_INTEREST_POINTS = 100;
 		static const int MAX_KEYFRAMES = 5;
 
-		//! For objects in this engine, they should automatically disappear if not viewed
-		//	for this long period (in milliseconds). This period might be dynamically
-		//	adjusted according to the number of objects there are in the engine.
-		int max_idle_period_;
 		//!	Virtual objects are labeled with random positive integers in the AR engine.
 		//	The virtual_objects_ is a map from IDs to virtual object pointers.
 		unordered_map<int, VObject*> virtual_objects_;
@@ -139,7 +135,6 @@ namespace ar {
 		AREngine();
 		~AREngine();
 		void RemoveVObject(int id) { virtual_objects_.erase(id); }
-		inline int GetMaxIdlePeriod() const { return max_idle_period_; }
 
 		//! Get the ID of the top virtual object at location (x, y) in the last scene.
 		//	@return ID of the top virtual object. -1 for no object at the location.
