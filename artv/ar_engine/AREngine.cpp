@@ -59,6 +59,8 @@ namespace ar {
 	//! If we have stored too many interest points, we remove the oldest location record
 	//	of the interest points, and remove the interest points that are determined not visible anymore.
 	void AREngine::ReduceInterestPoints() {
+		while (!interest_points_mutex_.try_lock())
+			AR_SLEEP(1);
 		if (interest_points_.size() > MAX_INTEREST_POINTS) {
 			int new_size = int(interest_points_.size());
 			for (int i = 0; i < new_size; ++i) {
@@ -69,6 +71,7 @@ namespace ar {
 			}
 			interest_points_.resize(new_size);
 		}
+		interest_points_mutex_.unlock();
 	}
 
 	void AREngine::UpdateInterestPoints(const cv::Mat& scene) {

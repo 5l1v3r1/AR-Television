@@ -113,8 +113,11 @@ namespace ar {
 		//! Translation of the camera at the last frame with respect to the world coordinate.
 		Mat last_t_;
 
-		//! The interest points in recent frames. The observation sequence.
+		//! Interest points in recent frames.
 		vector<shared_ptr<InterestPoint>> interest_points_;
+		//! The vector of interest points are protected by mutex in case of concurrent reading
+		//	and writing across different threads.
+		mutex interest_points_mutex_;
 		InterestPointsTracker interest_points_tracker_;
 		void UpdateInterestPoints(const Mat& scene);
 		//! If we have stored too many interest points, we remove the oldest location record
