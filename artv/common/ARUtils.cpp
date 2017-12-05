@@ -76,13 +76,17 @@ namespace ar {
         int N = pts[0].second.rows;
         int n = pts.size();
         points3d = Mat(N, 3, CV_32F);
-        error = 0;
+        *error = 0;
+        cout << "Estimating 3D Points" << endl;
+        
         for (int i = 0; i < N; ++i) {
             Mat A = Mat(2*n, 4, CV_32F);
+//            cout << pts[0].first << endl;
             for (int j = 0; j < n; ++j) {
                 A.row(2*j) = pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2);
                 A.row(2*j+1) = pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2);
             }
+//            cout << A << endl;
             Mat U, W, VT, V;
             SVD svd;
             svd.compute(A, W, U, VT);
@@ -90,9 +94,10 @@ namespace ar {
             p = p / p.at<float>(0, 3);
             for (int k = 0; k < n; ++k) {
                 Mat proj = p * pts[k].first.t();
-                proj = proj.colRange(0, 2) / proj.at<float>(0, 2);
+                proj = proj.colRange(0, 2) / proj.colRange(2, 2);
                 Mat diff = proj - pts[k].second.row(i);
-                *error += diff.at<float>(0, 0)*diff.at<float>(0, 0) + diff.at<float>(0, 1) * diff.at<float>(0, 1);
+                double err = diff.at<float>(0, 0) * diff.at<float>(0, 0) + diff.at<float>(0, 1) * diff.at<float>(0, 1);
+                *error += err;
             }
             points3d.row(i) = p.colRange(0, 3);
         }
