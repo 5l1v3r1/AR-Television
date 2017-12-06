@@ -54,6 +54,10 @@ namespace ar {
 
 	AREngine::AREngine() : interest_points_tracker_(ORB::create(), DescriptorMatcher::create("FLANNBASED")) {
 		mapping_thread_ = thread(AREngine::CallMapEstimationLoop, this);
+
+		float default_intrinsics[][3] = { { 1071.8, 0, 639.5 },{ 0, 1071.8, 359.5 },{ 0, 0, 1 } };
+		intrinsics_ = Mat(3, 3, CV_32F);
+		memcpy(intrinsics_.data, default_intrinsics, sizeof(float) * 3 * 3);
 	}
 
 	//! If we have stored too many interest points, we remove the oldest location record
