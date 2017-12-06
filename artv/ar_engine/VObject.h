@@ -8,6 +8,7 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 
 #include <ar_engine/AREngine.h>
 
