@@ -94,7 +94,7 @@ namespace ar {
     }
 
     AREngine::AREngine() : interest_points_tracker_(ORB::create(),
-                                                    DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE)) {
+                                                    new BFMatcher(NORM_HAMMING)) {
         mapping_thread_ = thread(AREngine::CallMapEstimationLoop, this);
 
         float default_intrinsics[][3] = {{1071.8, 0,      639.5},
@@ -120,6 +120,8 @@ namespace ar {
             interest_points_.resize(new_size);
         }
         interest_points_mutex_.unlock();
+
+        cout << "Currently there are " << interest_points_.size() << " points." << endl;
     }
 
     void AREngine::UpdateInterestPoints(const Mat &scene) {
@@ -257,8 +259,12 @@ namespace ar {
                     int frame_id = kf.frame_id;
                     Mat pts(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
                     int cnt = 0;
-                    for (auto ip_id : utilized_interest_points)
-                        pts.row(cnt++) = Mat(interest_points_[ip_id]->observation(frame_id).pt.pt, false);
+                    for (auto ip_id : utilized_interest_points) {
+                        auto *dest = reinterpret_cast<float *>(pts.ptr(cnt++));
+                        auto &pt = interest_points_[ip_id]->observation(frame_id).pt.pt;
+                        dest[0] = pt.x;
+                        dest[1] = pt.y;
+                    }
                     Mat extrinsics;
                     hconcat(kf.R, kf.t, extrinsics);
                     data.emplace_back(kf.intrinsics * extrinsics, pts);
@@ -266,8 +272,12 @@ namespace ar {
                 // Fill the data from the current frame.
                 Mat pts(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
                 int cnt = 0;
-                for (auto ip_id : utilized_interest_points)
-                    pts.row(cnt++) = Mat(interest_points_[ip_id]->observation(frame_id_).pt.pt, false);
+                for (auto ip_id : utilized_interest_points) {
+                    auto *dest = reinterpret_cast<float *>(pts.ptr(cnt++));
+                    auto &pt = interest_points_[ip_id]->observation(frame_id_).pt.pt;
+                    dest[0] = pt.x;
+                    dest[1] = pt.y;
+                }
                 data.emplace_back(Mat(), pts);
                 // Try each candidate of extrinsics.
                 Mat bestM2;
@@ -308,7 +318,7 @@ namespace ar {
             // Estimate the average depth.
             Mat T = Mat(pts3d.rows, 3, CV_32F);
             for (int k = 0; k < pts3d.rows; ++k)
-                Mat(t.t()).copyTo(T.row(k));
+                ((Mat)t.t()).copyTo(T.row(k));
             Mat transformed_pts3d = pts3d * R.t() + T;
             double average_depth = sum(transformed_pts3d.col(2))[0];
 
