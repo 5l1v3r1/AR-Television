@@ -6,6 +6,9 @@
 # Test data
 **/*.avi
 
+# System files
+**/.DS_Store
+
 # User-specific files
 *.suo
 *.user
