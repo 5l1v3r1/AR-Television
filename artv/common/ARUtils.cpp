@@ -46,11 +46,11 @@ namespace ar {
 
 		Mat candidate;
 		hconcat(R1, t, candidate);
-		res.push_back(candidate);
+		res.push_back(candidate.clone());
 		hconcat(R1, -t, candidate);
-		res.push_back(candidate);
+		res.push_back(candidate.clone());
 		hconcat(R2, t, candidate);
-		res.push_back(candidate);
+		res.push_back(candidate.clone());
 		hconcat(R2, -t, candidate);
 		res.push_back(candidate);
 		return res;
@@ -79,17 +79,13 @@ namespace ar {
         int N = pts[0].second.rows;
         int n = pts.size();
         points3d = Mat(N, 3, CV_32F);
-        *error = 0;
-        cout << "Estimating 3D Points" << endl;
         
         for (int i = 0; i < N; ++i) {
             Mat A = Mat(2*n, 4, CV_32F);
-//            cout << pts[0].first << endl;
             for (int j = 0; j < n; ++j) {
                 Mat(pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2)).copyTo(A.row(2 * j));
                 Mat(pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2)).copyTo(A.row(2 * j + 1));
             }
-//            cout << A << endl;
             Mat U, W, VT, V;
             SVD svd;
             svd.compute(A, W, U, VT);

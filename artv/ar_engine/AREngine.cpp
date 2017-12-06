@@ -63,7 +63,7 @@ namespace ar {
 			AR_SLEEP(1);
         int last_keyframe_ind = keyframe_seq_tail_;
         while (!to_terminate_) {
-			EstimateMap();
+//            EstimateMap();
             while (!to_terminate_ && last_keyframe_ind == keyframe_seq_tail_)
                 AR_SLEEP(1);
         }
@@ -156,13 +156,14 @@ namespace ar {
 		}
 
 		// These interest points are not ever visible in the previous frames.
+        int cnt = 0;
         for (int i = 0; i < keypoints.size(); ++i) {
-            cout << i << ' ' << matched_new[i] << endl;
             if (!matched_new[i]) {
                 interest_points_.push_back(shared_ptr<InterestPoint>(new InterestPoint(frame_id_, keypoints[i], descriptors.row(i))));
+                ++cnt;
             }
         }
-
+        cout << "There are " << cnt << " Points Added!" << endl;
 		delete[] matched_new;
 		delete[] matched_stored;
 
@@ -230,6 +231,7 @@ namespace ar {
 				// Find the interest points that are visible in these keyframes.
 				vector<int> utilized_interest_points;
 				utilized_interest_points.reserve(interest_points_.size());
+                cout << "There are " << interest_points_.size() << " Interesting Points!" << endl;
 				for (int i = 0; i < interest_points_.size(); ++i) {
 					bool usable = true;
 					for (int j = 0; j <= max(1, keyframe_seq_tail_); ++j) {
@@ -262,39 +264,44 @@ namespace ar {
 				// Try each candidate of extrinsics.
 				Mat bestM2;
 				double least_error = DBL_MAX;
-				for (int i = 0; i < interest_points_.size(); ++i)
-					if (interest_points_[i]->observation(frame_id_).visible &&
-						interest_points_[i]->observation(frame_id_ - 1).visible &&
-						interest_points_[i]->observation(frame_id_ - 2).visible)
-						for (auto& M2 : candidates) {
-							data.back().first = intrinsics_ * M2;
-							Mat estimated_pts3d;
-							double err;
-							triangulate(data, estimated_pts3d, &err);
-							// These 3D points are valid if they are in front of the camera in the previous keyframes.
-							bool valid = true;
-							for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
-								auto& kf = keyframe(keyframe_seq_tail_ - j);
-								Mat transformed_pts3d = estimated_pts3d * kf.R.t() + kf.t.t();
-								for (int k = 0; k < transformed_pts3d.rows; ++k)
-									if (transformed_pts3d.at<float>(k, 3) < 0) {
-										valid = false;
-										break;
-									}
-							}
-							if (valid)
-								if (err < least_error) {
-									least_error = err;
-									bestM2 = M2;
-									pts3d = estimated_pts3d;
-								}
-						}
-				R = bestM2.colRange(0, 2);
+                for (auto& M2 : candidates) {
+                    cout << M2 << endl;
+                    data.back().first = intrinsics_ * M2;
+                    Mat estimated_pts3d;
+                    double err = 0;
+                    triangulate(data, estimated_pts3d, &err);
+                    // These 3D points are valid if they are in front of the camera in the previous keyframes.
+                    bool valid = true;
+                    for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
+                        auto& kf = keyframe(keyframe_seq_tail_ - j);
+                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+                        for (int k = 0; k < estimated_pts3d.rows; ++k)
+                            T.row(k) = kf.t.t();
+                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
+                        for (int k = 0; k < transformed_pts3d.rows; ++k)
+                            if (transformed_pts3d.at<float>(k, 3) < 0) {
+                                valid = false;
+                                break;
+                            }
+                    }
+                    if (valid) {
+                        if (err < least_error) {
+                            least_error = err;
+                            bestM2 = M2;
+                            pts3d = estimated_pts3d;
+                        }
+                    }
+                    cout << err << endl;
+                }
+				R = bestM2.colRange(0, 3);
 				t = bestM2.col(3);
 			}
 
 			// Estimate the average depth.
-			Mat transformed_pts3d = R * pts3d + t;
+            Mat T = Mat(pts3d.rows, 3, CV_32F);
+            for (int k = 0; k < pts3d.rows; ++k)
+                T.row(k) = t.t();
+			Mat transformed_pts3d = pts3d * R.t() + T;
 			int average_depth = sum(transformed_pts3d.col(2))[0];
 
 			// If the translation from the last keyframe is greater than some proportion of the depth, update the keyframes.

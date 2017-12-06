@@ -112,8 +112,8 @@ double test(int numPoints, int numCam) {
 
 int main(int argc, char* argv[]) {
     
-    double error = test(100, 2);
-    cout << error << endl;
+//    double error = test(100, 2);
+//    cout << error << endl;
     
     if (argc < 3) {
         cout << "Usage: offline_demo [scene_video_path] [tv_show_path]" << endl;
