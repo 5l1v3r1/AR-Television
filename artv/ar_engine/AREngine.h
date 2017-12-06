@@ -44,8 +44,8 @@ namespace ar {
 			double l2dist_sqr(const Observation& o) const;
 			double l2dist_sqr(const Point2f& p) const;
 		};
-		inline auto& observation(int frame_id) { return observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS]; }
-		inline auto& observation(int frame_id) const { return observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS]; }
+		InterestPoint::Observation& observation(int frame_id);
+		const InterestPoint::Observation& observation(int frame_id) const;
 		inline auto& last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
 		inline auto& last_loc() { return last_observation().pt.pt; }
 		InterestPoint(int initial_frame_id);
@@ -70,7 +70,6 @@ namespace ar {
 	struct Keyframe {
 		int frame_id = 0;
 		Mat intrinsics;
-		vector<shared_ptr<InterestPoint>> interest_points;
 		//! Rotation relative to the world coordinate.
 		Mat R;
 		//! Translation relative to the world coordinate.
@@ -78,7 +77,6 @@ namespace ar {
 		double average_depth = 0;
 		Keyframe(int frame_id, 
 				 Mat intrinsics,
-				 vector<shared_ptr<InterestPoint>> interest_points,
 				 Mat R,
 				 Mat t,
 				 double average_depth);
@@ -115,8 +113,11 @@ namespace ar {
 		//! Translation of the camera at the last frame with respect to the world coordinate.
 		Mat last_t_;
 
-		//! The interest points in recent frames. The observation sequence.
+		//! Interest points in recent frames.
 		vector<shared_ptr<InterestPoint>> interest_points_;
+		//! The vector of interest points are protected by mutex in case of concurrent reading
+		//	and writing across different threads.
+		mutex interest_points_mutex_;
 		InterestPointsTracker interest_points_tracker_;
 		void UpdateInterestPoints(const Mat& scene);
 		//! If we have stored too many interest points, we remove the oldest location record

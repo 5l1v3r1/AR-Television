@@ -61,7 +61,7 @@ namespace ar
 		};
 
 		InterestPointsTracker(cv::Ptr<cv::Feature2D> detector,
-							  cv::Ptr<cv::DescriptorMatcher>& matcher) :
+							  cv::Ptr<cv::DescriptorMatcher> matcher) :
 			detector_(detector),
 			matcher_(matcher)
 		{}

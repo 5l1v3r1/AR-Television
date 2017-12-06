@@ -14,6 +14,8 @@ using namespace std;
 using namespace cv;
 
 namespace ar {
+	InterestPoint::Observation EMPTY_OBSERVATION;
+
 	//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
 	//	Perform bundle adjustment based on the rough estimation of the extrinsics.
 	void AREngine::EstimateMap() {
@@ -40,6 +42,16 @@ namespace ar {
 		} while (thread_cnt_);
 	}
 
+	InterestPoint::Observation& InterestPoint::observation(int frame_id) {
+		return frame_id < initial_frame_id_ ? EMPTY_OBSERVATION :
+			observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS];
+	}
+
+	const InterestPoint::Observation& InterestPoint::observation(int frame_id) const {
+		return frame_id < initial_frame_id_ ? EMPTY_OBSERVATION :
+			observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS];
+	}
+
 	AREngine::AREngine() : interest_points_tracker_(ORB::create(), DescriptorMatcher::create("FLANNBASED")) {
 		mapping_thread_ = thread(AREngine::CallMapEstimationLoop, this);
 	}
@@ -47,6 +59,8 @@ namespace ar {
 	//! If we have stored too many interest points, we remove the oldest location record
 	//	of the interest points, and remove the interest points that are determined not visible anymore.
 	void AREngine::ReduceInterestPoints() {
+		while (!interest_points_mutex_.try_lock())
+			AR_SLEEP(1);
 		if (interest_points_.size() > MAX_INTEREST_POINTS) {
 			int new_size = int(interest_points_.size());
 			for (int i = 0; i < new_size; ++i) {
@@ -57,6 +71,7 @@ namespace ar {
 			}
 			interest_points_.resize(new_size);
 		}
+		interest_points_mutex_.unlock();
 	}
 
 	void AREngine::UpdateInterestPoints(const cv::Mat& scene) {
@@ -98,13 +113,11 @@ namespace ar {
 
 	Keyframe::Keyframe(int _frame_id,
 					   Mat _intrinsics,
-					   vector<shared_ptr<InterestPoint>> _interest_points,
 					   Mat _R,
 					   Mat _t,
 					   double _average_depth) :
 		frame_id(_frame_id), 
-		intrinsics(_intrinsics), 
-		interest_points(_interest_points),
+		intrinsics(_intrinsics),
 		R(_R), t(_t),
 		average_depth(_average_depth) {}
 
@@ -122,20 +135,29 @@ namespace ar {
 
 		UpdateInterestPoints(raw_scene);
 
-		if (keyframe_seq_tail_ == -1)
+        if (keyframe_seq_tail_ == -1) {
 			// Initial keyframe.
-			AddKeyframe(Keyframe(frame_id_,
-								 intrinsics_,
-								 interest_points_,
-								 Mat::eye(3, 3, CV_64F),
-								 Mat::zeros(3, 1, CV_64F),
-								 0));
-		else {
+            auto kf = Keyframe(frame_id_,
+                               intrinsics_,
+                               Mat::eye(3, 3, CV_64F),
+                               Mat::zeros(3, 1, CV_64F),
+                               0);
+			AddKeyframe(kf);
+        } else {
 			auto& last_keyframe = keyframe(keyframe_seq_tail_);
 
 			// TODO: Estimate the fundamental matrix from the last keyframe.
-			Mat fundamental_matrix;
-
+            vector<Point2f> points1, points2;
+            for (auto ip : interest_points_) {
+                if (ip->observation(last_keyframe.frame_id).visible && ip->observation(frame_id_).visible) {
+                    Point2f loc1 = ip->observation(last_keyframe.frame_id).pt.pt;
+                    Point2f loc2 = ip->observation(frame_id_).pt.pt;
+                    points1.push_back(loc1);
+                    points2.push_back(loc2);
+                }
+            }
+            Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_8POINT);
+            
 			// Estimate the essential matrix.
 			Mat essential_matrix = intrinsics_.t() * fundamental_matrix * last_keyframe.intrinsics;
 
@@ -218,13 +240,14 @@ namespace ar {
 
 			// If the translation from the last keyframe is greater than some proportion of the depth, update the keyframes.
 			double distance = cv::norm(t, cv::NormTypes::NORM_L2);
-			if (distance > last_keyframe.average_depth / 5)
-				AddKeyframe(Keyframe(frame_id_,
-									 intrinsics_,
-									 interest_points_,
-									 last_keyframe.R * R,
-									 last_keyframe.t + t,
-									 average_depth));
+            if (distance > last_keyframe.average_depth / 5) {
+                auto kf = Keyframe(frame_id_,
+                                   intrinsics_,
+                                   last_keyframe.R * R,
+                                   last_keyframe.t + t,
+                                   average_depth);
+				AddKeyframe(kf);
+            }
 		}
 		return AR_SUCCESS;
 	}
@@ -332,6 +355,8 @@ namespace ar {
 		auto handle = new VTelevision(*this, id, content_stream);
 		handle->locate(lu_corner, ll_corner, ru_corner, rl_corner);
 		virtual_objects_[id] = handle;
+
+		max_idle_period_ = 60000 - virtual_objects_.size();
 
 		return AR_SUCCESS;
 	}

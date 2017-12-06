@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(OPENCV3)\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(OPENCV3)\$(PlatformTarget)\vc14\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(OPENCV3)/include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(OPENCV3)/$(PlatformTarget)/vc14/lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link Condition="'$(Configuration)'=='Debug'">
