@@ -156,14 +156,11 @@ namespace ar {
 		}
 
 		// These interest points are not ever visible in the previous frames.
-        int cnt = 0;
         for (int i = 0; i < keypoints.size(); ++i) {
             if (!matched_new[i]) {
                 interest_points_.push_back(shared_ptr<InterestPoint>(new InterestPoint(frame_id_, keypoints[i], descriptors.row(i))));
-                ++cnt;
             }
         }
-        cout << "There are " << cnt << " Points Added!" << endl;
 		delete[] matched_new;
 		delete[] matched_stored;
 
@@ -231,7 +228,6 @@ namespace ar {
 				// Find the interest points that are visible in these keyframes.
 				vector<int> utilized_interest_points;
 				utilized_interest_points.reserve(interest_points_.size());
-                cout << "There are " << interest_points_.size() << " Interesting Points!" << endl;
 				for (int i = 0; i < interest_points_.size(); ++i) {
 					bool usable = true;
 					for (int j = 0; j <= max(1, keyframe_seq_tail_); ++j) {
@@ -265,7 +261,6 @@ namespace ar {
 				Mat bestM2;
 				double least_error = DBL_MAX;
                 for (auto& M2 : candidates) {
-                    cout << M2 << endl;
                     data.back().first = intrinsics_ * M2;
                     Mat estimated_pts3d;
                     double err = 0;
