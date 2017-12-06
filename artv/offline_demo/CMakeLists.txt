@@ -1,5 +1,6 @@
 file(GLOB tmp *.cpp)
 set(OFFLINE_DEMO_SRCS ${OFFLINE_DEMO_SRCS} ${tmp})
 
-# ---[ Send the src list to the parent scope.
-set(OFFLINE_DEMO_SRCS ${OFFLINE_DEMO_SRCS} PARENT_SCOPE)
+add_executable(demo ${OFFLINE_DEMO_SRCS})
+
+target_link_libraries(demo LINK_PUBLIC engine common  ${OpenCV_LIBS} ${Ceres_LIBS})

@@ -10,6 +10,20 @@ Author: Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 
 This project requires C++17 standard.
 
+### Ubuntu ###
+
+1. Install Ceres-Solver according to the [tutorial](http://ceres-solver.org/installation.html).
+2. Set environment "EIGEN3_INCLUDE_DIR" as "/usr/include/eigen3".
+3. Install Intel Math Kernel Libraries 2018.1 or later.
+4. Install OpenCV 3.3.0 or higher. Enable MKL support during building.
+5. ```bash
+   clone https://github.com/kyu-sz/AR-Television.git
+   mkdir build
+   cd build
+   cmake ..
+   make -j 4
+   ```
+
 ### Windows ###
 1. Install Visual Studio 2017.
 2. Install Intel Math Kernel Libraries 2018.1 or later.
