@@ -26,12 +26,12 @@ struct MouseListenerMemory {
     int mdx, mdy;
     // Location of the mouse on pressing down the right button.
     int rdx, rdy;
-    AREngine* ar_engine;
-    FrameStream* tv_show;
+    AREngine *ar_engine;
+    FrameStream *tv_show;
 };
 
-void RespondMouseAction(int event, int x, int y, int flags, void* p) {
-    MouseListenerMemory* mem = (MouseListenerMemory*)p;
+void RespondMouseAction(int event, int x, int y, int flags, void *p) {
+    auto *mem = (MouseListenerMemory *) p;
     auto ar_engine = mem->ar_engine;
     switch (event) {
         case EVENT_LBUTTONDOWN:
@@ -80,7 +80,7 @@ void RespondMouseAction(int event, int x, int y, int flags, void* p) {
     }
 }
 
-std::vector<std::pair<cv::Mat, cv::Mat>> generate_data(cv::Mat& points3d, int N, int n) {
+std::vector<std::pair<cv::Mat, cv::Mat>> generate_data(cv::Mat &points3d, int N, int n) {
     double low = 100.0;
     double high = 200.0;
     randu(points3d, Scalar(low), Scalar(high));
@@ -110,42 +110,44 @@ double test(int numPoints, int numCam) {
     return error;
 }
 
-int main(int argc, char* argv[]) {
-    
+int main(int argc, char *argv[]) {
+
 //    double error = test(100, 2);
 //    cout << error << endl;
-    
+
     if (argc < 3) {
         cout << "Usage: offline_demo [scene_video_path] [tv_show_path]" << endl;
+#ifdef _WIN32
         AR_PAUSE;
+#endif
         return 0;
     }
-    
-    const char* scene_video_path = argv[1];
-    const char* movie_path = argv[2];
-    
+
+    const char *scene_video_path = argv[1];
+    const char *movie_path = argv[2];
+
     VideoCapture cap(scene_video_path);
     if (!cap.isOpened()) {
         cerr << "Cannot open the scene video at " << scene_video_path
-        << "! Please check the path and read permission of the video" << endl;
+             << "! Please check the path and read permission of the video" << endl;
         AR_PAUSE;
         return -1;
     }
-    
-    RealtimeLocalVideoStream* tv_show = new RealtimeLocalVideoStream;
+
+    auto *tv_show = new RealtimeLocalVideoStream;
     auto ret = tv_show->Open(movie_path);
     if (ret < 0) {
         cerr << "Cannot initialize the TV show: " << ErrCode2Msg(ret) << endl;
         AR_PAUSE;
         return -1;
     }
-    
-    AREngine* ar_engine = new AREngine();
-    
-    double width = cap.get(VideoCaptureProperties::CAP_PROP_FRAME_WIDTH);
-    double height = cap.get(VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT);
+
+    auto *ar_engine = new AREngine();
+
+    auto width = static_cast<int>(cap.get(VideoCaptureProperties::CAP_PROP_FRAME_WIDTH));
+    auto height = static_cast<int>(cap.get(VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT));
     VideoWriter recorder("demo.avi", VideoWriter::fourcc('M', 'J', 'P', 'G'), 10, Size(width, height));
-    
+
     Mat raw_scene, mixed_scene;
     //Create the windows
     namedWindow("Origin scene");
@@ -161,7 +163,7 @@ int main(int argc, char* argv[]) {
         if (raw_scene.empty())
             break;
         imshow("Origin scene", raw_scene);
-        
+
         ar_engine->GetMixedScene(raw_scene, mixed_scene);
         recorder << mixed_scene;
         imshow("Mixed scene", mixed_scene);
@@ -170,6 +172,6 @@ int main(int argc, char* argv[]) {
 
     delete ar_engine;
     delete tv_show;
-    
+
     return 0;
 }

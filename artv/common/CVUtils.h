@@ -9,6 +9,7 @@
 #ifndef CVUTILS_H
 #define CVUTILS_H
 
+#include <utility>
 #include <vector>
 #include <string>
 #include <chrono>
@@ -40,14 +41,14 @@ namespace ar
 
 	class COMMON_API RealtimeLocalVideoStream : public FrameStream {
 		cv::VideoCapture cap_;
-		double fps_;
+		double fps_{};
 		std::chrono::steady_clock::time_point start_time_;
-		int frame_cnt_;
+		int frame_cnt_{};
 	public:
 		inline RealtimeLocalVideoStream() { Restart(); }
 		void Restart();
 		ERROR_CODE Open(const char* videoPath);
-		ERROR_CODE NextFrame(cv::Mat& outputBuf);
+		ERROR_CODE NextFrame(cv::Mat& outputBuf) override;
 	};
 
 	class COMMON_API InterestPointsTracker
@@ -61,10 +62,7 @@ namespace ar
 		};
 
 		InterestPointsTracker(cv::Ptr<cv::Feature2D> detector,
-							  cv::Ptr<cv::DescriptorMatcher> matcher) :
-			detector_(detector),
-			matcher_(matcher)
-		{}
+							  cv::Ptr<cv::DescriptorMatcher> matcher);
 
 		void GenKeypointsDesc(const cv::Mat& frame, 
 							  std::vector<cv::KeyPoint>& keypoints,

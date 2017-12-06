@@ -57,9 +57,15 @@ namespace ar {
 		std::vector<std::pair<int, int>> matches;
 		vector<vector<DMatch>> dmatches;
 		matcher_->knnMatch(descriptors1, descriptors2, dmatches, 2);
-		for (unsigned i = 0; i < dmatches.size(); i++)
-			if (dmatches[i][0].distance < NN_MATCH_RATIO * dmatches[i][1].distance)
-				matches.push_back({ dmatches[i][0].queryIdx, dmatches[i][0].trainIdx });
+		for (auto &dmatch : dmatches)
+			if (dmatch[0].distance < NN_MATCH_RATIO * dmatch[1].distance)
+				matches.emplace_back(dmatch[0].queryIdx, dmatch[0].trainIdx);
 		return matches;
 	}
+
+    InterestPointsTracker::InterestPointsTracker(cv::Ptr<cv::Feature2D> detector,
+                                                 cv::Ptr<cv::DescriptorMatcher> matcher) :
+            detector_(std::move(detector)),
+            matcher_(std::move(matcher))
+    {}
 }
