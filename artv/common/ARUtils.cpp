@@ -103,4 +103,75 @@ namespace ar {
         }
         return AR_SUCCESS;
 	}
+    struct BALResidual {
+        BALResidual(double x2, double y2)
+        : x2_(x2), y2_(y2){}
+        
+        template <typename T>
+        bool operator()(const T* const r2, //3
+                        const T* const t2, //3
+                        const T* const point, //3
+                        const T* const K2, //9
+                        T* residuals) const {
+            Mat r2Mat(3, 1, CV_32F, (void*)r2);
+            Mat R2;
+            Rodrigues(r2Mat, R2);
+            Mat M2;
+            Mat t2Mat(3, 1, CV_32F, (void*)t2);
+            hconcat(R2, t2Mat, M2);
+            Mat C2 = Mat(3, 3, CV_32F, (void*)K2) * M2; //3*4
+            Mat P_h;
+            hconcat(Mat(3, 1, CV_32F, (void*)point), Mat(1, 1, CV_32F, 1.), P_h); //4*1
+            Mat p2_proj = C2 * P_h; //3*1
+            double p2_hat_x = p2_proj.at<double>(0, 0) / p2_proj.at<double>(2, 0);
+            double p2_hat_y = p2_proj.at<double>(1, 0) / p2_proj.at<double>(2, 0);
+            residuals[0] = T(p2_hat_x - x2_);
+            residuals[1] = T(p2_hat_y - y2_);
+            return true;
+        }
+        
+    private:
+        // Observations for a sample.
+        const double x2_;
+        const double y2_;
+    };
+    
+    void BundleAdjustment(Mat K1, Mat M1, Mat pts1,
+                          Mat K2, Mat &M2, Mat pts2,
+                          Mat &Points3d){
+        Mat R2_init = M2.rowRange(0, 3).clone();
+        Mat t2_init = M2.rowRange(3, 4).clone();
+        Mat r2_init;
+        Rodrigues(R2_init, r2_init);
+        
+        int N = pts1.rows;
+        double r2[3], t2[3];
+        double K2array[9];
+        for (int i = 0; i < 3; i++){
+            r2[i] = r2_init.at<double>(i, 0);
+            t2[i] = t2_init.at<double>(i, 0);
+        }
+        for (int i = 0; i < 9; i++){
+            K2array[i] = K2.at<double>(i/3, i%3);
+        }
+        //using ceres to nonlinear optimization
+        {
+            ceres::Problem problem;
+            for (int i = 0; i < N; ++i) {
+                double pt3d[3];
+                for (int j = 0; j < 3; j++)
+                    pt3d[j] = Points3d.at<double>(i, j);
+                ceres::CostFunction* cost_function =
+                new ceres::AutoDiffCostFunction<BALResidual, 2, 3, 3, 3, 9>(new BALResidual(pts2.at<double>(i, 0), pts2.at<double>(i, 1)));
+                problem.AddResidualBlock(cost_function, NULL, r2, t2, pt3d, K2array);
+            }
+            ceres::Solver::Options options;
+            ceres::Solver::Summary summary;
+            ceres::Solve(options, &problem, &summary);
+            std::cout << summary.FullReport() << "\n";
+        }
+        Mat R2;
+        Rodrigues(r2_init, R2);
+        return;
+    }
 }
