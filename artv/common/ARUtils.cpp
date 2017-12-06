@@ -4,6 +4,8 @@ using namespace std;
 using namespace cv;
 
 namespace ar {
+    using cv::Mat;
+
 	Mat RefineFundamentalMatrix(const Mat& fundamental_matrix,
 		const vector<Point2d>& point1,
 		const vector<Point2d>& point2) {
@@ -93,7 +95,7 @@ namespace ar {
             p = p / p.at<float>(0, 3);
             for (int k = 0; k < n; ++k) {
                 Mat proj = p * pts[k].first.t();
-                proj = proj.colRange(0, 2) / proj.colRange(2, 2);
+                proj = proj.colRange(0, 2) / proj.at<float>(0, 2);
                 Mat diff = proj - pts[k].second.row(i);
                 double err = diff.at<float>(0, 0) * diff.at<float>(0, 0) + diff.at<float>(0, 1) * diff.at<float>(0, 1);
                 *error += err;

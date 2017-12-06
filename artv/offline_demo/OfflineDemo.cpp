@@ -130,7 +130,9 @@ int main(int argc, char *argv[]) {
     if (!cap.isOpened()) {
         cerr << "Cannot open the scene video at " << scene_video_path
              << "! Please check the path and read permission of the video" << endl;
+#ifdef _WIN32
         AR_PAUSE;
+#endif
         return -1;
     }
 
@@ -138,7 +140,9 @@ int main(int argc, char *argv[]) {
     auto ret = tv_show->Open(movie_path);
     if (ret < 0) {
         cerr << "Cannot initialize the TV show: " << ErrCode2Msg(ret) << endl;
+#ifdef _WIN32
         AR_PAUSE;
+#endif
         return -1;
     }
 
