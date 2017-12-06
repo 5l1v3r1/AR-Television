@@ -13,6 +13,9 @@
 
 #include <common/ErrorCodes.h>
 
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
+
 #ifdef _WIN32
 #ifdef COMMON_EXPORTS
 #define COMMON_API __declspec(dllexport)
@@ -52,4 +55,7 @@ namespace ar {
 	ERROR_CODE COMMON_API triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>>& camera_matrices_and_2d_points,
 									  cv::Mat& points3d,
 									  double* error = NULL);
+    void COMMON_API BundleAdjustment(cv::Mat K1, cv::Mat M1, cv::Mat pts1,
+                                     cv::Mat K2, cv::Mat& M2, cv::Mat pts2,
+                                     cv::Mat &Points3d);
 }

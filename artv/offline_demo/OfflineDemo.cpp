@@ -7,7 +7,6 @@
 #include <iostream>
 
 #include <opencv2/opencv.hpp>
-
 #include <common/OSUtils.h>
 #include <ar_engine/AREngine.h>
 
@@ -80,41 +79,7 @@ void RespondMouseAction(int event, int x, int y, int flags, void* p) {
 	}
 }
 
-std::vector<std::pair<cv::Mat, cv::Mat>> generate_data(cv::Mat& points3d, int N, int n) {
-    double low = 100.0;
-    double high = 200.0;
-    randu(points3d, Scalar(low), Scalar(high));
-    std::vector<std::pair<cv::Mat, cv::Mat>> pts(n);
-    Mat a = Mat::ones(N, 1, CV_32F);
-    for (int i = 0; i < n; ++i) {
-        Mat P = Mat(3, 4, CV_32F);
-        randu(P, Scalar(low), Scalar(high));
-        Mat b;
-        hconcat(points3d, a, b);
-        Mat pts_2D = b * P.colRange(0, 4).t();
-        pts_2D = pts_2D.colRange(0, 2) / pts_2D.colRange(3, 3);
-        pts[i] = make_pair(P, pts_2D);
-    }
-    return pts;
-}
-
-double test(int numPoints, int numCam) {
-    cout << "Testing triangulate with " << numPoints << " points and " << numCam << " cameras." << endl;
-    cv::Mat points3d, gen_3d_pts;
-    gen_3d_pts = Mat(numPoints, 3, CV_32F);
-    vector<std::pair<cv::Mat, cv::Mat>> cameras = generate_data(gen_3d_pts, numPoints, numCam);
-    cout << "Finish Generating Random Data" << endl;
-    double error;
-    triangulate(cameras, points3d, &error);
-    Mat diff = abs(gen_3d_pts - points3d);
-    return error;
-}
-
 int main(int argc, char* argv[]) {
-    
-    double error = test(100, 2);
-    cout << error << endl;
-    
 	if (argc < 3) {
 		cout << "Usage: offline_demo [scene_video_path] [tv_show_path]" << endl;
 		AR_PAUSE;

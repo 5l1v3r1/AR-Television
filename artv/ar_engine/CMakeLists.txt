@@ -1,6 +1,6 @@
 file(GLOB tmp *.cpp)
 file(GLOB tmp vobjects/*.cpp)
-set(ENGINE_SRCS ${ENGINE_SRCS} ${tmp})
+set(CORE_SRCS ${CORE_SRCS} ${tmp})
 
 # ---[ Send the src list to the parent scope.
-set(ENGINE_SRCS ${ENGINE_SRCS} PARENT_SCOPE)
+set(CORE_SRCS ${CORE_SRCS} PARENT_SCOPE)
