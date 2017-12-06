@@ -132,15 +132,15 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     
-    RealtimeLocalVideoStream tv_show;
-    auto ret = tv_show.Open(movie_path);
+    RealtimeLocalVideoStream* tv_show = new RealtimeLocalVideoStream;
+    auto ret = tv_show->Open(movie_path);
     if (ret < 0) {
         cerr << "Cannot initialize the TV show: " << ErrCode2Msg(ret) << endl;
         AR_PAUSE;
         return -1;
     }
     
-    AREngine ar_engine;
+    AREngine* ar_engine = new AREngine();
     
     double width = cap.get(VideoCaptureProperties::CAP_PROP_FRAME_WIDTH);
     double height = cap.get(VideoCaptureProperties::CAP_PROP_FRAME_HEIGHT);
@@ -152,8 +152,8 @@ int main(int argc, char* argv[]) {
     namedWindow("Mixed scene");
     //set the callback function for any mouse event.
     MouseListenerMemory mem;
-    mem.ar_engine = &ar_engine;
-    mem.tv_show = &tv_show;
+    mem.ar_engine = ar_engine;
+    mem.tv_show = tv_show;
     setMouseCallback("Origin scene", RespondMouseAction, &mem);
     setMouseCallback("Mixed scene", RespondMouseAction, &mem);
     while (true) {
@@ -162,11 +162,14 @@ int main(int argc, char* argv[]) {
             break;
         imshow("Origin scene", raw_scene);
         
-        ar_engine.GetMixedScene(raw_scene, mixed_scene);
+        ar_engine->GetMixedScene(raw_scene, mixed_scene);
         recorder << mixed_scene;
         imshow("Mixed scene", mixed_scene);
         waitKey(1);
     }
+
+    delete ar_engine;
+    delete tv_show;
     
     return 0;
 }
