@@ -117,7 +117,7 @@ namespace ar {
 		}
 		interest_points_mutex_.unlock();
 	}
-
+    
 	void AREngine::UpdateInterestPoints(const cv::Mat& scene) {
 		// Generate new keypoints.
 		std::vector<cv::KeyPoint> keypoints;
@@ -125,6 +125,13 @@ namespace ar {
 		interest_points_tracker_.GenKeypointsDesc(scene, keypoints, descriptors);
 		if (!desc_length_)
 			desc_length_ = descriptors.cols;
+        
+        int thickness = -1;
+        int lineType = 8;
+        for (int i = 0; i < keypoints.size(); ++i) {
+            Point center(keypoints[i].pt);
+            circle( scene, center, 2.0, Scalar( 0, 0, 255 ), thickness, lineType );
+        }
 
 		// Try to match new keypoints to the stored keypoints.
 		bool* matched_new = new bool[keypoints.size()];
@@ -247,16 +254,18 @@ namespace ar {
 					auto& kf = keyframe(keyframe_seq_tail_ - i);
 					int frame_id = kf.frame_id;
 					Mat pts(utilized_interest_points.size(), 2, CV_32F);
+                    int cnt = 0;
 					for (auto ip_id : utilized_interest_points)
-						pts.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id).pt.pt, false);
+						pts.row(cnt++) = Mat(interest_points_[ip_id]->observation(frame_id).pt.pt, false);
 					Mat extrinsics;
 					hconcat(kf.R, kf.t, extrinsics);
 					data.push_back(make_pair(kf.intrinsics * extrinsics, pts));
 				}
 				// Fill the data from the current frame.
 				Mat pts(utilized_interest_points.size(), 2, CV_32F);
+                int cnt = 0;
 				for (auto ip_id : utilized_interest_points)
-					pts.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id_).pt.pt, false);
+					pts.row(cnt++) = Mat(interest_points_[ip_id]->observation(frame_id_).pt.pt, false);
 				data.push_back(make_pair(Mat(), pts));
 				// Try each candidate of extrinsics.
 				Mat bestM2;
@@ -267,20 +276,21 @@ namespace ar {
                     double err = 0;
 
                     triangulate(data, estimated_pts3d, &err);
+                    err = 0;
                     // These 3D points are valid if they are in front of the camera in the previous keyframes.
                     bool valid = true;
-                    for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
-                        auto& kf = keyframe(keyframe_seq_tail_ - j);
-                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
-                        for (int k = 0; k < estimated_pts3d.rows; ++k)
-                            kf.t.t().copyTo(T.row(k));
-                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
-                        for (int k = 0; k < transformed_pts3d.rows; ++k)
-                            if (transformed_pts3d.at<float>(k, 3) < 0) {
-                                valid = false;
-                                break;
-                            }
-                    }
+//                    for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
+//                        auto& kf = keyframe(keyframe_seq_tail_ - j);
+//                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+//                        for (int k = 0; k < estimated_pts3d.rows; ++k)
+//                            Mat(kf.t.t()).copyTo(T.row(k));
+//                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
+//                        for (int k = 0; k < transformed_pts3d.rows; ++k)
+//                            if (transformed_pts3d.at<float>(k, 3) < 0) {
+//                                valid = false;
+//                                break;
+//                            }
+//                    }
                     if (valid) {
                         if (err < least_error) {
                             least_error = err;
@@ -297,7 +307,7 @@ namespace ar {
 			// Estimate the average depth.
             Mat T = Mat(pts3d.rows, 3, CV_32F);
             for (int k = 0; k < pts3d.rows; ++k)
-                T.row(k) = t.t();
+                Mat(t.t()).copyTo(T.row(k));
 			Mat transformed_pts3d = pts3d * R.t() + T;
 			int average_depth = sum(transformed_pts3d.col(2))[0];
 
