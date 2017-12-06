@@ -53,7 +53,7 @@ namespace ar {
 					  const KeyPoint& initial_loc,
 					  const Mat& initial_desc);
 		void AddObservation(const Observation& p);
-		inline bool ToDiscard() const { return vis_cnt_; }
+		inline bool ToDiscard() const { return !vis_cnt_; }
 		//! The weighted average feature for the interest point.
 		Mat average_desc_;
 		//! The estimated 3D location of the point.
@@ -113,6 +113,8 @@ namespace ar {
 		//! Translation of the camera at the last frame with respect to the world coordinate.
 		Mat last_t_;
 
+		//! Descriptor length of interest points.
+		int desc_length_ = 0;
 		//! Interest points in recent frames.
 		vector<shared_ptr<InterestPoint>> interest_points_;
 		//! The vector of interest points are protected by mutex in case of concurrent reading

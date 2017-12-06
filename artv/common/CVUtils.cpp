@@ -49,6 +49,7 @@ namespace ar {
 												 vector<KeyPoint>& keypoints,
 												 Mat& descriptors) {
 		detector_->detectAndCompute(frame, noArray(), keypoints, descriptors);
+		descriptors.convertTo(descriptors, CV_32F);
 	}
 
 	std::vector<std::pair<int, int>> InterestPointsTracker::MatchKeypoints(const cv::Mat& descriptors1,

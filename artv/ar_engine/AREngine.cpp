@@ -52,7 +52,7 @@ namespace ar {
 			observation_seq_[(frame_id - initial_frame_id_) % MAX_OBSERVATIONS];
 	}
 
-	AREngine::AREngine() : interest_points_tracker_(ORB::create(), DescriptorMatcher::create("FLANNBASED")) {
+	AREngine::AREngine() : interest_points_tracker_(ORB::create(), DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE)) {
 		mapping_thread_ = thread(AREngine::CallMapEstimationLoop, this);
 
 		float default_intrinsics[][3] = { { 1071.8, 0, 639.5 },{ 0, 1071.8, 359.5 },{ 0, 0, 1 } };
@@ -83,32 +83,48 @@ namespace ar {
 		std::vector<cv::KeyPoint> keypoints;
 		cv::Mat descriptors;
 		interest_points_tracker_.GenKeypointsDesc(scene, keypoints, descriptors);
+		if (!desc_length_)
+			desc_length_ = descriptors.cols;
 
-		// Match the new keypoints to the stored keypoints.
-		cv::Mat stored_descriptors;
-		for (int i = 0; i < interest_points_.size(); ++i)
-			vconcat(stored_descriptors, interest_points_[i]->average_desc_);
-		auto matches = interest_points_tracker_.MatchKeypoints(descriptors, stored_descriptors);
-
-		// Update the stored keypoints.
+		// Try to match new keypoints to the stored keypoints.
 		bool* matched_new = new bool[keypoints.size()];
 		bool* matched_stored = new bool[interest_points_.size()];
 		memset(matched_new, 0, sizeof(bool) * keypoints.size());
 		memset(matched_stored, 0, sizeof(bool) * interest_points_.size());
-		for (auto match : matches) {
-			matched_new[match.first] = true;
-			matched_stored[match.second] = true;
-			interest_points_[match.second]->AddObservation(
-				InterestPoint::Observation(keypoints[match.first], descriptors.row(match.first)));
+
+		if (frame_id_) {
+			// Perform matching.
+			cv::Mat stored_descriptors(interest_points_.size(), desc_length_, CV_32F);
+			for (int i = 0; i < interest_points_.size(); ++i)
+				interest_points_[i]->average_desc_.copyTo(stored_descriptors.row(i));
+				/*memcpy(stored_descriptors.ptr<float>(i),
+					   interest_points_[i]->average_desc_.ptr<float>(0),
+					   sizeof(float) * desc_length_);*/
+			auto matches = interest_points_tracker_.MatchKeypoints(descriptors, stored_descriptors);
+
+			// Update the stored keypoints.
+			for (auto match : matches) {
+				matched_new[match.first] = true;
+				matched_stored[match.second] = true;
+				interest_points_[match.second]->AddObservation(
+					InterestPoint::Observation(keypoints[match.first], descriptors.row(match.first)));
+			}
+
+			// These interest points are not visible at this frame.
+			for (int i = 0; i < interest_points_.size(); ++i)
+				if (!matched_stored[i])
+					interest_points_[i]->AddObservation(InterestPoint::Observation());
 		}
+
 		// These interest points are not ever visible in the previous frames.
-		for (int i = 0; i < keypoints.size(); ++i)
-			if (!matched_new[i])
+		for (int i = 0; i < keypoints.size(); ++i) {
+			if (!matched_new[i]) {
 				interest_points_.push_back(shared_ptr<InterestPoint>(
 					new InterestPoint(frame_id_, keypoints[i], descriptors.row(i))));
-		// These interest points are not visible at this frame.
-		for (int i = 0; i < interest_points_.size(); ++i)
-			interest_points_[i]->AddObservation(InterestPoint::Observation());
+			}
+			//cout << i << ' ' << matched_new[i] << endl;
+		}
+
 		delete[] matched_new;
 		delete[] matched_stored;
 
@@ -143,8 +159,8 @@ namespace ar {
 			// Initial keyframe.
             auto kf = Keyframe(frame_id_,
                                intrinsics_,
-                               Mat::eye(3, 3, CV_64F),
-                               Mat::zeros(3, 1, CV_64F),
+                               Mat::eye(3, 3, CV_32F),
+                               Mat::zeros(3, 1, CV_32F),
                                0);
 			AddKeyframe(kf);
         } else {
@@ -161,6 +177,7 @@ namespace ar {
                 }
             }
             Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_8POINT);
+			fundamental_matrix.convertTo(fundamental_matrix, CV_32F);
             
 			// Estimate the essential matrix.
 			Mat essential_matrix = intrinsics_.t() * fundamental_matrix * last_keyframe.intrinsics;
@@ -220,7 +237,7 @@ namespace ar {
 							bool valid = true;
 							for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
 								auto& kf = keyframe(keyframe_seq_tail_ - j);
-								Mat transformed_pts3d = kf.R * estimated_pts3d + kf.t;
+								Mat transformed_pts3d = estimated_pts3d * kf.R.t() + kf.t.t();
 								for (int k = 0; k < transformed_pts3d.rows; ++k)
 									if (transformed_pts3d.at<float>(k, 3) < 0) {
 										valid = false;

@@ -23,16 +23,18 @@ namespace ar {
 	vector<Mat> RecoverRotAndTranslation(const Mat& essential_matrix) {
 		Mat U, W, Vt;
 		auto svd = SVD();
-		svd.compute(essential_matrix, U, W, Vt);
+		svd.compute(essential_matrix, W, U, Vt);
+		W = Mat::diag(W);
 
-		double m = (W.at<double>(1, 1) + W.at<double>(2, 2)) / 2;
-		W.at<double>(0, 0) = W.at<double>(1, 1) = m;
+		float m = (W.at<float>(1, 1) + W.at<float>(2, 2)) / 2;
+		W.at<float>(0, 0) = W.at<float>(1, 1) = m;
 		Mat regularized_E = U * W * Vt;
-		svd.compute(regularized_E, U, W, Vt);
+		svd.compute(regularized_E, W, U, Vt);
+		W = Mat::diag(W);
 
-		W.at<double>(0, 0) = W.at<double>(1, 1) = 0;
-		W.at<double>(0, 1) = -1;
-		W.at<double>(1, 0) = W.at<double>(2, 2) = 1;
+		W.at<float>(0, 0) = W.at<float>(1, 1) = 0;
+		W.at<float>(0, 1) = -1;
+		W.at<float>(1, 0) = W.at<float>(2, 2) = 1;
 		if (determinant(U * W * Vt) < 0)
 			W = -W;
 
@@ -40,7 +42,8 @@ namespace ar {
 		res.reserve(4);
 		Mat R1 = U * W * Vt;
 		Mat R2 = U * W.t() * Vt;
-		Mat t = U.col(2) / max({ abs(U.at<double>(2, 0)), abs(U.at<double>(2, 1)), abs(U.at<double>(2, 2)) });
+		Mat t = U.col(2) / max({ abs(U.at<float>(2, 0)), abs(U.at<float>(2, 1)), abs(U.at<float>(2, 2)) });
+
 		Mat candidate;
 		hconcat(R1, t, candidate);
 		res.push_back(candidate);
@@ -83,8 +86,8 @@ namespace ar {
             Mat A = Mat(2*n, 4, CV_32F);
 //            cout << pts[0].first << endl;
             for (int j = 0; j < n; ++j) {
-                A.row(2*j) = pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2);
-                A.row(2*j+1) = pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2);
+                Mat(pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2)).copyTo(A.row(2 * j));
+                Mat(pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2)).copyTo(A.row(2 * j + 1));
             }
 //            cout << A << endl;
             Mat U, W, VT, V;
@@ -99,7 +102,7 @@ namespace ar {
                 double err = diff.at<float>(0, 0) * diff.at<float>(0, 0) + diff.at<float>(0, 1) * diff.at<float>(0, 1);
                 *error += err;
             }
-            points3d.row(i) = p.colRange(0, 3);
+            p.colRange(0, 3).copyTo(points3d.row(i));
         }
         return AR_SUCCESS;
 	}
