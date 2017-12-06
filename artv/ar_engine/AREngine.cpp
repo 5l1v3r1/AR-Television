@@ -20,6 +20,41 @@ namespace ar {
 	//	Perform bundle adjustment based on the rough estimation of the extrinsics.
 	void AREngine::EstimateMap() {
 		// TODO: Need implementation. Remember to calculate the average depth!
+        auto last_frame1 = keyframe(keyframe_seq_tail_);
+        auto last_frame2 = keyframe(keyframe_seq_tail_ - 1);
+        int frame_id1 = last_frame1.frame_id;
+        int frame_id2 = last_frame2.frame_id;
+        auto K1 = last_frame1.intrinsics;
+        auto K2 = last_frame2.intrinsics;
+        Mat M1, M2;
+        hconcat(last_frame1.R, last_frame1.t, M1);
+        hconcat(last_frame2.R, last_frame2.t, M2);
+        
+        vector<int> utilized_interest_points;
+        //find utilized_interest_points
+        utilized_interest_points.reserve(interest_points_.size());
+        for (int i = 0; i < interest_points_.size(); ++i) {
+            bool usable = true;
+            for (int j = 0; j <= max(1, keyframe_seq_tail_); ++j) {
+                int frame_id = keyframe(keyframe_seq_tail_ - j).frame_id;
+                if (!interest_points_[i]->observation(frame_id).visible) {
+                    usable = false;
+                    break;
+                }
+            }
+            if (usable)
+                utilized_interest_points.push_back(i);
+        }
+        //Fill the data
+        Mat pts1(utilized_interest_points.size(), 2, CV_32F);
+        Mat pts2(utilized_interest_points.size(), 2, CV_32F);
+        Mat Points3d(utilized_interest_points.size(), 3, CV_32F);
+        for (auto ip_id : utilized_interest_points){
+            pts1.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id1).pt.pt, false);
+            pts2.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id2).pt.pt, false);
+            Points3d.row(ip_id) = Mat(interest_points_[ip_id]->loc3d_, false);
+        }
+        BundleAdjustment(K1, M1, pts1, K2, M2, pts2, Points3d);
 	}
 
 	void AREngine::MapEstimationLoop() {
