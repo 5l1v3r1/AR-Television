@@ -8,6 +8,7 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 
 #include <ar_engine/AREngine.h>
 
@@ -41,6 +42,12 @@ namespace ar {
 		std::thread monitor_thread_;
 		TimerKiller monitor_killer_;
 		static void Monitor(VObject* obj);
+
+		//! Whether the object is held.
+		bool on_hold_;
+		//! When the object is held, its appearance on the 2D scene is frozen
+		//	and can be moved along with the handle with no respect to the real world.
+		cv::Mat frozen_appearance_;
 	public:
 		//! Layer index for dealing with virtual objects' overlapping.
 		//	INT_MAX means the object is not overlappable.
@@ -48,6 +55,7 @@ namespace ar {
 		VObject(AREngine& engine, int id, int layer_ind);
 		virtual ~VObject();
 		inline void UpdateViewedTime() { last_viewed_time_ = std::chrono::steady_clock::now(); }
+		//!	Remove itself from the engine that maintains it.
 		void Disappear();
 		virtual bool IsSelected(cv::Point2f pt2d, int frame_id) = 0;
 		virtual void Draw(cv::Mat& scene, const cv::Mat& camera_matrix) = 0;

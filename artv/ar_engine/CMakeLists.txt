@@ -1,6 +1,7 @@
-file(GLOB tmp *.cpp)
-file(GLOB tmp vobjects/*.cpp)
+file(GLOB tmp *.cpp vobjects/*.cpp)
+message(STATUS ${tmp})
 set(ENGINE_SRCS ${ENGINE_SRCS} ${tmp})
 
-# ---[ Send the src list to the parent scope.
-set(ENGINE_SRCS ${ENGINE_SRCS} PARENT_SCOPE)
+add_library(engine SHARED ${ENGINE_SRCS})
+
+target_link_libraries(engine LINK_PUBLIC common)

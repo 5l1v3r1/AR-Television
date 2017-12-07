@@ -3,6 +3,12 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Test data
+**/*.avi
+
+# System files
+**/.DS_Store
+
 # User-specific files
 *.suo
 *.user
