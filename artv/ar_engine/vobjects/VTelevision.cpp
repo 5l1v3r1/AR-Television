@@ -22,10 +22,10 @@ namespace ar
 	}
 
 	bool VTelevision::IsSelected(Point2f pt2d, int frame_id) {
-		Point2f lu = left_upper_->observation(frame_id).pt.pt;
-		Point2f ll = left_lower_->observation(frame_id).pt.pt;
-		Point2f ru = right_upper_->observation(frame_id).pt.pt;
-		Point2f rl = right_lower_->observation(frame_id).pt.pt;
+		Point2f lu = left_upper_->observation(frame_id)->loc();
+		Point2f ll = left_lower_->observation(frame_id)->loc();
+		Point2f ru = right_upper_->observation(frame_id)->loc();
+		Point2f rl = right_lower_->observation(frame_id)->loc();
 
 		return (ru - lu).cross(pt2d - lu) > 0
 			&& (rl - ru).cross(pt2d - ru) > 0

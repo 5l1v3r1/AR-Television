@@ -5,7 +5,6 @@
 // Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
 ///////////////////////////////////////////////////////////
 #include <opencv2/features2d.hpp>
-#include <utility>
 
 #include <common/OSUtils.h>
 #include <ar_engine/AREngine.h>
@@ -17,12 +16,18 @@ using namespace cv;
 namespace ar {
     const int AREngine::MAX_INTEREST_POINTS;
     const int AREngine::MAX_KEYFRAMES;
-    InterestPoint::Observation EMPTY_OBSERVATION;
+    const int InterestPoint::MAX_OBSERVATIONS;
+    shared_ptr<InterestPoint::Observation> EMPTY_OBSERVATION = make_shared<InterestPoint::Observation>();
 
     //! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
     //	Perform bundle adjustment based on the rough estimation of the extrinsics.
     void AREngine::EstimateMap() {
-        // TODO: Need implementation. Remember to calculate the average depth!
+        while (!interest_points_mutex_.try_lock())
+            AR_SLEEP(1);
+        auto interest_points = interest_points_;
+        interest_points_mutex_.unlock();
+
+        // Remember to calculate the average depth!
         auto last_frame1 = keyframe(keyframe_seq_tail_);
         auto last_frame2 = keyframe(keyframe_seq_tail_ - 1);
         int frame_id1 = last_frame1.frame_id;
@@ -40,7 +45,7 @@ namespace ar {
             bool usable = true;
             for (int j = 0; j <= max(1, keyframe_seq_tail_); ++j) {
                 int frame_id = keyframe(keyframe_seq_tail_ - j).frame_id;
-                if (!interest_points_[i]->observation(frame_id).visible) {
+                if (!interest_points_[i]->observation(frame_id)->visible) {
                     usable = false;
                     break;
                 }
@@ -53,8 +58,8 @@ namespace ar {
         Mat pts2(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
         Mat Points3d(static_cast<int>(utilized_interest_points.size()), 3, CV_32F);
         for (auto ip_id : utilized_interest_points) {
-            pts1.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id1).pt.pt, false);
-            pts2.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id2).pt.pt, false);
+            pts1.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id1)->pt.pt, false);
+            pts2.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id2)->pt.pt, false);
             Points3d.row(ip_id) = Mat(interest_points_[ip_id]->loc3d_, false);
         }
         BundleAdjustment(K1, M1, pts1, K2, M2, pts2, Points3d);
@@ -85,17 +90,10 @@ namespace ar {
         } while (thread_cnt_);
     }
 
-    InterestPoint::Observation &InterestPoint::observation(int frame_id) {
-        for (auto &observation : observation_seq_)
-            if (observation.frame_id == frame_id)
-                return observation;
-        return EMPTY_OBSERVATION;
-    }
-
-    const InterestPoint::Observation &InterestPoint::observation(int frame_id) const {
-        for (const auto &observation : observation_seq_)
-            if (observation.frame_id == frame_id)
-                return observation;
+    shared_ptr<InterestPoint::Observation> InterestPoint::observation(int frame_id) const {
+        for (int i = 0; i < min(observation_seq_tail_, MAX_OBSERVATIONS); ++i)
+            if (observation_seq_[i]->frame_id == frame_id)
+                return observation_seq_[i];
         return EMPTY_OBSERVATION;
     }
 
@@ -115,6 +113,7 @@ namespace ar {
     void AREngine::ReduceInterestPoints() {
         while (!interest_points_mutex_.try_lock())
             AR_SLEEP(1);
+
         if (interest_points_.size() > MAX_INTEREST_POINTS) {
             auto new_size = interest_points_.size();
             for (int i = 0; i < new_size; ++i) {
@@ -186,6 +185,7 @@ namespace ar {
             AddKeyframe(kf);
 
             // Make all keypoints as initial interest points.
+            interest_points_.reserve(keypoints.size());
             for (int i = 0; i < keypoints.size(); ++i)
                 interest_points_.push_back(make_shared<InterestPoint>(frame_id_, keypoints[i], descriptors.row(i)));
         } else {
@@ -245,6 +245,7 @@ namespace ar {
                             dest[1] = keypoints[match.second].pt.y;
                             ++cnt;
                         }
+                    assert(cnt > 0);
                     data.emplace_back(
                             ComputeCameraMatrix(last_keyframe2.intrinsics, last_keyframe2.R, last_keyframe2.t),
                             stored_pts1);
@@ -280,6 +281,7 @@ namespace ar {
                     double err = 0;
 
                     Triangulate(data, estimated_pts3d, &err);
+                    assert(estimated_pts3d.rows == data.back().second.rows);
                     // These 3D points are valid if they are in front of the camera in the previous keyframes.
                     bool valid = true;
 //                    for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
@@ -333,14 +335,14 @@ namespace ar {
                     matched_stored[match.first] = true;
                     matched_new[match.second] = true;
                     interest_points_[match.first]->AddObservation(
-                            InterestPoint::Observation(frame_id_, keypoints[match.second],
-                                                       descriptors.row(match.second)));
+                            make_shared<InterestPoint::Observation>(frame_id_, keypoints[match.second],
+                                                                    descriptors.row(match.second)));
                 }
 
                 // These interest points are not visible at this frame.
                 for (int i = 0; i < interest_points_.size(); ++i)
                     if (!matched_stored[i])
-                        interest_points_[i]->AddObservation(InterestPoint::Observation());
+                        interest_points_[i]->AddObservation(make_shared<InterestPoint::Observation>());
 
                 // These interest points are not ever visible in the previous frames.
                 for (int i = 0; i < keypoints.size(); ++i)
@@ -348,9 +350,9 @@ namespace ar {
                         interest_points_.push_back(
                                 make_shared<InterestPoint>(frame_id_, keypoints[i], descriptors.row(i)));
             }
-        }
 
-        ReduceInterestPoints();
+            ReduceInterestPoints();
+        }
 
         return AR_SUCCESS;
     }
@@ -376,92 +378,11 @@ namespace ar {
     }
 
     double InterestPoint::Observation::l2dist_sqr(const Observation &o) const {
-        return l2dist_sqr(o.pt.pt);
+        return l2dist_sqr(o.loc());
     }
 
     double InterestPoint::Observation::l2dist_sqr(const Point2f &p) const {
-        return pow(pt.pt.x - p.x, 2) + pow(pt.pt.y - p.y, 2);
-    }
-
-    ERROR_CODE AREngine::CreateTelevision(cv::Point location, FrameStream &content_stream) {
-        Canny(last_gray_frame_, last_canny_map_, 100, 200);
-        Mat dilated_canny;
-        dilate(last_canny_map_, dilated_canny, NULL);
-
-        // Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
-        vector<pair<double, shared_ptr<InterestPoint>>> left_uppers, left_lowers, right_uppers, right_lowers;
-        for (auto &ip : interest_points_) {
-            double dist_sqr = ip->last_observation().l2dist_sqr(location);
-            if (dist_sqr > min(last_gray_frame_.rows, last_gray_frame_.cols) * VTelevision::MEAN_TV_SIZE_RATE) {
-                if (ip->last_loc().x < location.x && ip->last_loc().y < location.y)
-                    left_uppers.emplace_back(dist_sqr, ip);
-                else if (ip->last_loc().x > location.x && ip->last_loc().y < location.y)
-                    right_uppers.emplace_back(dist_sqr, ip);
-                else if (ip->last_loc().x < location.x && ip->last_loc().y > location.y)
-                    left_lowers.emplace_back(dist_sqr, ip);
-                else if (ip->last_loc().x > location.x && ip->last_loc().y > location.y)
-                    right_lowers.emplace_back(dist_sqr, ip);
-            }
-        }
-        sort(left_uppers.begin(), left_uppers.end());
-        sort(right_uppers.begin(), right_uppers.end());
-        sort(left_lowers.begin(), left_lowers.end());
-        sort(right_lowers.begin(), right_lowers.end());
-        auto CountEdgeOnLine = [dilated_canny](const Point2f &start, const Point2f &end) {
-            double dx = end.x - start.x;
-            double dy = end.y - start.y;
-            double dist = sqrt(dx * dx + dy * dy);
-            dx /= dist;
-            dy /= dist;
-            auto x = static_cast<int>(start.x + dx);
-            auto y = static_cast<int>(start.y + dy);
-            int edge_cnt = 0;
-            for (int i = 1; i < dist; ++i)
-                if (dilated_canny.at<double>(y, x) > DBL_EPSILON)
-                    ++edge_cnt;
-            return edge_cnt / dist;
-        };
-        shared_ptr<InterestPoint> lu_corner, ru_corner, ll_corner, rl_corner;
-        bool found = false;
-        for (auto &lu : left_uppers) {
-            if (found)
-                break;
-            for (auto &ru : right_uppers) {
-                if (found)
-                    break;
-                if (CountEdgeOnLine(lu.second->last_loc(), ru.second->last_loc()) < 0.8)
-                    break;
-                for (auto &ll : left_lowers) {
-                    if (found)
-                        break;
-                    if (CountEdgeOnLine(lu.second->last_loc(), ll.second->last_loc()) < 0.8)
-                        break;
-                    for (auto &rl : right_lowers) {
-                        if (CountEdgeOnLine(ru.second->last_loc(), rl.second->last_loc()) < 0.8)
-                            break;
-                        if (CountEdgeOnLine(ll.second->last_loc(), rl.second->last_loc()) < 0.8)
-                            break;
-                        found = true;
-                        lu_corner = lu.second;
-                        ru_corner = ru.second;
-                        ll_corner = ll.second;
-                        rl_corner = rl.second;
-                    }
-                }
-            }
-        }
-
-        // Create a virtual television, and locate it with respect to these interest points.
-        int id = rand();
-        while (virtual_objects_.count(id))
-            id = rand();
-        auto handle = new VTelevision(*this, id, content_stream);
-        handle->locate(lu_corner, ll_corner, ru_corner, rl_corner);
-        virtual_objects_[id] = handle;
-
-        max_idle_period_ = static_cast<int>(60000 - virtual_objects_.size());
-
-        return AR_SUCCESS;
+        return pow(loc().x - p.x, 2) + pow(loc().y - p.y, 2);
     }
 
     int AREngine::GetTopVObj(int x, int y) const {
@@ -493,28 +414,29 @@ namespace ar {
         return AR_SUCCESS;
     }
 
-    InterestPoint::InterestPoint() : vis_cnt_(0) {}
+    InterestPoint::InterestPoint() : vis_cnt_(0), observation_seq_tail_(-1) {}
 
     InterestPoint::InterestPoint(int initial_frame_id,
                                  const KeyPoint &initial_loc,
                                  const cv::Mat &initial_desc) :
             vis_cnt_(1), last_desc_(initial_desc) {
-        observation(++observation_seq_tail_) = Observation(initial_frame_id, initial_loc, initial_desc);
+        observation_seq_[observation_seq_tail_ = 0] = make_shared<Observation>(initial_frame_id, initial_loc,
+                                                                               initial_desc);
     }
 
-    void InterestPoint::AddObservation(const Observation &p) {
+    void InterestPoint::AddObservation(shared_ptr<Observation> p) {
         // Remove the information of the discarded observation.
         if (observation_seq_tail_ + 1 >= MAX_OBSERVATIONS) {
-            auto &old = observation(observation_seq_tail_ + 1);
-            if (old.visible)
+            auto old = observation(observation_seq_tail_ + 1);
+            if (old->visible)
                 --vis_cnt_;
         }
         // Add the information of the new observation.
-        if (p.visible) {
+        if (p->visible) {
             ++vis_cnt_;
-            last_desc_ = p.desc;
+            last_desc_ = p->desc;
         }
-        observation(++observation_seq_tail_) = p;
+        observation_seq_[++observation_seq_tail_ % MAX_OBSERVATIONS] = p;
         if (observation_seq_tail_ >= (MAX_OBSERVATIONS << 1))
             observation_seq_tail_ -= MAX_OBSERVATIONS;
     }

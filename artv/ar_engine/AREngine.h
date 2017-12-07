@@ -42,6 +42,10 @@ namespace ar {
             Mat desc;
             int frame_id;
 
+            inline auto &loc() { return pt.pt; }
+
+            inline auto &loc() const { return pt.pt; }
+
             Observation();
 
             Observation(int frame_id,
@@ -53,19 +57,17 @@ namespace ar {
             double l2dist_sqr(const Point2f &p) const;
         };
 
-        InterestPoint::Observation &observation(int frame_id);
-
-        const InterestPoint::Observation &observation(int frame_id) const;
+        shared_ptr<Observation> observation(int frame_id) const;
 
         inline auto &last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
 
-        inline auto &last_loc() { return last_observation().pt.pt; }
+        inline auto &last_loc() { return last_observation()->loc(); }
 
-        inline auto is_visible(int frame_id) const { return observation(frame_id).visible; }
+        inline auto is_visible(int frame_id) const { return observation(frame_id)->visible; }
 
-        inline auto &loc(int frame_id) { return observation(frame_id).pt.pt; }
+        inline auto &loc(int frame_id) { return observation(frame_id)->pt.pt; }
 
-        inline auto &loc(int frame_id) const { return observation(frame_id).pt.pt; }
+        inline auto &loc(int frame_id) const { return observation(frame_id)->pt.pt; }
 
         InterestPoint();
 
@@ -73,7 +75,7 @@ namespace ar {
                       const KeyPoint &initial_loc,
                       const Mat &initial_desc);
 
-        void AddObservation(const Observation &p);
+        void AddObservation(shared_ptr<Observation> p);
 
         inline bool ToDiscard() const { return !vis_cnt_; }
 
@@ -85,8 +87,8 @@ namespace ar {
     private:
         Mat last_desc_;
         //! Looped queue of observations (2D locations and descriptors) in the frames.
-        Observation observation_seq_[MAX_OBSERVATIONS];
-        int observation_seq_tail_ = -1;
+        shared_ptr<Observation> observation_seq_[MAX_OBSERVATIONS];
+        int observation_seq_tail_;
         //! Count the number of frames in which this point is visible.
         int vis_cnt_;
     };
