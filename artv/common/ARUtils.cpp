@@ -19,7 +19,7 @@ namespace ar {
         return svd.u * Sigma * svd.vt;
     }
 
-    //! Recover rotation and translation from an essential matrix.
+    /// Recover rotation and translation from an essential matrix.
     //	This operation produces four posible results, each is a 3x4 matrix that combines
     //	rotation and translation.
     vector<Mat> RecoverRotAndTranslation(const Mat &essential_matrix) {
@@ -58,7 +58,7 @@ namespace ar {
         return res;
     }
 
-    //! Calculate the relative rotation and translation from camera 1 to camera 2,
+    /// Calculate the relative rotation and translation from camera 1 to camera 2,
     //	given their own rotations and translations with respect to the world coordinate.
     pair<Mat, Mat> CalRelRotAndTranslation(Mat R1, Mat t1, Mat R2, Mat t2) {
         return {R1.t() * R2, R1.t() * (t2 - t1)};
@@ -70,7 +70,7 @@ namespace ar {
         return intrinsics * extrinsics;
     }
 
-    //! Input a series of camera matrices and 2D points. The 2D points are all matched in order to relate to some 3D points.
+    /// Input a series of camera matrices and 2D points. The 2D points are all matched in order to relate to some 3D points.
     //	Output the estimation of 3D points and estimation error.
     ERROR_CODE Triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>> &pts,
                            cv::Mat &points3d,

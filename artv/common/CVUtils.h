@@ -1,9 +1,9 @@
-///////////////////////////////////////////////////////////
-// AR Television
-// Copyright(c) 2017 Carnegie Mellon University
-// Licensed under The MIT License[see LICENSE for details]
-// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
-///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+/// AR Television
+/// Copyright(c) 2017 Carnegie Mellon University
+/// Licensed under The MIT License[see LICENSE for details]
+/// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
+////////////////////////////////////////////////////////////
 #pragma once
 
 #ifndef CVUTILS_H
@@ -31,9 +31,9 @@
 
 namespace ar
 {
-	//! The interface FrameStream specifies the routine of frame stream classes.
-	//	Subclasses should retrieve video content from various sources, and return
-	//	a required frame on call of the nextFrame method.
+	/// The interface FrameStream specifies the routine of frame stream classes.
+	///	Subclasses should retrieve video content from various sources, and return
+	///	a required frame on call of the nextFrame method.
 	class COMMON_API FrameStream {
 	public:
 		virtual int NextFrame(cv::Mat& outputBuf) = 0;
@@ -70,9 +70,12 @@ namespace ar
 		std::vector<std::pair<int, int>> MatchKeypoints(const cv::Mat& descriptors1,
 														const cv::Mat& descriptors2);
 	protected:
-		const double RANSAC_THRESH = 2.5f; // RANSAC inlier threshold
-		const double NN_MATCH_RATIO = 0.8f; // Nearest-neighbour matching ratio
-		const int STATS_UPDATE_PERIOD = 10; // On-screen statistics are updated every 10 frames
+		/// RANSAC inlier threshold.
+		const double RANSAC_THRESH = 2.5f;
+		/// Nearest-neighbour matching ratio.
+		const double NN_MATCH_RATIO = 0.8f;
+		/// On-screen statistics are updated every 10 frames.
+		const int STATS_UPDATE_PERIOD = 10;
 		cv::Ptr<cv::Feature2D> detector_;
 		cv::Ptr<cv::DescriptorMatcher> matcher_;
 	};

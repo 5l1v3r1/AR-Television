@@ -1,9 +1,9 @@
-///////////////////////////////////////////////////////////
-// AR Television
-// Copyright(c) 2017 Carnegie Mellon University
-// Licensed under The MIT License[see LICENSE for details]
-// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
-///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+/// AR Television
+/// Copyright(c) 2017 Carnegie Mellon University
+/// Licensed under The MIT License[see LICENSE for details]
+/// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
+////////////////////////////////////////////////////////////
 #include <opencv2/features2d.hpp>
 
 #include <common/OSUtils.h>
@@ -19,7 +19,7 @@ namespace ar {
     const int InterestPoint::MAX_OBSERVATIONS;
     shared_ptr<InterestPoint::Observation> EMPTY_OBSERVATION = make_shared<InterestPoint::Observation>();
 
-    //! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
+    /// Estimate the 3D location of the interest points with the latest keyframe asynchronously.
     //	Perform bundle adjustment based on the rough estimation of the extrinsics.
     void AREngine::EstimateMap() {
         while (!interest_points_mutex_.try_lock())
@@ -108,7 +108,7 @@ namespace ar {
         memcpy(intrinsics_.data, default_intrinsics, sizeof(float) * 3 * 3);
     }
 
-    //! If we have stored too many interest points, we remove the oldest location record
+    /// If we have stored too many interest points, we remove the oldest location record
     //	of the interest points, and remove the interest points that are determined not visible anymore.
     void AREngine::ReduceInterestPoints() {
         while (!interest_points_mutex_.try_lock())
@@ -399,7 +399,7 @@ namespace ar {
         return top;
     }
 
-    //!	Drag a virtual object to a location. The virtual object is stripped from the
+    ///	Drag a virtual object to a location. The virtual object is stripped from the
     //	real world by then, and its shape and size in the scene remain the same during
     //	the dragging. Call FixVObj to fix the virtual object onto the real world again.
     ERROR_CODE AREngine::DragVObj(int id, int x, int y) {
@@ -407,7 +407,7 @@ namespace ar {
         return AR_SUCCESS;
     }
 
-    //! Fix a virtual object that is floating to the real world. The orientation
+    /// Fix a virtual object that is floating to the real world. The orientation
     //	and size might be adjusted to fit the new location.
     ERROR_CODE AREngine::FixVObj(int id) {
         // TODO: This is only a fake function. Need real implementation.
@@ -424,6 +424,8 @@ namespace ar {
                                                                                initial_desc);
     }
 
+    /// Add an observation to the interest point.
+    //  In the current system setting, only observations from the keyframes shall be added.
     void InterestPoint::AddObservation(shared_ptr<Observation> p) {
         // Remove the information of the discarded observation.
         if (observation_seq_tail_ + 1 >= MAX_OBSERVATIONS) {
