@@ -46,5 +46,38 @@ namespace ar
 	void VTelevision::Draw(cv::Mat& scene, const cv::Mat& camera_matrix) {
 		// TODO: Need implementation. Use the camera matrix to project the television and the
 		// video content on the scene.
+		Point2f lu = ProjectPoint(camera_matrix, left_upper_);
+		Point2f ll = ProjectPoint(camera_matrix, left_lower_);
+		Point2f ru = ProjectPoint(camera_matrix, right_upper_);
+		Point2f rl = ProjectPoint(camera_matrix, right_lower_);
+		Mat frame;
+		content_stream_.NextFrame(frame);
+		vector<Point2f> pts_src = { Point(0,0), Point(frame.cols,0), Point(0,frame.rows), Point(frame.cols,frame.rows) };
+		vector<Point2f> pts_dst = { lu, ru, ll, rl };
+		DrawPolygon(scene, frame, pts_src, pts_dst);
+	}
+
+	inline Point2f VTelevision::ProjectPoint(const cv::Mat& camera_matrix, shared_ptr<const InterestPoint> point3d) {
+		Point2f result;
+		Mat origin(4, 1, CV_64F);
+		Mat projected(3, 1, CV_64F);
+		origin.data[0] = point3d->loc3d_.x;
+		origin.data[0] = point3d->loc3d_.y;
+		origin.data[0] = point3d->loc3d_.z;
+		origin.data[0] = double(1);
+		projected = camera_matrix * origin;
+		result.x = projected.data[0] / projected.data[2];
+		result.y = projected.data[1] / projected.data[2];
+		return result;
+	}
+
+	void VTelevision::DrawPolygon(Mat &scene, Mat &frame, vector<Point2f> &pts_src, vector<Point2f> &pts_dst) {
+		Mat dst = scene.clone();
+		Mat h = findHomography(pts_src, pts_dst);
+		Mat mask(scene.rows, scene.cols, CV_8UC3, Scalar(0, 0, 0));
+		warpPerspective(frame, dst, h, dst.size());
+		mask = (mask == dst);
+		bitwise_and(scene, mask, scene);
+		scene = scene + dst;
 	}
 }
