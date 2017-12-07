@@ -1,4 +1,4 @@
-file(GLOB tmp *.cpp)
+file(GLOB_RECURSE tmp *.cpp *.cc *.c *.hpp *.h)
 set(COMMON_SRCS ${COMMON_SRCS} ${tmp})
 
 add_library(common SHARED ${COMMON_SRCS})
