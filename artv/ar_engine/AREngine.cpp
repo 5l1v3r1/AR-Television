@@ -7,6 +7,7 @@
 #include <opencv2/features2d.hpp>
 
 #include <common/OSUtils.h>
+#include <common/Utils.h>
 #include <ar_engine/AREngine.h>
 #include <ar_engine/vobjects/VTelevision.h>
 
@@ -422,10 +423,11 @@ namespace ar {
             vis_cnt_(1), last_desc_(initial_desc) {
         observation_seq_[observation_seq_tail_ = 0] = make_shared<Observation>(initial_frame_id, initial_loc,
                                                                                initial_desc);
+        assert(observation_seq_[0]->visible);
     }
 
     /// Add an observation to the interest point.
-    //  In the current system setting, only observations from the keyframes shall be added.
+    /// In the current system setting, only observations from the keyframes shall be added.
     void InterestPoint::AddObservation(shared_ptr<Observation> p) {
         // Remove the information of the discarded observation.
         if (observation_seq_tail_ + 1 >= MAX_OBSERVATIONS) {

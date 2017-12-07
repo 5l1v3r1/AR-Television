@@ -1,5 +1,5 @@
 file(GLOB_RECURSE tmp *.cpp *.cc *.c *.hpp *.h)
-set(COMMON_SRCS ${COMMON_SRCS} ${tmp})
+set(COMMON_SRCS ${COMMON_SRCS} ${tmp} Utils.h)
 
 add_library(common SHARED ${COMMON_SRCS})
 

@@ -9,6 +9,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <common/OSUtils.h>
+#include <common/Utils.h>
 #include <ar_engine/AREngine.h>
 
 using namespace std;
@@ -168,7 +169,7 @@ int main(int argc, char *argv[]) {
             break;
         imshow("Origin scene", raw_scene);
 
-        ar_engine->GetMixedScene(raw_scene, mixed_scene);
+        ARSafeCall(ar_engine->GetMixedScene(raw_scene, mixed_scene));
         recorder << mixed_scene;
         imshow("Mixed scene", mixed_scene);
         waitKey(1);
