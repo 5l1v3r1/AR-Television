@@ -240,6 +240,7 @@ namespace ar {
 			switch (vobj.second->GetType()) {
 			case VObjType::TV:
 				// TODO: Draw the virtual television on the mixed_scene.
+				//vobj.second->Draw(mixed_scene, camera_matrix);
 				break;
 			default:
 				return AR_UNIMPLEMENTED;
