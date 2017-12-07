@@ -33,17 +33,19 @@ namespace ar {
     //	estimated 3D location of it in the real world.
     class ARENGINE_API InterestPoint {
     public:
-        static const int MAX_OBSERVATIONS = 100;
+        static const int MAX_OBSERVATIONS = 10;
 
         //! An observation of the interest point at a frame.
         struct Observation {
             bool visible;
             KeyPoint pt;
             Mat desc;
+            int frame_id;
 
             Observation();
 
-            Observation(const KeyPoint &_pt,
+            Observation(int frame_id,
+                        const KeyPoint &_pt,
                         const Mat &_desc);
 
             double l2dist_sqr(const Observation &o) const;
@@ -59,7 +61,13 @@ namespace ar {
 
         inline auto &last_loc() { return last_observation().pt.pt; }
 
-        InterestPoint(int initial_frame_id);
+        inline auto is_visible(int frame_id) const { return observation(frame_id).visible; }
+
+        inline auto &loc(int frame_id) { return observation(frame_id).pt.pt; }
+
+        inline auto &loc(int frame_id) const { return observation(frame_id).pt.pt; }
+
+        InterestPoint();
 
         InterestPoint(int initial_frame_id,
                       const KeyPoint &initial_loc,
@@ -76,7 +84,6 @@ namespace ar {
 
     private:
         Mat last_desc_;
-        int initial_frame_id_;
         //! Looped queue of observations (2D locations and descriptors) in the frames.
         Observation observation_seq_[MAX_OBSERVATIONS];
         int observation_seq_tail_ = -1;
@@ -99,7 +106,7 @@ namespace ar {
                  Mat t,
                  double average_depth);
 
-        Keyframe() {}
+        Keyframe() = default;
     };
 
     class VObject;
@@ -113,7 +120,7 @@ namespace ar {
         int thread_cnt_ = 0;
 
         static const int MAX_INTEREST_POINTS = 100;
-        static const int MAX_KEYFRAMES = 5;
+        static const int MAX_KEYFRAMES = 10;
 
         //! For objects in this engine, they should automatically disappear if not viewed
         //	for this long period (in milliseconds). This period might be dynamically
@@ -128,10 +135,6 @@ namespace ar {
         Mat last_raw_frame_;
         Mat last_gray_frame_;
         Mat last_canny_map_;
-        //! Rotation of the camera at the last frame with respect to the world coordinate.
-        Mat last_R_;
-        //! Translation of the camera at the last frame with respect to the world coordinate.
-        Mat last_t_;
 
         //! Descriptor length of interest points.
         int desc_length_ = 0;
@@ -141,8 +144,6 @@ namespace ar {
         //	and writing across different threads.
         mutex interest_points_mutex_;
         InterestPointsTracker interest_points_tracker_;
-
-        void UpdateInterestPoints(const Mat &scene);
 
         //! If we have stored too many interest points, we remove the oldest location record
         //	of the interest points, and remove the interest points that are determined not visible anymore.
@@ -158,6 +159,8 @@ namespace ar {
         int frame_id_ = -1;
         Keyframe recent_keyframes_[MAX_KEYFRAMES];
         int keyframe_seq_tail_ = -1;
+
+        bool IsKeyframe(int frame_id);
 
         void AddKeyframe(Keyframe &keyframe);
 

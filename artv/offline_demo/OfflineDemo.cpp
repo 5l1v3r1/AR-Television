@@ -105,7 +105,7 @@ double test(int numPoints, int numCam) {
     vector<std::pair<cv::Mat, cv::Mat>> cameras = generate_data(gen_3d_pts, numPoints, numCam);
     cout << "Finish Generating Random Data" << endl;
     double error;
-    triangulate(cameras, points3d, &error);
+    Triangulate(cameras, points3d, &error);
     Mat diff = abs(gen_3d_pts - points3d);
     return error;
 }

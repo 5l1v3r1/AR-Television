@@ -52,10 +52,12 @@ namespace ar {
 
 	//! Input a series of camera matrices and 2D points. The 2D points are all matched in order to relate to some 3D points.
 	//	Output the estimation of 3D points and estimation error.
-	ERROR_CODE COMMON_API triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>>& camera_matrices_and_2d_points,
-									  cv::Mat& points3d,
-									  double* error = NULL);
+	ERROR_CODE COMMON_API Triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>> &camera_matrices_and_2d_points,
+									  cv::Mat &points3d,
+									  double *error = NULL);
     void COMMON_API BundleAdjustment(cv::Mat K1, cv::Mat M1, cv::Mat pts1,
                                      cv::Mat K2, cv::Mat& M2, cv::Mat pts2,
                                      cv::Mat &Points3d);
+
+	cv::Mat COMMON_API ComputeCameraMatrix(cv::Mat intrinsics, cv::Mat R, cv::Mat t);
 }
