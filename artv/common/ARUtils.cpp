@@ -37,9 +37,8 @@ namespace ar {
         W.at<float>(0, 0) = W.at<float>(1, 1) = m;
         Mat regularized_E = U * W * Vt;
         svd.compute(regularized_E, W, U, Vt);
-        W = Mat::diag(W);
 
-        W.at<float>(0, 0) = W.at<float>(1, 1) = 0;
+        W = Mat::zeros(3, 3, CV_32F);
         W.at<float>(0, 1) = -1;
         W.at<float>(1, 0) = W.at<float>(2, 2) = 1;
         if (determinant(U * W * Vt) < 0)

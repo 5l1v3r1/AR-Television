@@ -205,12 +205,22 @@ namespace ar {
             }
 
             // Estimate the fundamental matrix using the matched points.
-            Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_8POINT);
+            Mat inlier_mask;
+            Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_RANSAC, 3., 0.99, inlier_mask);
+
             // If fail to compute a unique solution of fundamental matrix, this scene might be problematic. We skip it.
             if (fundamental_matrix.rows != 3)
                 return AR_SUCCESS;
             fundamental_matrix.convertTo(fundamental_matrix, CV_32F);
 
+            // Remove outliers from the matches.
+            size_t new_size = 0;
+            for (int i = 0; i < matches.size(); ++i)
+                if (inlier_mask.at<bool>(i))
+                    matches[new_size++] = matches[i];
+            matches.resize(new_size);
+
+            // Plot matches.
             Mat plot;
             PlotMatches(last_key_scene_, raw_scene, points1, points2, plot);
             imshow("Matches", plot);
@@ -220,6 +230,12 @@ namespace ar {
 
             // Call RecoverRotAndTranslation to recover rotation and translation.
             auto candidates = RecoverRotAndTranslation(essential_matrix);
+            cout << "Essential matrix: " << endl << essential_matrix << endl;
+            cout << "Candidates:" << endl;
+            for (auto M2 : candidates) {
+                cout << M2 << endl << "------------" << endl;
+            }
+
             Mat R, t;
             Mat pts3d;
             // Test for the only valid rotation and translation combination.
@@ -305,18 +321,20 @@ namespace ar {
                     assert(estimated_pts3d.rows == data.back().second.rows);
                     // These 3D points are valid if they are in front of the camera in the previous keyframes.
                     bool valid = true;
-//                    for (int j = 0; j <= max(1, keyframe_id_) && valid; ++j) {
-//                        auto &kf = keyframe(keyframe_id_ - j);
-//                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
-//                        for (int k = 0; k < estimated_pts3d.rows; ++k)
-//                            ((Mat) kf.t.t()).copyTo(T.row(k));
-//                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
-//                        for (int k = 0; k < transformed_pts3d.rows; ++k)
-//                            if (transformed_pts3d.at<float>(k, 3) < 0) {
-//                                valid = false;
-//                                break;
-//                            }
-//                    }
+                    for (int j = 0; j <= max(1, keyframe_id_) && valid; ++j) {
+                        auto &kf = keyframe(keyframe_id_ - j);
+                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+                        for (int k = 0; k < estimated_pts3d.rows; ++k)
+                            ((Mat) kf.t.t()).copyTo(T.row(k));
+                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
+                        cout << transformed_pts3d << endl;
+                        AR_PAUSE;
+                        for (int k = 0; k < transformed_pts3d.rows; ++k)
+                            if (transformed_pts3d.at<float>(k, 3) < 0) {
+                                valid = false;
+                                break;
+                            }
+                    }
                     if (valid) {
                         if (err < least_error) {
                             least_error = err;
