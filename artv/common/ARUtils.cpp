@@ -6,22 +6,27 @@ using namespace cv;
 namespace ar {
     using cv::Mat;
 
-    Mat RefineFundamentalMatrix(const Mat &fundamental_matrix,
-                                const vector<Point2d> &point1,
-                                const vector<Point2d> &point2) {
-        // TODO: Locally minimize a geometric cost function.
-
-
-        // Enforce singularity.
-        auto svd = SVD(fundamental_matrix);
-        auto Sigma = svd.w;
-        Sigma.at<double>(Sigma.cols - 1, Sigma.rows - 1) = 0;
-        return svd.u * Sigma * svd.vt;
+    /// Plot matched points between two images.
+    void PlotMatches(const Mat& img1,
+                     const Mat& img2,
+                     const vector<cv::Point2f>& pts1,
+                     const vector<cv::Point2f>& pts2,
+                     Mat& out) {
+        vconcat(img1, img2, out);
+        auto num_points = pts1.size();
+        for (int i = 0; i < num_points; ++i) {
+            circle(out, pts1[i], 4, Scalar(255, 0, 0));
+            auto pt2 = pts2[i];
+            pt2.y += img1.rows;
+            circle(out, pt2, 4, Scalar(255, 0, 0));
+            line(out, pts1[i], pt2, Scalar(0, 255, 0), 2);
+        }
+        resize(out, out, Size(out.rows / 2, out.cols / 2));
     }
 
     /// Recover rotation and translation from an essential matrix.
-    //	This operation produces four posible results, each is a 3x4 matrix that combines
-    //	rotation and translation.
+    ///	This operation produces four posible results, each is a 3x4 matrix that combines
+    ///	rotation and translation.
     vector<Mat> RecoverRotAndTranslation(const Mat &essential_matrix) {
         Mat U, W, Vt;
         auto svd = SVD();

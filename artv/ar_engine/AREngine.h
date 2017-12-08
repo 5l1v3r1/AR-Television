@@ -131,6 +131,7 @@ namespace ar {
         vector<MotionData> accumulated_motion_data_;
         Mat intrinsics_;
 
+        Mat last_key_scene_;
         Mat last_raw_frame_;
         Mat last_gray_frame_;
         Mat last_canny_map_;

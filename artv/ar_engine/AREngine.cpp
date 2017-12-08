@@ -21,7 +21,7 @@ namespace ar {
     shared_ptr<InterestPoint::Observation> EMPTY_OBSERVATION = make_shared<InterestPoint::Observation>();
 
     /// Estimate the 3D location of the interest points with the latest keyframe asynchronously.
-    //	Perform bundle adjustment based on the rough estimation of the extrinsics.
+    ///	Perform bundle adjustment based on the rough estimation of the extrinsics.
     void AREngine::EstimateMap() {
         while (!interest_points_mutex_.try_lock())
             AR_SLEEP(1);
@@ -35,7 +35,7 @@ namespace ar {
         hconcat(last_frame2.R, last_frame2.t, M2);
 
         vector<int> utilized_interest_points;
-        //find utilized_interest_points
+        // Find utilized_interest_points.
         utilized_interest_points.reserve(interest_points_.size());
         for (int i = 0; i < interest_points_.size(); ++i) {
             bool usable = true;
@@ -48,7 +48,7 @@ namespace ar {
             if (usable)
                 utilized_interest_points.push_back(i);
         }
-        //Fill the data
+        // Fill the data.
         Mat pts1(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
         Mat pts2(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
         Mat Points3d(static_cast<int>(utilized_interest_points.size()), 3, CV_32F);
@@ -108,7 +108,7 @@ namespace ar {
     }
 
     /// If we have stored too many interest points, we remove the oldest location record
-    //	of the interest points, and remove the interest points that are determined not visible anymore.
+    ///	of the interest points, and remove the interest points that are determined not visible anymore.
     void AREngine::ReduceInterestPoints() {
         while (!interest_points_mutex_.try_lock())
             AR_SLEEP(1);
@@ -126,6 +126,14 @@ namespace ar {
         interest_points_mutex_.unlock();
 
         cout << "Currently there are " << interest_points_.size() << " points." << endl;
+
+        // Also remove virtual objects that are based on the removed interest points.
+        vector<int> to_remove;
+        for (auto &vobj : virtual_objects_)
+            if (!vobj.second->IsAlive())
+                to_remove.push_back(vobj.first);
+        for (auto id : to_remove)
+            virtual_objects_.erase(id);
     }
 
     Keyframe::Keyframe(Mat _intrinsics,
@@ -137,6 +145,8 @@ namespace ar {
             average_depth(_average_depth) {}
 
     void AREngine::AddKeyframe(Keyframe &kf) {
+        last_key_scene_ = last_raw_frame_.clone();
+
         keyframe(++keyframe_id_) = kf;
         if (keyframe_id_ >= (MAX_KEYFRAMES << 1))
             keyframe_id_ -= MAX_KEYFRAMES;
@@ -193,12 +203,17 @@ namespace ar {
                     points2.emplace_back(keypoints[match.second].pt);
                 }
             }
+
             // Estimate the fundamental matrix using the matched points.
             Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_8POINT);
             // If fail to compute a unique solution of fundamental matrix, this scene might be problematic. We skip it.
             if (fundamental_matrix.rows != 3)
                 return AR_SUCCESS;
             fundamental_matrix.convertTo(fundamental_matrix, CV_32F);
+
+            Mat plot;
+            PlotMatches(last_key_scene_, raw_scene, points1, points2, plot);
+            imshow("Matches", plot);
 
             // Estimate the essential matrix.
             Mat essential_matrix = intrinsics_.t() * fundamental_matrix * intrinsics_;

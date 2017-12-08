@@ -37,9 +37,12 @@ namespace ar {
 		//TODO: Fill the data here.
 	};
 
-	cv::Mat COMMON_API RefineFundamentalMatrix(const cv::Mat& fundamentalMatrix,
-											   const std::vector<cv::Point2d>& point1,
-											   const std::vector<cv::Point2d>& point2);
+    /// Plot matched points between two images.
+    void PlotMatches(const cv::Mat& img1,
+					 const cv::Mat& img2,
+					 const std::vector<cv::Point2f>& pts1,
+					 const std::vector<cv::Point2f>& pts2,
+					 cv::Mat& out);
 
 	/// Recover rotation and translation from an essential matrix.
 	///	This operation produces four posible results, each is a 3x4 matrix that combines

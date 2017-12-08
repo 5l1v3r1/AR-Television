@@ -20,6 +20,8 @@ namespace ar
 	{
 		FrameStream& content_stream_;
 
+		bool alive_ = true;
+
 		shared_ptr<const InterestPoint> left_upper_;
 		shared_ptr<const InterestPoint> left_lower_;
 		shared_ptr<const InterestPoint> right_upper_;
@@ -36,6 +38,7 @@ namespace ar
 					const std::shared_ptr<const InterestPoint>& right_upper,
 					const std::shared_ptr<const InterestPoint>& right_lower);
 
+		bool IsAlive() override;
 		inline VObjType GetType() { return TV; }
 		bool IsSelected(cv::Point2f pt2d, int frame_id);
 		void Draw(cv::Mat& scene, const cv::Mat& camera_matrix);
