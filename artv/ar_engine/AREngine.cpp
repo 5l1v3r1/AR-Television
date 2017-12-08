@@ -318,19 +318,22 @@ namespace ar {
                     double err = 0;
 
                     Triangulate(data, estimated_pts3d, &err);
+//                    cout << estimated_pts3d << endl;
+//                    AR_PAUSE;
                     assert(estimated_pts3d.rows == data.back().second.rows);
                     // These 3D points are valid if they are in front of the camera in the previous keyframes.
                     bool valid = true;
-                    for (int j = 0; j <= max(1, keyframe_id_) && valid; ++j) {
+                    for (int j = 0; j <= min(1, keyframe_id_) && valid; ++j) {
                         auto &kf = keyframe(keyframe_id_ - j);
                         Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
                         for (int k = 0; k < estimated_pts3d.rows; ++k)
                             ((Mat) kf.t.t()).copyTo(T.row(k));
                         Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
-                        cout << transformed_pts3d << endl;
-                        AR_PAUSE;
+//                        cout << transformed_pts3d << endl;
+//                        AR_PAUSE;
                         for (int k = 0; k < transformed_pts3d.rows; ++k)
-                            if (transformed_pts3d.at<float>(k, 3) < 0) {
+                            if (transformed_pts3d.at<float>(k, 2) < 1) {
+//                                cout << transformed_pts3d.at<float>(k, 2) << "!!!!" << endl;
                                 valid = false;
                                 break;
                             }
@@ -341,6 +344,8 @@ namespace ar {
                             bestM2 = M2;
                             pts3d = estimated_pts3d;
                         }
+                        cout << "Found a valid solution!" << endl;
+                        cout << M2 << endl;
                     }
                     cout << "Error=" << err << endl;
                 }

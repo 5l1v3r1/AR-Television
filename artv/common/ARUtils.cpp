@@ -7,11 +7,11 @@ namespace ar {
     using cv::Mat;
 
     /// Plot matched points between two images.
-    void PlotMatches(const Mat& img1,
-                     const Mat& img2,
-                     const vector<cv::Point2f>& pts1,
-                     const vector<cv::Point2f>& pts2,
-                     Mat& out) {
+    void PlotMatches(const Mat &img1,
+                     const Mat &img2,
+                     const vector<cv::Point2f> &pts1,
+                     const vector<cv::Point2f> &pts2,
+                     Mat &out) {
         vconcat(img1, img2, out);
         auto num_points = pts1.size();
         for (int i = 0; i < num_points; ++i) {
@@ -100,10 +100,10 @@ namespace ar {
                 ((Mat) (pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2))).copyTo(
                         A.row(2 * j + 1));
             }
-            Mat U, W, VT, V;
-            SVD svd;
+            Mat U, W, VT;
+            auto svd = SVD();
             svd.compute(A, W, U, VT);
-            Mat p = VT.row(V.cols);
+            Mat p = VT.row(VT.rows - 1);
             p = p / p.at<float>(0, 3);
             for (int k = 0; k < n; ++k) {
                 Mat proj = p * pts[k].first.t();
