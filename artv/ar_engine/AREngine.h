@@ -69,8 +69,6 @@ namespace ar {
 
         inline auto &loc(int frame_id) const { return observation(frame_id)->pt.pt; }
 
-        InterestPoint();
-
         InterestPoint(int initial_frame_id,
                       const KeyPoint &initial_loc,
                       const Mat &initial_desc);

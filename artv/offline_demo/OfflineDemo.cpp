@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
             break;
         imshow("Origin scene", raw_scene);
 
-        ARSafeCall(ar_engine->GetMixedScene(raw_scene, mixed_scene));
+        AR_SAFE_CALL(ar_engine->GetMixedScene(raw_scene, mixed_scene));
         recorder << mixed_scene;
         imshow("Mixed scene", mixed_scene);
         waitKey(1);

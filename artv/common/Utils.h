@@ -14,11 +14,11 @@
 #include <cstdlib>
 
 namespace ar {
-#define ARSafeCall(err) __ARSafeCall( err, __FILE__, __LINE__ )
+#define AR_SAFE_CALL(err) __AR_SAFE_CALL( err, __FILE__, __LINE__ )
 
-    inline void __ARSafeCall(ERROR_CODE err, const char *file, const int line) {
+    inline void __AR_SAFE_CALL(ERROR_CODE err, const char *file, const int line) {
         if (AR_SUCCESS != err) {
-            fprintf(stderr, "ARSafeCall() failed at %s:%i : %s\n",
+            fprintf(stderr, "AR_SAFE_CALL() failed at %s:%i : %s\n",
                     file, line, ErrCode2Msg(err));
             exit(-1);
         }
