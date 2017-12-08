@@ -370,14 +370,15 @@ namespace ar {
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
-            double distance = cv::norm(t, cv::NormTypes::NORM_L2);
-            if (distance > last_keyframe.average_depth / 5) {
+            double distance = cv::norm(last_keyframe.t - last_keyframe.R * (R.t() * t), cv::NormTypes::NORM_L2);
+            cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
+            if (distance / last_keyframe.average_depth > 0.1) {
                 // Estimate the average depth.
                 Mat T = Mat(pts3d.rows, 3, CV_32F);
                 for (int k = 0; k < pts3d.rows; ++k)
                     ((Mat) t.t()).copyTo(T.row(k));
                 Mat transformed_pts3d = pts3d * R.t() + T;
-                double average_depth = sum(transformed_pts3d.col(2))[0];
+                double average_depth = sum(transformed_pts3d.col(2))[0] / pts3d.rows;
 
                 auto kf = Keyframe(intrinsics_,
                                    last_keyframe.R * R,
