@@ -209,6 +209,12 @@ namespace ar {
                     points2.emplace_back(keypoints[match.second].pt);
                 }
             }
+            // If there are not enough points matched, this scene might be problematic. We omit it.
+            if (points1.size() < 8) {
+                --frame_id_;
+                return AR_SUCCESS;
+            }
+            // Estimate the fundamental matrix using the matched points.
             Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_8POINT);
             fundamental_matrix.convertTo(fundamental_matrix, CV_32F);
 
@@ -302,18 +308,18 @@ namespace ar {
                     assert(estimated_pts3d.rows == data.back().second.rows);
                     // These 3D points are valid if they are in front of the camera in the previous keyframes.
                     bool valid = true;
-                    for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
-                        auto &kf = keyframe(keyframe_seq_tail_ - j);
-                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
-                        for (int k = 0; k < estimated_pts3d.rows; ++k)
-                            ((Mat) kf.t.t()).copyTo(T.row(k));
-                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
-                        for (int k = 0; k < transformed_pts3d.rows; ++k)
-                            if (transformed_pts3d.at<float>(k, 3) < 0) {
-                                valid = false;
-                                break;
-                            }
-                    }
+//                    for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
+//                        auto &kf = keyframe(keyframe_seq_tail_ - j);
+//                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+//                        for (int k = 0; k < estimated_pts3d.rows; ++k)
+//                            ((Mat) kf.t.t()).copyTo(T.row(k));
+//                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
+//                        for (int k = 0; k < transformed_pts3d.rows; ++k)
+//                            if (transformed_pts3d.at<float>(k, 3) < 0) {
+//                                valid = false;
+//                                break;
+//                            }
+//                    }
                     if (valid) {
                         if (err < least_error) {
                             least_error = err;
@@ -321,6 +327,7 @@ namespace ar {
                             pts3d = estimated_pts3d;
                         }
                     }
+                    cout << "Error=" << err << endl;
                 }
                 R = bestM2.colRange(0, 3);
                 t = bestM2.col(3);
