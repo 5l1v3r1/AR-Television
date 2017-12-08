@@ -177,7 +177,7 @@ namespace ar {
             auto kf = Keyframe(intrinsics_,
                                Mat::eye(3, 3, CV_32F),
                                Mat::zeros(3, 1, CV_32F),
-                               DBL_MAX);
+                               0);
             AddKeyframe(kf);
 
             // Make all keypoints as initial interest points.
@@ -366,25 +366,35 @@ namespace ar {
                         for (int k = 0; k < estimated_pts3d.rows; ++k)
                             ((Mat) kf.t.t()).copyTo(T.row(k));
                         Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
-//                        cout << transformed_pts3d << endl;
-//                        AR_PAUSE;
                         for (int k = 0; k < transformed_pts3d.rows; ++k)
                             if (transformed_pts3d.at<float>(k, 2) < 1) {
-//                                cout << transformed_pts3d.at<float>(k, 2) << "!!!!" << endl;
                                 valid = false;
                                 break;
                             }
                     }
                     if (valid) {
-                        if (err < least_error) {
+                        R = M2.colRange(0, 3);
+                        t = M2.col(3);
+                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+                        for (int k = 0; k < estimated_pts3d.rows; ++k)
+                            ((Mat) t.t()).copyTo(T.row(k));
+                        Mat transformed_pts3d = estimated_pts3d * R.t() + T;
+                        for (int k = 0; k < transformed_pts3d.rows; ++k)
+                            if (transformed_pts3d.at<float>(k, 2) < 1) {
+                                valid = false;
+                                break;
+                            }
+
+                        if (valid && err < least_error) {
                             least_error = err;
                             bestM2 = M2;
                             pts3d = estimated_pts3d;
-                        }
-                        cout << "Found a valid solution!" << endl;
+
+                            cout << "Found a valid solution!" << endl;
 //                        cout << M2 << endl;
+                            cout << "Error=" << err << endl;
+                        }
                     }
-//                    cout << "Error=" << err << endl;
                 }
                 // We cannot find a valid solution. This frame may be problematic.
                 if (bestM2.empty())
@@ -399,11 +409,15 @@ namespace ar {
                 ((Mat) t.t()).copyTo(T.row(k));
             Mat transformed_pts3d = pts3d * R.t() + T;
             double average_depth = sum(transformed_pts3d.col(2))[0];
+            cout << "Average Depth=" << average_depth << endl;
+            if (average_depth < 0) {
+                cout << transformed_pts3d << endl;
+                AR_PAUSE;
+            }
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
-            double distance = cv::norm(t, cv::NormTypes::NORM_L2);
-            if (distance > last_keyframe.average_depth / 5) {
+            if (average_depth > last_keyframe.average_depth / 5) {
                 auto kf = Keyframe(intrinsics_,
                                    last_keyframe.R * R,
                                    last_keyframe.t + t,
@@ -438,8 +452,6 @@ namespace ar {
 
             ReduceInterestPoints();
         }
-
-        assert(interest_points_[0]->is_visible(0));
 
         return AR_SUCCESS;
     }
