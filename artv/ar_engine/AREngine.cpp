@@ -177,7 +177,7 @@ namespace ar {
             auto kf = Keyframe(intrinsics_,
                                Mat::eye(3, 3, CV_32F),
                                Mat::zeros(3, 1, CV_32F),
-                               0);
+                               DBL_MAX);
             AddKeyframe(kf);
 
             // Make all keypoints as initial interest points.
@@ -218,7 +218,12 @@ namespace ar {
             for (int i = 0; i < matches.size(); ++i)
                 if (inlier_mask.at<bool>(i))
                     matches[new_size++] = matches[i];
+            // If there are too few inliers, this scene is problematic. Skip it.
+            if (new_size < 8)
+                return AR_SUCCESS;
             matches.resize(new_size);
+            // The new matches consist of all inliers.
+            inlier_mask = Mat::ones(static_cast<int>(new_size), 1, CV_8U);
 
             // Plot matches.
             Mat plot;
@@ -246,7 +251,7 @@ namespace ar {
                         if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
                             interest_points_[match.first]->is_visible(keyframe_id_))
                             ++cnt;
-                    if (cnt) {
+                    if (cnt >= (matches.size() >> 2)) {
                         // There are enough points for triangulate.
                         Mat stored_pts1(cnt, 2, CV_32F);
                         Mat stored_pts2(cnt, 2, CV_32F);
@@ -333,24 +338,28 @@ namespace ar {
                         for (int k = 0; k < estimated_pts3d.rows; ++k)
                             ((Mat) kf.t.t()).copyTo(T.row(k));
                         Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
+                        int invalid_cnt = 0;
                         for (int k = 0; k < transformed_pts3d.rows; ++k)
-                            if (transformed_pts3d.at<float>(k, 2) < 1) {
-                                valid = false;
-                                break;
-                            }
+                            if (transformed_pts3d.at<float>(k, 2) < 1)
+                                ++invalid_cnt;
+                        // We allow some errors.
+                        if (invalid_cnt >= (transformed_pts3d.rows >> 2))
+                            valid = false;
                     }
                     if (valid) {
+                        // Also check with the current frame.
                         R = M2.colRange(0, 3);
                         t = M2.col(3);
                         Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
                         for (int k = 0; k < estimated_pts3d.rows; ++k)
                             ((Mat) t.t()).copyTo(T.row(k));
                         Mat transformed_pts3d = estimated_pts3d * R.t() + T;
+                        int invalid_cnt = 0;
                         for (int k = 0; k < transformed_pts3d.rows; ++k)
-                            if (transformed_pts3d.at<float>(k, 2) < 1) {
-                                valid = false;
-                                break;
-                            }
+                            if (transformed_pts3d.at<float>(k, 2) < 1)
+                                ++invalid_cnt;
+                        if (invalid_cnt >= (transformed_pts3d.rows >> 2))
+                            valid = false;
 
                         if (valid && err < least_error) {
                             least_error = err;
@@ -361,25 +370,40 @@ namespace ar {
                         }
                     }
                 }
-                // We cannot find a valid solution. This frame may be problematic.
-                if (bestM2.empty())
+                // We cannot find a valid solution using both the last 2 keyframes.
+                if (bestM2.empty()) {
                     return AR_SUCCESS;
+                }
                 R = bestM2.colRange(0, 3);
                 t = bestM2.col(3);
             }
+
+            // Remain only the points with correct estimated 3D locations.
+            new_size = 0;
+            for (int k = 0; k < pts3d.rows; ++k)
+                if (pts3d.at<float>(k, 2) > 1) {
+                    pts3d.row(k).copyTo(pts3d.row(static_cast<int>(new_size)));
+                    matches[new_size] = matches[k];
+                    ++new_size;
+                }
+            // If there are too few points, this scene is problematic. Skip it.
+            if (new_size < 8)
+                return AR_SUCCESS;
+            matches.resize(new_size);
+            pts3d = pts3d.rowRange(0, static_cast<int>(new_size));
+
+            // Estimate the average depth.
+            Mat T = Mat(pts3d.rows, 3, CV_32F);
+            for (int k = 0; k < pts3d.rows; ++k)
+                ((Mat) t.t()).copyTo(T.row(k));
+            Mat transformed_pts3d = pts3d * R.t() + T;
+            double average_depth = sum(transformed_pts3d.col(2))[0] / pts3d.rows;
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
             double distance = cv::norm(last_keyframe.t - last_keyframe.R * (R.t() * t), cv::NormTypes::NORM_L2);
             cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
-            if (distance / last_keyframe.average_depth > 0.1) {
-                // Estimate the average depth.
-                Mat T = Mat(pts3d.rows, 3, CV_32F);
-                for (int k = 0; k < pts3d.rows; ++k)
-                    ((Mat) t.t()).copyTo(T.row(k));
-                Mat transformed_pts3d = pts3d * R.t() + T;
-                double average_depth = sum(transformed_pts3d.col(2))[0] / pts3d.rows;
-
+            if (distance / min(average_depth, last_keyframe.average_depth) > 0.1) {
                 auto kf = Keyframe(intrinsics_,
                                    last_keyframe.R * R,
                                    last_keyframe.t + t,
@@ -398,6 +422,9 @@ namespace ar {
                             make_shared<InterestPoint::Observation>(keyframe_id_,
                                                                     keypoints[match.second],
                                                                     descriptors.row(match.second)));
+                    interest_points_[match.first]->loc3d_.x = pts3d.at<float>(match.first, 0);
+                    interest_points_[match.first]->loc3d_.y = pts3d.at<float>(match.first, 1);
+                    interest_points_[match.first]->loc3d_.z = pts3d.at<float>(match.first, 2);
                 }
 
                 // These interest points are not visible at this frame.
