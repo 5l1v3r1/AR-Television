@@ -1,0 +1,390 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 48;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		85C9CD8F1FDB1EB8005213BF /* OfflineDemo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85C9CD8E1FDB1EB8005213BF /* OfflineDemo.cpp */; };
+		85C9CD971FDB1EC9005213BF /* CVUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85C9CD951FDB1EC9005213BF /* CVUtils.cpp */; };
+		85C9CD981FDB1EC9005213BF /* ARUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85C9CD961FDB1EC9005213BF /* ARUtils.cpp */; };
+		85C9CD9E1FDB1ED7005213BF /* AREngineVObj.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85C9CD991FDB1ED6005213BF /* AREngineVObj.cpp */; };
+		85C9CD9F1FDB1ED7005213BF /* AREngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85C9CD9B1FDB1ED6005213BF /* AREngine.cpp */; };
+		85C9CDA01FDB1ED7005213BF /* VObject.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85C9CD9C1FDB1ED7005213BF /* VObject.cpp */; };
+		85C9CDA41FDB1EFC005213BF /* VTelevision.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85C9CDA21FDB1EFC005213BF /* VTelevision.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		85AC84CB1FDB1D850015546E /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		85AC84CD1FDB1D850015546E /* AR-Television */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "AR-Television"; sourceTree = BUILT_PRODUCTS_DIR; };
+		85C9CD8E1FDB1EB8005213BF /* OfflineDemo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OfflineDemo.cpp; path = offline_demo/OfflineDemo.cpp; sourceTree = "<group>"; };
+		85C9CD901FDB1EC8005213BF /* ARUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ARUtils.h; path = common/ARUtils.h; sourceTree = "<group>"; };
+		85C9CD911FDB1EC8005213BF /* CVUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CVUtils.h; path = common/CVUtils.h; sourceTree = "<group>"; };
+		85C9CD921FDB1EC9005213BF /* OSUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OSUtils.h; path = common/OSUtils.h; sourceTree = "<group>"; };
+		85C9CD931FDB1EC9005213BF /* ErrorCodes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ErrorCodes.h; path = common/ErrorCodes.h; sourceTree = "<group>"; };
+		85C9CD941FDB1EC9005213BF /* Utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Utils.h; path = common/Utils.h; sourceTree = "<group>"; };
+		85C9CD951FDB1EC9005213BF /* CVUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = CVUtils.cpp; path = common/CVUtils.cpp; sourceTree = "<group>"; };
+		85C9CD961FDB1EC9005213BF /* ARUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ARUtils.cpp; path = common/ARUtils.cpp; sourceTree = "<group>"; };
+		85C9CD991FDB1ED6005213BF /* AREngineVObj.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = AREngineVObj.cpp; path = ar_engine/AREngineVObj.cpp; sourceTree = "<group>"; };
+		85C9CD9A1FDB1ED6005213BF /* AREngine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AREngine.h; path = ar_engine/AREngine.h; sourceTree = "<group>"; };
+		85C9CD9B1FDB1ED6005213BF /* AREngine.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = AREngine.cpp; path = ar_engine/AREngine.cpp; sourceTree = "<group>"; };
+		85C9CD9C1FDB1ED7005213BF /* VObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = VObject.cpp; path = ar_engine/VObject.cpp; sourceTree = "<group>"; };
+		85C9CD9D1FDB1ED7005213BF /* VObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VObject.h; path = ar_engine/VObject.h; sourceTree = "<group>"; };
+		85C9CDA21FDB1EFC005213BF /* VTelevision.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = VTelevision.cpp; path = ar_engine/vobjects/VTelevision.cpp; sourceTree = SOURCE_ROOT; };
+		85C9CDA31FDB1EFC005213BF /* VTelevision.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VTelevision.h; path = ar_engine/vobjects/VTelevision.h; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		85AC84CA1FDB1D850015546E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		85AC84C41FDB1D850015546E = {
+			isa = PBXGroup;
+			children = (
+				85C9CD8D1FDB1EA0005213BF /* ar_engine */,
+				85C9CD8C1FDB1E88005213BF /* common */,
+				85C9CD8B1FDB1E6E005213BF /* offline_demo */,
+				85AC84CE1FDB1D850015546E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		85AC84CE1FDB1D850015546E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				85AC84CD1FDB1D850015546E /* AR-Television */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		85C9CD8B1FDB1E6E005213BF /* offline_demo */ = {
+			isa = PBXGroup;
+			children = (
+				85C9CD8E1FDB1EB8005213BF /* OfflineDemo.cpp */,
+			);
+			name = offline_demo;
+			sourceTree = "<group>";
+		};
+		85C9CD8C1FDB1E88005213BF /* common */ = {
+			isa = PBXGroup;
+			children = (
+				85C9CD961FDB1EC9005213BF /* ARUtils.cpp */,
+				85C9CD901FDB1EC8005213BF /* ARUtils.h */,
+				85C9CD951FDB1EC9005213BF /* CVUtils.cpp */,
+				85C9CD911FDB1EC8005213BF /* CVUtils.h */,
+				85C9CD931FDB1EC9005213BF /* ErrorCodes.h */,
+				85C9CD921FDB1EC9005213BF /* OSUtils.h */,
+				85C9CD941FDB1EC9005213BF /* Utils.h */,
+			);
+			name = common;
+			sourceTree = "<group>";
+		};
+		85C9CD8D1FDB1EA0005213BF /* ar_engine */ = {
+			isa = PBXGroup;
+			children = (
+				85C9CDA11FDB1EDB005213BF /* vobjects */,
+				85C9CD9B1FDB1ED6005213BF /* AREngine.cpp */,
+				85C9CD9A1FDB1ED6005213BF /* AREngine.h */,
+				85C9CD991FDB1ED6005213BF /* AREngineVObj.cpp */,
+				85C9CD9C1FDB1ED7005213BF /* VObject.cpp */,
+				85C9CD9D1FDB1ED7005213BF /* VObject.h */,
+			);
+			name = ar_engine;
+			sourceTree = "<group>";
+		};
+		85C9CDA11FDB1EDB005213BF /* vobjects */ = {
+			isa = PBXGroup;
+			children = (
+				85C9CDA21FDB1EFC005213BF /* VTelevision.cpp */,
+				85C9CDA31FDB1EFC005213BF /* VTelevision.h */,
+			);
+			path = vobjects;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		85AC84CC1FDB1D850015546E /* AR-Television */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 85AC84D41FDB1D850015546E /* Build configuration list for PBXNativeTarget "AR-Television" */;
+			buildPhases = (
+				85AC84C91FDB1D850015546E /* Sources */,
+				85AC84CA1FDB1D850015546E /* Frameworks */,
+				85AC84CB1FDB1D850015546E /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "AR-Television";
+			productName = "AR-Television";
+			productReference = 85AC84CD1FDB1D850015546E /* AR-Television */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		85AC84C51FDB1D850015546E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0910;
+				ORGANIZATIONNAME = "Qiqi Xiao";
+				TargetAttributes = {
+					85AC84CC1FDB1D850015546E = {
+						CreatedOnToolsVersion = 9.1;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 85AC84C81FDB1D850015546E /* Build configuration list for PBXProject "AR-Television" */;
+			compatibilityVersion = "Xcode 8.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 85AC84C41FDB1D850015546E;
+			productRefGroup = 85AC84CE1FDB1D850015546E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				85AC84CC1FDB1D850015546E /* AR-Television */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		85AC84C91FDB1D850015546E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				85C9CD971FDB1EC9005213BF /* CVUtils.cpp in Sources */,
+				85C9CD981FDB1EC9005213BF /* ARUtils.cpp in Sources */,
+				85C9CD9F1FDB1ED7005213BF /* AREngine.cpp in Sources */,
+				85C9CDA01FDB1ED7005213BF /* VObject.cpp in Sources */,
+				85C9CD8F1FDB1EB8005213BF /* OfflineDemo.cpp in Sources */,
+				85C9CDA41FDB1EFC005213BF /* VTelevision.cpp in Sources */,
+				85C9CD9E1FDB1ED7005213BF /* AREngineVObj.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		85AC84D21FDB1D850015546E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Mac Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		85AC84D31FDB1D850015546E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Mac Developer";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		85AC84D51FDB1D850015546E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 7DUB7Q8F99;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					"$(SRCROOT)",
+					"$(SRCROOT)/AR-Television",
+				);
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				OTHER_LDFLAGS = (
+					"-lopencv_calib3d",
+					"-lopencv_core",
+					"-lopencv_features2d",
+					"-lopencv_flann",
+					"-lopencv_highgui",
+					"-lopencv_imgcodecs",
+					"-lopencv_imgproc",
+					"-lopencv_ml",
+					"-lopencv_objdetect",
+					"-lopencv_photo",
+					"-lopencv_shape",
+					"-lopencv_stitching",
+					"-lopencv_superres",
+					"-lopencv_video",
+					"-lopencv_videoio",
+					"-lopencv_videostab",
+					"-lceres",
+					"-lglog",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		85AC84D61FDB1D850015546E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 7DUB7Q8F99;
+				HEADER_SEARCH_PATHS = (
+					/usr/local/include,
+					"$(SRCROOT)",
+					"$(SRCROOT)/AR-Television",
+				);
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				OTHER_LDFLAGS = (
+					"-lopencv_calib3d",
+					"-lopencv_core",
+					"-lopencv_features2d",
+					"-lopencv_flann",
+					"-lopencv_highgui",
+					"-lopencv_imgcodecs",
+					"-lopencv_imgproc",
+					"-lopencv_ml",
+					"-lopencv_objdetect",
+					"-lopencv_photo",
+					"-lopencv_shape",
+					"-lopencv_stitching",
+					"-lopencv_superres",
+					"-lopencv_video",
+					"-lopencv_videoio",
+					"-lopencv_videostab",
+					"-lceres",
+					"-lglog",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		85AC84C81FDB1D850015546E /* Build configuration list for PBXProject "AR-Television" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				85AC84D21FDB1D850015546E /* Debug */,
+				85AC84D31FDB1D850015546E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		85AC84D41FDB1D850015546E /* Build configuration list for PBXNativeTarget "AR-Television" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				85AC84D51FDB1D850015546E /* Debug */,
+				85AC84D61FDB1D850015546E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 85AC84C51FDB1D850015546E /* Project object */;
+}
