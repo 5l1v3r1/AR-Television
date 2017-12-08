@@ -230,11 +230,6 @@ namespace ar {
 
             // Call RecoverRotAndTranslation to recover rotation and translation.
             auto candidates = RecoverRotAndTranslation(essential_matrix);
-//            cout << "Essential matrix: " << endl << essential_matrix << endl;
-//            cout << "Candidates:" << endl;
-//            for (auto M2 : candidates) {
-//                cout << M2 << endl << "------------" << endl;
-//            }
 
             Mat R, t;
             Mat pts3d;
@@ -242,8 +237,9 @@ namespace ar {
             {
                 // Fill the data for 3D reconstruction.
                 vector<pair<Mat, Mat>> data;
+                bool done = false;
                 if (keyframe_id_ >= 1) {
-                    // We can use 2 keyframes.
+                    // We maybe can use 2 keyframes.
                     auto &last_keyframe2 = keyframe(keyframe_id_ - 1);
                     int cnt = 0;
                     for (auto &match : matches)
@@ -283,38 +279,11 @@ namespace ar {
                                                               last_keyframe.t),
                                           stored_pts2);
                         data.emplace_back(Mat(), new_pts);
-                    } else {
-                        // There are no interest points that can be seen by all of the three cameras.
-                        // Fall back to use only 1 keyframe.
-                        for (auto &match : matches)
-                            if (interest_points_[match.first]->is_visible(keyframe_id_))
-                                ++cnt;
-                        Mat stored_pts(cnt, 2, CV_32F);
-                        Mat new_pts(cnt, 2, CV_32F);
-                        cnt = 0;
-                        for (auto &match : matches) {
-                            if (interest_points_[match.first]->is_visible(keyframe_id_)) {
-                                // Stored keypoints.
-                                auto *dest = reinterpret_cast<float *>(stored_pts.ptr(cnt));
-                                auto &pt = interest_points_[match.first]->last_loc();
-                                dest[0] = pt.x;
-                                dest[1] = pt.y;
-                                // New keypoints.
-                                dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
-                                dest[0] = keypoints[match.second].pt.x;
-                                dest[1] = keypoints[match.second].pt.y;
-                                ++cnt;
-                            }
-                        }
-                        if (!cnt) {
-                            // This frame is problematic. Skip it.
-                            return AR_SUCCESS;
-                        }
-                        data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics, last_keyframe.R, last_keyframe.t),
-                                          stored_pts);
-                        data.emplace_back(Mat(), new_pts);
+                        done = true;
                     }
-                } else {
+                }
+
+                if (!done) {
                     // We can only use 1 keyframe.
                     int cnt = 0;
                     for (auto &match : matches)
@@ -355,8 +324,6 @@ namespace ar {
                     double err = 0;
 
                     Triangulate(data, estimated_pts3d, &err);
-//                    cout << estimated_pts3d << endl;
-//                    AR_PAUSE;
                     assert(estimated_pts3d.rows == data.back().second.rows);
                     // These 3D points are valid if they are in front of the camera in the previous keyframes.
                     bool valid = true;
@@ -390,9 +357,7 @@ namespace ar {
                             bestM2 = M2;
                             pts3d = estimated_pts3d;
 
-                            cout << "Found a valid solution!" << endl;
-//                        cout << M2 << endl;
-                            cout << "Error=" << err << endl;
+                            cout << "Found a valid solution! Error=" << err << endl;
                         }
                     }
                 }
@@ -403,21 +368,17 @@ namespace ar {
                 t = bestM2.col(3);
             }
 
-            // Estimate the average depth.
-            Mat T = Mat(pts3d.rows, 3, CV_32F);
-            for (int k = 0; k < pts3d.rows; ++k)
-                ((Mat) t.t()).copyTo(T.row(k));
-            Mat transformed_pts3d = pts3d * R.t() + T;
-            double average_depth = sum(transformed_pts3d.col(2))[0];
-            cout << "Average Depth=" << average_depth << endl;
-            if (average_depth < 0) {
-                cout << transformed_pts3d << endl;
-                AR_PAUSE;
-            }
-
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
-            if (average_depth > last_keyframe.average_depth / 5) {
+            double distance = cv::norm(t, cv::NormTypes::NORM_L2);
+            if (distance > last_keyframe.average_depth / 5) {
+                // Estimate the average depth.
+                Mat T = Mat(pts3d.rows, 3, CV_32F);
+                for (int k = 0; k < pts3d.rows; ++k)
+                    ((Mat) t.t()).copyTo(T.row(k));
+                Mat transformed_pts3d = pts3d * R.t() + T;
+                double average_depth = sum(transformed_pts3d.col(2))[0];
+
                 auto kf = Keyframe(intrinsics_,
                                    last_keyframe.R * R,
                                    last_keyframe.t + t,
