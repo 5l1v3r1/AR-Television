@@ -177,7 +177,7 @@ namespace ar {
             auto kf = Keyframe(intrinsics_,
                                Mat::eye(3, 3, CV_32F),
                                Mat::zeros(3, 1, CV_32F),
-                               0);
+                               DBL_MAX);
             AddKeyframe(kf);
 
             // Make all keypoints as initial interest points.
@@ -230,11 +230,11 @@ namespace ar {
 
             // Call RecoverRotAndTranslation to recover rotation and translation.
             auto candidates = RecoverRotAndTranslation(essential_matrix);
-            cout << "Essential matrix: " << endl << essential_matrix << endl;
-            cout << "Candidates:" << endl;
-            for (auto M2 : candidates) {
-                cout << M2 << endl << "------------" << endl;
-            }
+//            cout << "Essential matrix: " << endl << essential_matrix << endl;
+//            cout << "Candidates:" << endl;
+//            for (auto M2 : candidates) {
+//                cout << M2 << endl << "------------" << endl;
+//            }
 
             Mat R, t;
             Mat pts3d;
@@ -250,38 +250,70 @@ namespace ar {
                         if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
                             interest_points_[match.first]->is_visible(keyframe_id_))
                             ++cnt;
-                    Mat stored_pts1(cnt, 2, CV_32F);
-                    Mat stored_pts2(cnt, 2, CV_32F);
-                    Mat new_pts(cnt, 2, CV_32F);
-                    cnt = 0;
-                    for (auto &match : matches)
-                        if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
-                            interest_points_[match.first]->is_visible(keyframe_id_)) {
-                            // Stored keypoints.
-                            auto *dest1 = reinterpret_cast<float *>(stored_pts1.ptr(cnt));
-                            auto &pt1 = interest_points_[match.first]->loc(keyframe_id_ - 1);
-                            dest1[0] = pt1.x;
-                            dest1[1] = pt1.y;
-                            auto *dest2 = reinterpret_cast<float *>(stored_pts2.ptr(cnt));
-                            auto &pt2 = interest_points_[match.first]->loc(keyframe_id_);
-                            dest2[0] = pt2.x;
-                            dest2[1] = pt2.y;
-                            // New keypoints.
-                            auto *dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
-                            dest[0] = keypoints[match.second].pt.x;
-                            dest[1] = keypoints[match.second].pt.y;
-                            ++cnt;
+                    if (cnt) {
+                        // There are enough points for triangulate.
+                        Mat stored_pts1(cnt, 2, CV_32F);
+                        Mat stored_pts2(cnt, 2, CV_32F);
+                        Mat new_pts(cnt, 2, CV_32F);
+                        cnt = 0;
+                        for (auto &match : matches)
+                            if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
+                                interest_points_[match.first]->is_visible(keyframe_id_)) {
+                                // Stored keypoints.
+                                auto *dest1 = reinterpret_cast<float *>(stored_pts1.ptr(cnt));
+                                auto &pt1 = interest_points_[match.first]->loc(keyframe_id_ - 1);
+                                dest1[0] = pt1.x;
+                                dest1[1] = pt1.y;
+                                auto *dest2 = reinterpret_cast<float *>(stored_pts2.ptr(cnt));
+                                auto &pt2 = interest_points_[match.first]->loc(keyframe_id_);
+                                dest2[0] = pt2.x;
+                                dest2[1] = pt2.y;
+                                // New keypoints.
+                                auto *dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
+                                dest[0] = keypoints[match.second].pt.x;
+                                dest[1] = keypoints[match.second].pt.y;
+                                ++cnt;
+                            }
+                        data.emplace_back(ComputeCameraMatrix(last_keyframe2.intrinsics,
+                                                              last_keyframe2.R,
+                                                              last_keyframe2.t),
+                                          stored_pts1);
+                        data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics,
+                                                              last_keyframe.R,
+                                                              last_keyframe.t),
+                                          stored_pts2);
+                        data.emplace_back(Mat(), new_pts);
+                    } else {
+                        // There are no interest points that can be seen by all of the three cameras.
+                        // Fall back to use only 1 keyframe.
+                        for (auto &match : matches)
+                            if (interest_points_[match.first]->is_visible(keyframe_id_))
+                                ++cnt;
+                        Mat stored_pts(cnt, 2, CV_32F);
+                        Mat new_pts(cnt, 2, CV_32F);
+                        cnt = 0;
+                        for (auto &match : matches) {
+                            if (interest_points_[match.first]->is_visible(keyframe_id_)) {
+                                // Stored keypoints.
+                                auto *dest = reinterpret_cast<float *>(stored_pts.ptr(cnt));
+                                auto &pt = interest_points_[match.first]->last_loc();
+                                dest[0] = pt.x;
+                                dest[1] = pt.y;
+                                // New keypoints.
+                                dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
+                                dest[0] = keypoints[match.second].pt.x;
+                                dest[1] = keypoints[match.second].pt.y;
+                                ++cnt;
+                            }
                         }
-                    assert(cnt > 0);
-                    data.emplace_back(ComputeCameraMatrix(last_keyframe2.intrinsics,
-                                                          last_keyframe2.R,
-                                                          last_keyframe2.t),
-                                      stored_pts1);
-                    data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics,
-                                                          last_keyframe.R,
-                                                          last_keyframe.t),
-                                      stored_pts2);
-                    data.emplace_back(Mat(), new_pts);
+                        if (!cnt) {
+                            // This frame is problematic. Skip it.
+                            return AR_SUCCESS;
+                        }
+                        data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics, last_keyframe.R, last_keyframe.t),
+                                          stored_pts);
+                        data.emplace_back(Mat(), new_pts);
+                    }
                 } else {
                     // We can only use 1 keyframe.
                     int cnt = 0;
@@ -305,10 +337,15 @@ namespace ar {
                             ++cnt;
                         }
                     }
+                    if (!cnt) {
+                        // This frame is problematic. Skip it.
+                        return AR_SUCCESS;
+                    }
                     data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics, last_keyframe.R, last_keyframe.t),
                                       stored_pts);
                     data.emplace_back(Mat(), new_pts);
                 }
+
                 // Try each candidate of extrinsics.
                 Mat bestM2;
                 auto least_error = DBL_MAX;
@@ -345,10 +382,13 @@ namespace ar {
                             pts3d = estimated_pts3d;
                         }
                         cout << "Found a valid solution!" << endl;
-                        cout << M2 << endl;
+//                        cout << M2 << endl;
                     }
-                    cout << "Error=" << err << endl;
+//                    cout << "Error=" << err << endl;
                 }
+                // We cannot find a valid solution. This frame may be problematic.
+                if (bestM2.empty())
+                    return AR_SUCCESS;
                 R = bestM2.colRange(0, 3);
                 t = bestM2.col(3);
             }
