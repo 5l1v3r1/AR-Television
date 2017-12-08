@@ -40,7 +40,7 @@ namespace ar {
             bool visible;
             KeyPoint pt;
             Mat desc;
-            int frame_id;
+            int keyframe_id;
 
             inline auto &loc() { return pt.pt; }
 
@@ -48,7 +48,7 @@ namespace ar {
 
             Observation();
 
-            Observation(int frame_id,
+            Observation(int keyframe_id,
                         const KeyPoint &_pt,
                         const Mat &_desc);
 
@@ -57,19 +57,19 @@ namespace ar {
             double l2dist_sqr(const Point2f &p) const;
         };
 
-        shared_ptr<Observation> observation(int frame_id) const;
+        shared_ptr<Observation> observation(int keyframe_id) const;
 
         inline auto &last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
 
         inline auto &last_loc() { return last_observation()->loc(); }
 
-        inline auto is_visible(int frame_id) const { return observation(frame_id)->visible; }
+        inline auto is_visible(int keyframe_id) const { return observation(keyframe_id)->visible; }
 
-        inline auto &loc(int frame_id) { return observation(frame_id)->pt.pt; }
+        inline auto &loc(int keyframe_id) { return observation(keyframe_id)->pt.pt; }
 
-        inline auto &loc(int frame_id) const { return observation(frame_id)->pt.pt; }
+        inline auto &loc(int keyframe_id) const { return observation(keyframe_id)->pt.pt; }
 
-        InterestPoint(int initial_frame_id,
+        InterestPoint(int initial_keyframe_id,
                       const KeyPoint &initial_loc,
                       const Mat &initial_desc);
 
@@ -93,7 +93,6 @@ namespace ar {
     };
 
     struct Keyframe {
-        int frame_id = 0;
         Mat intrinsics;
         /// Rotation relative to the world coordinate.
         Mat R;
@@ -101,8 +100,7 @@ namespace ar {
         Mat t;
         double average_depth = 0;
 
-        Keyframe(int frame_id,
-                 Mat intrinsics,
+        Keyframe(Mat intrinsics,
                  Mat R,
                  Mat t,
                  double average_depth);
@@ -157,15 +155,12 @@ namespace ar {
 
         static void CallMapEstimationLoop(AREngine *engine);
 
-        int frame_id_ = -1;
         Keyframe recent_keyframes_[MAX_KEYFRAMES];
-        int keyframe_seq_tail_ = -1;
-
-        bool IsKeyframe(int frame_id);
+        int keyframe_id_ = -1;
 
         void AddKeyframe(Keyframe &keyframe);
 
-        inline auto &keyframe(int ind) { return recent_keyframes_[keyframe_seq_tail_ % MAX_KEYFRAMES]; }
+        inline auto &keyframe(int ind) { return recent_keyframes_[keyframe_id_ % MAX_KEYFRAMES]; }
 
         thread mapping_thread_;
     public:

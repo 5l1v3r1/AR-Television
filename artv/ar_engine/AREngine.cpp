@@ -26,10 +26,8 @@ namespace ar {
         while (!interest_points_mutex_.try_lock())
             AR_SLEEP(1);
 
-        auto last_frame1 = keyframe(keyframe_seq_tail_);
-        auto last_frame2 = keyframe(keyframe_seq_tail_ - 1);
-        int frame_id1 = last_frame1.frame_id;
-        int frame_id2 = last_frame2.frame_id;
+        auto last_frame1 = keyframe(keyframe_id_);
+        auto last_frame2 = keyframe(keyframe_id_ - 1);
         auto K1 = last_frame1.intrinsics;
         auto K2 = last_frame2.intrinsics;
         Mat M1, M2;
@@ -41,9 +39,8 @@ namespace ar {
         utilized_interest_points.reserve(interest_points_.size());
         for (int i = 0; i < interest_points_.size(); ++i) {
             bool usable = true;
-            for (int j = 0; j <= max(1, keyframe_seq_tail_); ++j) {
-                int frame_id = keyframe(keyframe_seq_tail_ - j).frame_id;
-                if (!interest_points_[i]->observation(frame_id)->visible) {
+            for (int j = 0; j <= max(1, keyframe_id_); ++j) {
+                if (!interest_points_[i]->observation(keyframe_id_ - 1)->visible) {
                     usable = false;
                     break;
                 }
@@ -56,8 +53,8 @@ namespace ar {
         Mat pts2(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
         Mat Points3d(static_cast<int>(utilized_interest_points.size()), 3, CV_32F);
         for (auto ip_id : utilized_interest_points) {
-            pts1.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id1)->pt.pt, false);
-            pts2.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id2)->pt.pt, false);
+            pts1.row(ip_id) = Mat(interest_points_[ip_id]->observation(keyframe_id_ - 1)->pt.pt, false);
+            pts2.row(ip_id) = Mat(interest_points_[ip_id]->observation(keyframe_id_)->pt.pt, false);
             Points3d.row(ip_id) = Mat(interest_points_[ip_id]->loc3d_, false);
         }
         BundleAdjustment(K1, M1, pts1, K2, M2, pts2, Points3d);
@@ -69,12 +66,12 @@ namespace ar {
 
     void AREngine::MapEstimationLoop() {
         ++thread_cnt_;
-        while (interest_points_.empty() && keyframe_seq_tail_ < 1 && !to_terminate_)
+        while (interest_points_.empty() && keyframe_id_ < 1 && !to_terminate_)
             AR_SLEEP(1);
-        int last_keyframe_ind = keyframe_seq_tail_;
+        int last_keyframe_ind = keyframe_id_;
         while (!to_terminate_) {
 //            EstimateMap();
-            while (!to_terminate_ && last_keyframe_ind == keyframe_seq_tail_)
+            while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
                 AR_SLEEP(1);
         }
 
@@ -92,9 +89,9 @@ namespace ar {
         } while (thread_cnt_);
     }
 
-    shared_ptr<InterestPoint::Observation> InterestPoint::observation(int frame_id) const {
+    shared_ptr<InterestPoint::Observation> InterestPoint::observation(int keyframe_id) const {
         for (int i = 0; i < min(observation_seq_tail_ + 1, MAX_OBSERVATIONS); ++i)
-            if (observation_seq_[i]->frame_id == frame_id)
+            if (observation_seq_[i]->keyframe_id == keyframe_id)
                 return observation_seq_[i];
         return EMPTY_OBSERVATION;
     }
@@ -131,33 +128,21 @@ namespace ar {
         cout << "Currently there are " << interest_points_.size() << " points." << endl;
     }
 
-    bool AREngine::IsKeyframe(int frame_id) {
-        for (int i = 0; i < min(keyframe_seq_tail_ + 1, MAX_KEYFRAMES); ++i) {
-            if (recent_keyframes_[i].frame_id == frame_id)
-                return true;
-        }
-        return false;
-    }
-
-    Keyframe::Keyframe(int _frame_id,
-                       Mat _intrinsics,
+    Keyframe::Keyframe(Mat _intrinsics,
                        Mat _R,
                        Mat _t,
                        double _average_depth) :
-            frame_id(_frame_id),
             intrinsics(std::move(_intrinsics)),
             R(std::move(_R)), t(std::move(_t)),
             average_depth(_average_depth) {}
 
     void AREngine::AddKeyframe(Keyframe &kf) {
-        keyframe(++keyframe_seq_tail_) = kf;
-        if (keyframe_seq_tail_ >= (MAX_KEYFRAMES << 1))
-            keyframe_seq_tail_ -= MAX_KEYFRAMES;
+        keyframe(++keyframe_id_) = kf;
+        if (keyframe_id_ >= (MAX_KEYFRAMES << 1))
+            keyframe_id_ -= MAX_KEYFRAMES;
     }
 
     ERROR_CODE AREngine::FeedScene(const Mat &raw_scene) {
-        ++frame_id_;
-
         last_raw_frame_ = raw_scene;
         cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);
 
@@ -177,10 +162,9 @@ namespace ar {
         }
 
         // Check whether this is the first frame.
-        if (keyframe_seq_tail_ == -1) {
+        if (keyframe_id_ == -1) {
             // Initial keyframe.
-            auto kf = Keyframe(frame_id_,
-                               intrinsics_,
+            auto kf = Keyframe(intrinsics_,
                                Mat::eye(3, 3, CV_32F),
                                Mat::zeros(3, 1, CV_32F),
                                0);
@@ -189,12 +173,12 @@ namespace ar {
             // Make all keypoints as initial interest points.
             interest_points_.reserve(keypoints.size());
             for (int i = 0; i < keypoints.size(); ++i)
-                interest_points_.push_back(make_shared<InterestPoint>(frame_id_, keypoints[i], descriptors.row(i)));
+                interest_points_.push_back(make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
 
             assert(interest_points_[0]->is_visible(0));
         } else {
             // Perform matching between the new keypoints and those in the last keyframes.
-            auto &last_keyframe = keyframe(keyframe_seq_tail_);
+            auto &last_keyframe = keyframe(keyframe_id_);
 
             Mat stored_descriptors(static_cast<int>(interest_points_.size()), desc_length_, CV_8U);
             for (int i = 0; i < interest_points_.size(); ++i)
@@ -204,7 +188,7 @@ namespace ar {
             // Estimate the fundamental matrix from the last keyframe.
             vector<Point2f> points1, points2;
             for (auto &match : matches) {
-                if (interest_points_[match.first]->is_visible(last_keyframe.frame_id)) {
+                if (interest_points_[match.first]->is_visible(keyframe_id_)) {
                     points1.emplace_back(interest_points_[match.first]->last_loc());
                     points2.emplace_back(keypoints[match.second].pt);
                 }
@@ -227,28 +211,28 @@ namespace ar {
             {
                 // Fill the data for 3D reconstruction.
                 vector<pair<Mat, Mat>> data;
-                if (keyframe_seq_tail_ >= 1) {
+                if (keyframe_id_ >= 1) {
                     // We can use 2 keyframes.
-                    auto &last_keyframe2 = keyframe(keyframe_seq_tail_ - 1);
+                    auto &last_keyframe2 = keyframe(keyframe_id_ - 1);
                     int cnt = 0;
                     for (auto &match : matches)
-                        if (interest_points_[match.first]->is_visible(last_keyframe.frame_id) &&
-                            interest_points_[match.first]->is_visible(last_keyframe2.frame_id))
+                        if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
+                            interest_points_[match.first]->is_visible(keyframe_id_))
                             ++cnt;
                     Mat stored_pts1(cnt, 2, CV_32F);
                     Mat stored_pts2(cnt, 2, CV_32F);
                     Mat new_pts(cnt, 2, CV_32F);
                     cnt = 0;
                     for (auto &match : matches)
-                        if (interest_points_[match.first]->is_visible(last_keyframe.frame_id) &&
-                            interest_points_[match.first]->is_visible(last_keyframe2.frame_id)) {
+                        if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
+                            interest_points_[match.first]->is_visible(keyframe_id_)) {
                             // Stored keypoints.
                             auto *dest1 = reinterpret_cast<float *>(stored_pts1.ptr(cnt));
-                            auto &pt1 = interest_points_[match.first]->loc(last_keyframe2.frame_id);
+                            auto &pt1 = interest_points_[match.first]->loc(keyframe_id_ - 1);
                             dest1[0] = pt1.x;
                             dest1[1] = pt1.y;
                             auto *dest2 = reinterpret_cast<float *>(stored_pts2.ptr(cnt));
-                            auto &pt2 = interest_points_[match.first]->loc(last_keyframe.frame_id);
+                            auto &pt2 = interest_points_[match.first]->loc(keyframe_id_);
                             dest2[0] = pt2.x;
                             dest2[1] = pt2.y;
                             // New keypoints.
@@ -271,13 +255,13 @@ namespace ar {
                     // We can only use 1 keyframe.
                     int cnt = 0;
                     for (auto &match : matches)
-                        if (interest_points_[match.first]->is_visible(last_keyframe.frame_id))
+                        if (interest_points_[match.first]->is_visible(keyframe_id_))
                             ++cnt;
                     Mat stored_pts(cnt, 2, CV_32F);
                     Mat new_pts(cnt, 2, CV_32F);
                     cnt = 0;
                     for (auto &match : matches) {
-                        if (interest_points_[match.first]->is_visible(last_keyframe.frame_id)) {
+                        if (interest_points_[match.first]->is_visible(keyframe_id_)) {
                             // Stored keypoints.
                             auto *dest = reinterpret_cast<float *>(stored_pts.ptr(cnt));
                             auto &pt = interest_points_[match.first]->last_loc();
@@ -306,8 +290,8 @@ namespace ar {
                     assert(estimated_pts3d.rows == data.back().second.rows);
                     // These 3D points are valid if they are in front of the camera in the previous keyframes.
                     bool valid = true;
-//                    for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
-//                        auto &kf = keyframe(keyframe_seq_tail_ - j);
+//                    for (int j = 0; j <= max(1, keyframe_id_) && valid; ++j) {
+//                        auto &kf = keyframe(keyframe_id_ - j);
 //                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
 //                        for (int k = 0; k < estimated_pts3d.rows; ++k)
 //                            ((Mat) kf.t.t()).copyTo(T.row(k));
@@ -342,8 +326,7 @@ namespace ar {
             // this is a new keyframe!
             double distance = cv::norm(t, cv::NormTypes::NORM_L2);
             if (distance > last_keyframe.average_depth / 5) {
-                auto kf = Keyframe(frame_id_,
-                                   intrinsics_,
+                auto kf = Keyframe(intrinsics_,
                                    last_keyframe.R * R,
                                    last_keyframe.t + t,
                                    average_depth);
@@ -358,7 +341,8 @@ namespace ar {
                     matched_stored[match.first] = true;
                     matched_new[match.second] = true;
                     interest_points_[match.first]->AddObservation(
-                            make_shared<InterestPoint::Observation>(frame_id_, keypoints[match.second],
+                            make_shared<InterestPoint::Observation>(keyframe_id_,
+                                                                    keypoints[match.second],
                                                                     descriptors.row(match.second)));
                 }
 
@@ -371,7 +355,7 @@ namespace ar {
                 for (int i = 0; i < keypoints.size(); ++i)
                     if (!matched_new[i])
                         interest_points_.push_back(
-                                make_shared<InterestPoint>(frame_id_, keypoints[i], descriptors.row(i)));
+                                make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
             }
 
             ReduceInterestPoints();
@@ -414,7 +398,7 @@ namespace ar {
         int highest_level = 0;
         int top = -1;
         for (auto vobj : virtual_objects_) {
-            if (vobj.second->IsSelected(Point2f(x, y), frame_id_)) {
+            if (vobj.second->IsSelected(Point2f(x, y), keyframe_id_)) {
                 if (vobj.second->layer_ind_ > highest_level) {
                     top = vobj.first;
                     highest_level = vobj.second->layer_ind_;
@@ -439,11 +423,11 @@ namespace ar {
         return AR_SUCCESS;
     }
 
-    InterestPoint::InterestPoint(int initial_frame_id,
+    InterestPoint::InterestPoint(int initial_keyframe_id,
                                  const KeyPoint &initial_loc,
                                  const cv::Mat &initial_desc) :
             vis_cnt_(1), last_desc_(initial_desc) {
-        observation_seq_[observation_seq_tail_ = 0] = make_shared<Observation>(initial_frame_id,
+        observation_seq_[observation_seq_tail_ = 0] = make_shared<Observation>(initial_keyframe_id,
                                                                                initial_loc,
                                                                                initial_desc);
     }
@@ -470,8 +454,8 @@ namespace ar {
 
     InterestPoint::Observation::Observation() : visible(false) {}
 
-    InterestPoint::Observation::Observation(int _frame_id,
+    InterestPoint::Observation::Observation(int _keyframe_id,
                                             const cv::KeyPoint &_pt,
                                             const cv::Mat &_desc) :
-            pt(_pt), desc(_desc), visible(true), frame_id(_frame_id) {}
+            pt(_pt), desc(_desc), visible(true), keyframe_id(_keyframe_id) {}
 }
