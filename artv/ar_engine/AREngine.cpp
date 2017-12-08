@@ -209,13 +209,11 @@ namespace ar {
                     points2.emplace_back(keypoints[match.second].pt);
                 }
             }
-            // If there are not enough points matched, this scene might be problematic. We omit it.
-            if (points1.size() < 8) {
-                --frame_id_;
-                return AR_SUCCESS;
-            }
             // Estimate the fundamental matrix using the matched points.
             Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_8POINT);
+            // If fail to compute a unique solution of fundamental matrix, this scene might be problematic. We skip it.
+            if (fundamental_matrix.rows != 3)
+                return AR_SUCCESS;
             fundamental_matrix.convertTo(fundamental_matrix, CV_32F);
 
             // Estimate the essential matrix.
