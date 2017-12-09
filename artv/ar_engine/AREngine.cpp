@@ -29,9 +29,7 @@ namespace ar {
         auto last_frame2 = keyframe(keyframe_id_ - 1);
         auto K1 = last_frame1.intrinsics;
         auto K2 = last_frame2.intrinsics;
-        Mat M1, M2;
-        hconcat(last_frame1.R, last_frame1.t, M1);
-        hconcat(last_frame2.R, last_frame2.t, M2);
+        Mat M1 = last_frame1.extrinsics, M2 = last_frame2.extrinsics;
 
         vector<int> utilized_interest_points;
         // Find utilized_interest_points.
@@ -132,13 +130,12 @@ namespace ar {
     }
 
     Keyframe::Keyframe(Mat _intrinsics,
-                       Mat _R,
-                       Mat _t,
+                       Mat _extrinsics,
                        double _average_depth) :
             intrinsics(std::move(_intrinsics)),
-            R(std::move(_R)), t(std::move(_t)),
+            extrinsics(std::move(_extrinsics)),
             average_depth(_average_depth) {
-        assert(abs(determinant(R) - 1) < 0.01);
+        assert(abs(determinant(extrinsics.colRange(0, 3)) - 1) < 0.001);
     }
 
     void AREngine::AddKeyframe(Keyframe &kf) {
@@ -150,15 +147,15 @@ namespace ar {
     }
 
     void AREngine::FindExtrinsics(const vector<Mat> &candidates,
+                                  const Mat &baseExtrinsics,
                                   vector<pair<Mat, Mat>> &data,
                                   Mat &M2,
-                                  Mat &pts3d,
-                                  Mat &mask) const {
+                                  Mat &pts3d) const {
         // Try each candidate of extrinsics.
         auto least_error = DBL_MAX;
-        for (auto &candidateM2 : candidates) {
-
-            data.back().first = intrinsics_ * candidateM2;
+        for (auto &candidate : candidates) {
+            Mat combined = CombineExtrinsics(baseExtrinsics, candidate);
+            data.back().first = intrinsics_ * combined;
             Mat estimated_pts3d;
             double err = 0;
 
@@ -174,46 +171,32 @@ namespace ar {
             assert(estimated_pts3d.rows == data.back().second.rows);
             // These 3D points are valid if they are in front of the camera in the previous keyframes.
             bool valid = true;
-            Mat inlier_mask = Mat::ones(estimated_pts3d.rows, 1, CV_8U);
-            int invalid_cnt = 0;
             for (int j = 0; j <= min(int(data.size() - 2), keyframe_id_) && valid; ++j) {
                 auto &kf = keyframe(keyframe_id_ - j);
                 Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
                 for (int k = 0; k < estimated_pts3d.rows; ++k)
-                    ((Mat) kf.t.t()).copyTo(T.row(k));
-                Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
+                    ((Mat) kf.translation().t()).copyTo(T.row(k));
+                Mat transformed_pts3d = estimated_pts3d * kf.rotation().t() + T;
                 for (int k = 0; k < transformed_pts3d.rows; ++k)
-                    if (inlier_mask.at<bool>(k) && transformed_pts3d.at<float>(k, 2) < 1) {
-                        ++invalid_cnt;
-                        inlier_mask.at<bool>(k) = false;
-                    }
-                // We allow some errors.
-//                if (invalid_cnt >= (transformed_pts3d.rows >> 2))
-//                    valid = false;
-                if (invalid_cnt != 0)
-                    valid = false;
+                    if (transformed_pts3d.at<float>(k, 2) < 1)
+                        valid = false;
             }
             if (valid) {
                 // Also check with the current frame.
-                Mat R = candidateM2.colRange(0, 3);
-                Mat t = candidateM2.col(3);
+                Mat R = candidate.colRange(0, 3);
+                Mat t = candidate.col(3);
                 Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
                 for (int k = 0; k < estimated_pts3d.rows; ++k)
                     ((Mat) t.t()).copyTo(T.row(k));
                 Mat transformed_pts3d = estimated_pts3d * R.t() + T;
                 for (int k = 0; k < transformed_pts3d.rows; ++k)
-                    if (inlier_mask.at<bool>(k) && transformed_pts3d.at<float>(k, 2) < 1) {
-                        ++invalid_cnt;
-                        inlier_mask.at<bool>(k) = false;
-                    }
-                if (invalid_cnt >= (transformed_pts3d.rows >> 2))
-                    valid = false;
+                    if (transformed_pts3d.at<float>(k, 2) < 1)
+                        valid = false;
 
                 if (valid && err < least_error) {
                     least_error = err;
-                    M2 = candidateM2;
+                    M2 = combined;
                     pts3d = estimated_pts3d;
-                    mask = inlier_mask;
 
                     cout << "Found a valid solution! Error=" << err << endl;
                 }
@@ -251,8 +234,7 @@ namespace ar {
         if (keyframe_id_ == -1) {
             // Initial keyframe.
             auto kf = Keyframe(intrinsics_,
-                               Mat::eye(3, 3, CV_32F),
-                               Mat::zeros(3, 1, CV_32F),
+                               Mat::eye(3, 4, CV_32F),
                                DBL_MAX);
             AddKeyframe(kf);
 
@@ -356,25 +338,16 @@ namespace ar {
                                 ++cnt;
                             }
                         vector<pair<Mat, Mat>> data;
-                        data.emplace_back(ComputeCameraMatrix(last_keyframe2.intrinsics,
-                                                              last_keyframe2.R,
-                                                              last_keyframe2.t),
+                        data.emplace_back(last_keyframe2.intrinsics * last_keyframe2.extrinsics,
                                           stored_pts1);
-                        data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics,
-                                                              last_keyframe.R,
-                                                              last_keyframe.t),
+                        data.emplace_back(last_keyframe.intrinsics * last_keyframe.extrinsics,
                                           stored_pts2);
                         data.emplace_back(Mat(), new_pts);
 
-                        Mat M2, mask;
-                        for (size_t j = 0; j < candidates.size(); ++j) {
-                            Mat(candidates[j].col(3) + candidates[j].colRange(0, 3) * last_keyframe.t).copyTo(candidates[j].col(3));
-                            Mat(candidates[j].colRange(0, 3) * last_keyframe.R).copyTo(candidates[j].colRange(0, 3));
-                        }
-                        FindExtrinsics(candidates, data, M2, pts3d, mask);
+                        Mat M2;
+                        FindExtrinsics(candidates, last_keyframe.extrinsics, data, M2, pts3d);
                         if (!M2.empty()) {
                             extrinsics_ = M2;
-                            inlier_mask = mask;
                             done = true;
                         }
                     }
@@ -408,20 +381,14 @@ namespace ar {
                             }
                         }
                         vector<pair<Mat, Mat>> data;
-                        data.emplace_back(
-                                ComputeCameraMatrix(keyframe(id).intrinsics, keyframe(id).R, keyframe(id).t),
-                                stored_pts);
+                        data.emplace_back(keyframe(id).intrinsics * keyframe(id).extrinsics,
+                                          stored_pts);
                         data.emplace_back(Mat(), new_pts);
 
-                        Mat M2, mask;
-                        for (size_t j = 0; j < candidates.size(); ++j) {
-                            Mat(candidates[j].col(3) + candidates[j].colRange(0, 3) * last_keyframe.t).copyTo(candidates[j].col(3));
-                            Mat(candidates[j].colRange(0, 3) * last_keyframe.R).copyTo(candidates[j].colRange(0, 3));
-                        }
-                        FindExtrinsics(candidates, data, M2, pts3d, mask);
+                        Mat M2;
+                        FindExtrinsics(candidates, keyframe(id).extrinsics, data, M2, pts3d);
                         if (!M2.empty()) {
                             extrinsics_ = M2;
-                            inlier_mask = mask;
                             done = true;
                         }
                     }
@@ -433,24 +400,9 @@ namespace ar {
                 }
             }
 
-            // Remain only the points with correct estimated 3D locations.
-            new_size = 0;
-            for (int k = 0; k < pts3d.rows; ++k)
-                if (inlier_mask.at<bool>(k)) {
-                    pts3d.row(k).copyTo(pts3d.row(static_cast<int>(new_size)));
-                    matches[new_size++] = matches[k];
-                }
-            // If there are no points left, this scene is problematic. Skip it.
-            if (!new_size) {
-                cout << inlier_mask << endl;
-                return AR_SUCCESS;
-            }
-            matches.resize(new_size);
-            pts3d = pts3d.rowRange(0, static_cast<int>(new_size));
-
             Mat R = extrinsics_.colRange(0, 3);
             Mat t = extrinsics_.col(3);
-            assert(abs(determinant(R) - 1) < 0.01);
+            assert(abs(determinant(R) - 1) < 0.001);
 
             cout << "Det :" << abs(determinant(R)) << endl;
 
@@ -463,16 +415,15 @@ namespace ar {
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
-            Mat t_rel = t - R * last_keyframe.R.t() * last_keyframe.t;
-//            Mat t_rel = last_keyframe.t - last_keyframe.R * R.t() * t;
+            Mat t_rel = t - R * last_keyframe.rotation().t() * last_keyframe.translation();
+            //Mat t_rel = last_keyframe.t - last_keyframe.R * R.t() * t;
             double distance = cv::norm(t_rel, cv::NormTypes::NORM_L2);
 
-//            double distance = cv::norm(last_keyframe.t -  t, cv::NormTypes::NORM_L2);
+            // double distance = cv::norm(last_keyframe.t -  t, cv::NormTypes::NORM_L2);
             cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
             if (distance / min(average_depth, last_keyframe.average_depth) > 0.1) {
                 auto kf = Keyframe(intrinsics_,
-                                   last_keyframe.R * R,
-                                   last_keyframe.t + t,
+                                   extrinsics_,
                                    average_depth);
                 AddKeyframe(kf);
 
@@ -481,7 +432,7 @@ namespace ar {
                 vector<bool> matched_stored(interest_points_.size(), 0);
 
                 // Add an observation in this keyframe to the interest points.
-                for (auto match : matches) {
+                for (auto match :matches) {
                     matched_stored[match.first] = true;
                     matched_new[match.second] = true;
                     interest_points_[match.first]->AddObservation(
@@ -505,6 +456,7 @@ namespace ar {
                                 make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
 
                 ReduceInterestPoints();
+
             }
         }
 
@@ -551,8 +503,8 @@ namespace ar {
     }
 
     ///	Drag a virtual object to a location. The virtual object is stripped from the
-    //	real world by then, and its shape and size in the scene remain the same during
-    //	the dragging. Call FixVObj to fix the virtual object onto the real world again.
+    ///	real world by then, and its shape and size in the scene remain the same during
+    ///	the dragging. Call FixVObj to fix the virtual object onto the real world again.
     ERROR_CODE AREngine::DragVObj(int id, int x, int y) {
         // TODO: This is only a fake function. Need real implementation.
         return AR_SUCCESS;
@@ -601,4 +553,5 @@ namespace ar {
                                             const cv::KeyPoint &_pt,
                                             const cv::Mat &_desc) :
             pt(_pt), desc(_desc), visible(true), keyframe_id(_keyframe_id) {}
+
 }

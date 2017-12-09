@@ -62,5 +62,5 @@ namespace ar {
                                      cv::Mat K2, cv::Mat& M2, cv::Mat pts2,
                                      cv::Mat &Points3d);
 
-	cv::Mat COMMON_API ComputeCameraMatrix(cv::Mat intrinsics, cv::Mat R, cv::Mat t);
+	cv::Mat COMMON_API CombineExtrinsics(const cv::Mat& base, const cv::Mat& rel);
 }

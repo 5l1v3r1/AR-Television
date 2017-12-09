@@ -24,6 +24,13 @@ namespace ar {
         resize(out, out, Size(out.rows / 2, out.cols / 2));
     }
 
+    cv::Mat COMMON_API CombineExtrinsics(const cv::Mat& base, const cv::Mat& rel) {
+        Mat res(3, 4, CV_32F);
+        Mat(rel.col(3) + rel.colRange(0, 3) * base.col(3)).copyTo(res.col(3));
+        Mat(rel.colRange(0, 3) * base.colRange(0, 3)).copyTo(res.colRange(0, 3));
+        return res;
+    }
+
     /// Recover rotation and translation from an essential matrix.
     ///	This operation produces four posible results, each is a 3x4 matrix that combines
     ///	rotation and translation.
@@ -50,17 +57,21 @@ namespace ar {
         Mat R1 = U * W * Vt;
         Mat R2 = U * W.t() * Vt;
         Mat t = U.col(2) / max({abs(U.at<float>(2, 0)), abs(U.at<float>(2, 1)), abs(U.at<float>(2, 2))});
-        assert(abs(determinant(R1) - 1) < 0.01);
-        assert(abs(determinant(R2) - 1) < 0.01);
+        assert(abs(determinant(R1) - 1) < 0.001);
+        assert(abs(determinant(R2) - 1) < 0.001);
 
         Mat candidate;
         hconcat(R1, t, candidate);
+        assert(abs(determinant(candidate.colRange(0, 3)) - 1) < 0.001);
         res.push_back(candidate.clone());
         hconcat(R1, -t, candidate);
+        assert(abs(determinant(candidate.colRange(0, 3)) - 1) < 0.001);
         res.push_back(candidate.clone());
         hconcat(R2, t, candidate);
+        assert(abs(determinant(candidate.colRange(0, 3)) - 1) < 0.001);
         res.push_back(candidate.clone());
         hconcat(R2, -t, candidate);
+        assert(abs(determinant(candidate.colRange(0, 3)) - 1) < 0.001);
         res.push_back(candidate);
         return res;
     }
@@ -69,12 +80,6 @@ namespace ar {
     //	given their own rotations and translations with respect to the world coordinate.
     pair<Mat, Mat> CalRelRotAndTranslation(Mat R1, Mat t1, Mat R2, Mat t2) {
         return {R1.t() * R2, R1.t() * (t2 - t1)};
-    }
-
-    Mat ComputeCameraMatrix(cv::Mat intrinsics, cv::Mat R, cv::Mat t) {
-        Mat extrinsics;
-        hconcat(R, t, extrinsics);
-        return intrinsics * extrinsics;
     }
 
     /// Input a series of camera matrices and 2D points. The 2D points are all matched in order to relate to some 3D points.

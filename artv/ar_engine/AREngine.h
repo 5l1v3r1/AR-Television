@@ -99,15 +99,14 @@ namespace ar {
 
     struct Keyframe {
         Mat intrinsics;
-        /// Rotation relative to the world coordinate.
-        Mat R;
-        /// Translation relative to the world coordinate.
-        Mat t;
+        Mat extrinsics;
         double average_depth = 0;
 
+        inline Mat translation() const { return extrinsics.col(3); }
+        inline Mat rotation() const { return extrinsics.colRange(0, 3); }
+
         Keyframe(Mat intrinsics,
-                 Mat R,
-                 Mat t,
+                 Mat extrinsics,
                  double average_depth);
 
         Keyframe() = default;
@@ -174,10 +173,10 @@ namespace ar {
         thread mapping_thread_;
 
         void FindExtrinsics(const vector<Mat> &candidates,
+                            const Mat &baseExtrinsics,
                             vector<pair<Mat, Mat>> &data,
                             Mat &M2,
-                            Mat &pts3d,
-                            Mat &mask) const;
+                            Mat &pts3d) const;
 
     public:
         ///////////////////////////////// General methods /////////////////////////////////
