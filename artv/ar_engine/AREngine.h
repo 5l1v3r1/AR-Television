@@ -33,7 +33,7 @@ namespace ar {
     ///	estimated 3D location of it in the real world.
     class ARENGINE_API InterestPoint {
     public:
-        static const int MAX_OBSERVATIONS = 10;
+        static const int MAX_OBSERVATIONS = 8;
 
         /// An observation of the interest point at a frame.
         struct Observation {
@@ -73,7 +73,8 @@ namespace ar {
                       const KeyPoint &initial_loc,
                       const Mat &initial_desc);
 
-        /// Add an observation to the interest point. In the current system setting, only observations from the keyframes shall be added.
+        /// Add an observation to the interest point.
+        /// In the current system setting, only observations from the keyframes shall be added.
         void AddObservation(shared_ptr<Observation> p);
 
         inline bool ToDiscard() const { return !vis_cnt_; }
@@ -118,7 +119,6 @@ namespace ar {
         bool to_terminate_ = false;
         int thread_cnt_ = 0;
 
-        static const int MAX_INTEREST_POINTS = 100;
         static const int MAX_KEYFRAMES = 10;
 
         /// For objects in this engine, they should automatically disappear if not viewed
@@ -163,7 +163,16 @@ namespace ar {
 
         inline auto &keyframe(int ind) { return recent_keyframes_[keyframe_id_ % MAX_KEYFRAMES]; }
 
+        inline auto &keyframe(int ind) const { return recent_keyframes_[keyframe_id_ % MAX_KEYFRAMES]; }
+
         thread mapping_thread_;
+
+        void findM2(const vector<Mat> &candidates,
+                    vector<pair<Mat, Mat>> &data,
+                    Mat &M2,
+                    Mat &pts3d,
+                    Mat &mask) const;
+
     public:
         ///////////////////////////////// General methods /////////////////////////////////
         AREngine();

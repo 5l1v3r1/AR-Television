@@ -15,7 +15,6 @@ using namespace std;
 using namespace cv;
 
 namespace ar {
-    const int AREngine::MAX_INTEREST_POINTS;
     const int AREngine::MAX_KEYFRAMES;
     const int InterestPoint::MAX_OBSERVATIONS;
     shared_ptr<InterestPoint::Observation> EMPTY_OBSERVATION = make_shared<InterestPoint::Observation>();
@@ -113,16 +112,15 @@ namespace ar {
         while (!interest_points_mutex_.try_lock())
             AR_SLEEP(1);
 
-        if (interest_points_.size() > MAX_INTEREST_POINTS) {
-            auto new_size = interest_points_.size();
-            for (int i = 0; i < new_size; ++i) {
-                if (interest_points_[i]->ToDiscard()) {
-                    interest_points_[i] = interest_points_[--new_size];
-                    --i;
-                }
+        auto new_size = interest_points_.size();
+        for (int i = 0; i < new_size; ++i) {
+            if (interest_points_[i]->ToDiscard()) {
+                interest_points_[i] = interest_points_[--new_size];
+                --i;
             }
-            interest_points_.resize(new_size);
         }
+        interest_points_.resize(new_size);
+
         interest_points_mutex_.unlock();
 
         cout << "Currently there are " << interest_points_.size() << " points." << endl;
@@ -150,6 +148,64 @@ namespace ar {
         keyframe(++keyframe_id_) = kf;
         if (keyframe_id_ >= (MAX_KEYFRAMES << 1))
             keyframe_id_ -= MAX_KEYFRAMES;
+    }
+
+    void AREngine::findM2(const vector<Mat> &candidates,
+                          vector<pair<Mat, Mat>> &data,
+                          Mat &M2,
+                          Mat &pts3d,
+                          Mat &mask) const {
+        // Try each candidate of extrinsics.
+        auto least_error = DBL_MAX;
+        for (auto &candidateM2 : candidates) {
+            data.back().first = intrinsics_ * candidateM2;
+            Mat estimated_pts3d;
+            double err = 0;
+
+            Triangulate(data, estimated_pts3d, &err);
+            assert(estimated_pts3d.rows == data.back().second.rows);
+            // These 3D points are valid if they are in front of the camera in the previous keyframes.
+            bool valid = true;
+            for (int j = 0; j <= min(1, keyframe_id_) && valid; ++j) {
+                auto &kf = keyframe(keyframe_id_ - j);
+                Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+                for (int k = 0; k < estimated_pts3d.rows; ++k)
+                    ((Mat) kf.t.t()).copyTo(T.row(k));
+                Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
+                int invalid_cnt = 0;
+                for (int k = 0; k < transformed_pts3d.rows; ++k)
+                    if (transformed_pts3d.at<float>(k, 2) < 1)
+                        ++invalid_cnt;
+                // We allow some errors.
+                if (invalid_cnt >= (transformed_pts3d.rows >> 2))
+                    valid = false;
+            }
+            if (valid) {
+                // Also check with the current frame.
+                Mat R = candidateM2.colRange(0, 3);
+                Mat t = candidateM2.col(3);
+                Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+                for (int k = 0; k < estimated_pts3d.rows; ++k)
+                    ((Mat) t.t()).copyTo(T.row(k));
+                Mat transformed_pts3d = estimated_pts3d * R.t() + T;
+                int invalid_cnt = 0;
+                for (int k = 0; k < transformed_pts3d.rows; ++k)
+                    if (transformed_pts3d.at<float>(k, 2) < 1) {
+                        ++invalid_cnt;
+                        mask.at<bool>(k) = false;
+                    }
+                if (invalid_cnt >= (transformed_pts3d.rows >> 2))
+                    valid = false;
+
+                if (valid && err < least_error) {
+                    least_error = err;
+                    M2 = candidateM2;
+                    pts3d = estimated_pts3d;
+
+                    cout << "Found a valid solution! Error=" << err << endl;
+                }
+            }
+        }
     }
 
     ERROR_CODE AREngine::FeedScene(const Mat &raw_scene) {
@@ -224,7 +280,7 @@ namespace ar {
                 if (inlier_mask.at<bool>(i))
                     matches[new_size++] = matches[i];
             // If there are too few inliers, this scene is problematic. Skip it.
-            if (new_size < 8)
+            if (new_size < 4)
                 return AR_SUCCESS;
             matches.resize(new_size);
             // The new matches consist of all inliers.
@@ -246,7 +302,6 @@ namespace ar {
             // Test for the only valid rotation and translation combination.
             {
                 // Fill the data for 3D reconstruction.
-                vector<pair<Mat, Mat>> data;
                 bool done = false;
                 if (keyframe_id_ >= 1) {
                     // We maybe can use 2 keyframes.
@@ -280,6 +335,7 @@ namespace ar {
                                 dest[1] = keypoints[match.second].pt.y;
                                 ++cnt;
                             }
+                        vector<pair<Mat, Mat>> data;
                         data.emplace_back(ComputeCameraMatrix(last_keyframe2.intrinsics,
                                                               last_keyframe2.R,
                                                               last_keyframe2.t),
@@ -289,110 +345,74 @@ namespace ar {
                                                               last_keyframe.t),
                                           stored_pts2);
                         data.emplace_back(Mat(), new_pts);
-                        done = true;
+                        Mat M2;
+                        findM2(candidates, data, M2, pts3d, inlier_mask);
+                        if (!M2.empty()) {
+                            R = M2.colRange(0, 3);
+                            t = M2.col(3);
+                            done = true;
+                        }
+                    }
+                }
+
+                // We can only use 1 keyframe.
+                for (int i = 0; i <= min(2, keyframe_id_) && !done; ++i) {
+                    // Try to use another keyframe.
+                    int id = keyframe_id_ - i;
+                    int cnt = 0;
+                    for (auto &match : matches)
+                        if (interest_points_[match.first]->is_visible(id))
+                            ++cnt;
+                    if (cnt) {
+                        Mat stored_pts = Mat(cnt, 2, CV_32F);
+                        Mat new_pts = Mat(cnt, 2, CV_32F);
+                        cnt = 0;
+                        for (auto &match : matches) {
+                            if (interest_points_[match.first]->is_visible(id)) {
+                                // Stored keypoints.
+                                auto *dest = reinterpret_cast<float *>(stored_pts.ptr(cnt));
+                                auto &pt = interest_points_[match.first]->loc(id);
+                                dest[0] = pt.x;
+                                dest[1] = pt.y;
+                                // New keypoints.
+                                dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
+                                dest[0] = keypoints[match.second].pt.x;
+                                dest[1] = keypoints[match.second].pt.y;
+                                ++cnt;
+                            }
+                        }
+                        vector<pair<Mat, Mat>> data;
+                        data.emplace_back(
+                                ComputeCameraMatrix(keyframe(id).intrinsics, keyframe(id).R, keyframe(id).t),
+                                stored_pts);
+                        data.emplace_back(Mat(), new_pts);
+
+                        Mat M2;
+                        findM2(candidates, data, M2, pts3d, inlier_mask);
+                        if (!M2.empty()) {
+                            R = M2.colRange(0, 3);
+                            t = M2.col(3);
+                            done = true;
+                        }
                     }
                 }
 
                 if (!done) {
-                    // We can only use 1 keyframe.
-                    int cnt = 0;
-                    for (auto &match : matches)
-                        if (interest_points_[match.first]->is_visible(keyframe_id_))
-                            ++cnt;
-                    Mat stored_pts(cnt, 2, CV_32F);
-                    Mat new_pts(cnt, 2, CV_32F);
-                    cnt = 0;
-                    for (auto &match : matches) {
-                        if (interest_points_[match.first]->is_visible(keyframe_id_)) {
-                            // Stored keypoints.
-                            auto *dest = reinterpret_cast<float *>(stored_pts.ptr(cnt));
-                            auto &pt = interest_points_[match.first]->last_loc();
-                            dest[0] = pt.x;
-                            dest[1] = pt.y;
-                            // New keypoints.
-                            dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
-                            dest[0] = keypoints[match.second].pt.x;
-                            dest[1] = keypoints[match.second].pt.y;
-                            ++cnt;
-                        }
-                    }
-                    if (!cnt) {
-                        // This frame is problematic. Skip it.
-                        return AR_SUCCESS;
-                    }
-                    data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics, last_keyframe.R, last_keyframe.t),
-                                      stored_pts);
-                    data.emplace_back(Mat(), new_pts);
-                }
-
-                // Try each candidate of extrinsics.
-                Mat bestM2;
-                auto least_error = DBL_MAX;
-                for (auto &M2 : candidates) {
-                    data.back().first = intrinsics_ * M2;
-                    Mat estimated_pts3d;
-                    double err = 0;
-
-                    Triangulate(data, estimated_pts3d, &err);
-                    assert(estimated_pts3d.rows == data.back().second.rows);
-                    // These 3D points are valid if they are in front of the camera in the previous keyframes.
-                    bool valid = true;
-                    for (int j = 0; j <= min(1, keyframe_id_) && valid; ++j) {
-                        auto &kf = keyframe(keyframe_id_ - j);
-                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
-                        for (int k = 0; k < estimated_pts3d.rows; ++k)
-                            ((Mat) kf.t.t()).copyTo(T.row(k));
-                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
-                        int invalid_cnt = 0;
-                        for (int k = 0; k < transformed_pts3d.rows; ++k)
-                            if (transformed_pts3d.at<float>(k, 2) < 1)
-                                ++invalid_cnt;
-                        // We allow some errors.
-                        if (invalid_cnt >= (transformed_pts3d.rows >> 2))
-                            valid = false;
-                    }
-                    if (valid) {
-                        // Also check with the current frame.
-                        R = M2.colRange(0, 3);
-                        t = M2.col(3);
-                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
-                        for (int k = 0; k < estimated_pts3d.rows; ++k)
-                            ((Mat) t.t()).copyTo(T.row(k));
-                        Mat transformed_pts3d = estimated_pts3d * R.t() + T;
-                        int invalid_cnt = 0;
-                        for (int k = 0; k < transformed_pts3d.rows; ++k)
-                            if (transformed_pts3d.at<float>(k, 2) < 1)
-                                ++invalid_cnt;
-                        if (invalid_cnt >= (transformed_pts3d.rows >> 2))
-                            valid = false;
-
-                        if (valid && err < least_error) {
-                            least_error = err;
-                            bestM2 = M2;
-                            pts3d = estimated_pts3d;
-
-                            cout << "Found a valid solution! Error=" << err << endl;
-                        }
-                    }
-                }
-                // We cannot find a valid solution using both the last 2 keyframes.
-                if (bestM2.empty()) {
+                    // This frame is problematic. Skip it.
                     return AR_SUCCESS;
                 }
-                R = bestM2.colRange(0, 3);
-                t = bestM2.col(3);
             }
 
             // Remain only the points with correct estimated 3D locations.
             new_size = 0;
             for (int k = 0; k < pts3d.rows; ++k)
-                if (pts3d.at<float>(k, 2) > 1) {
+                if (inlier_mask.at<bool>(k)) {
                     pts3d.row(k).copyTo(pts3d.row(static_cast<int>(new_size)));
                     matches[new_size] = matches[k];
                     ++new_size;
                 }
-            // If there are too few points, this scene is problematic. Skip it.
-            if (new_size < 8)
+            // If there are no points left, this scene is problematic. Skip it.
+            if (!new_size)
                 return AR_SUCCESS;
             matches.resize(new_size);
             pts3d = pts3d.rowRange(0, static_cast<int>(new_size));
@@ -442,9 +462,9 @@ namespace ar {
                     if (!matched_new[i])
                         interest_points_.push_back(
                                 make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
-            }
 
-            ReduceInterestPoints();
+                ReduceInterestPoints();
+            }
         }
 
         return AR_SUCCESS;
@@ -501,7 +521,7 @@ namespace ar {
     }
 
     /// Fix a virtual object that is floating to the real world. The orientation
-    //	and size might be adjusted to fit the new location.
+    ///	and size might be adjusted to fit the new location.
     ERROR_CODE AREngine::FixVObj(int id) {
         // TODO: This is only a fake function. Need real implementation.
         return AR_SUCCESS;
