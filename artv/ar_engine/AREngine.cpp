@@ -216,6 +216,13 @@ namespace ar {
         }
     }
 
+    Point2f InterestPoint::loc(Mat camera_matrix) const {
+        float raw_homogenous[] = {loc3d_.x, loc3d_.y, loc3d_.z, 1};
+        Mat homogenous(4, 1, CV_32F, raw_homogenous);
+        auto proj = Mat(camera_matrix * homogenous);
+        return Point2f(proj.at<float>(0) / proj.at<float>(2), proj.at<float>(1) / proj.at<float>(2));
+    }
+
     ERROR_CODE AREngine::FeedScene(const Mat &raw_scene) {
         last_raw_frame_ = raw_scene;
         cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);

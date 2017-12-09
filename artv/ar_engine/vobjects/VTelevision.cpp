@@ -25,6 +25,7 @@ namespace ar {
     }
 
     bool VTelevision::IsSelected(Point2f pt2d, int frame_id) {
+        assert(left_upper_ && left_lower_ && right_upper_ && right_lower_);
         Point2f lu = left_upper_->observation(frame_id)->loc();
         Point2f ll = left_lower_->observation(frame_id)->loc();
         Point2f ru = right_upper_->observation(frame_id)->loc();
@@ -40,10 +41,12 @@ namespace ar {
                              const shared_ptr<const InterestPoint> &left_lower,
                              const shared_ptr<const InterestPoint> &right_upper,
                              const shared_ptr<const InterestPoint> &right_lower) {
+        assert(left_upper_ && left_lower_ && right_upper_ && right_lower_);
         left_upper_ = left_upper;
         left_lower_ = left_lower;
         right_upper_ = right_upper;
         right_lower_ = right_lower;
+        assert(left_upper_.use_count() > 1);
     }
 
     void VTelevision::Draw(cv::Mat &scene, const cv::Mat &camera_matrix) {
@@ -63,12 +66,12 @@ namespace ar {
 
     inline Point2f VTelevision::ProjectPoint(const cv::Mat &camera_matrix, shared_ptr<const InterestPoint> point3d) {
         Point2f result;
-        Mat origin(4, 1, CV_64F);
-        Mat projected(3, 1, CV_64F);
-        origin.data[0] = point3d->loc3d_.x;
-        origin.data[0] = point3d->loc3d_.y;
-        origin.data[0] = point3d->loc3d_.z;
-        origin.data[0] = double(1);
+        Mat origin(4, 1, CV_32F);
+        Mat projected(3, 1, CV_32F);
+        origin.at<float>(0) = point3d->loc3d_.x;
+        origin.at<float>(1) = point3d->loc3d_.y;
+        origin.at<float>(2) = point3d->loc3d_.z;
+        origin.at<float>(3) = 1.f;
         projected = camera_matrix * origin;
         result.x = projected.data[0] / projected.data[2];
         result.y = projected.data[1] / projected.data[2];

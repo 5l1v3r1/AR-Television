@@ -1,24 +1,30 @@
+#include <common/OSUtils.h>
 #include <ar_engine/AREngine.h>
 #include <ar_engine/vobjects/VTelevision.h>
 
 namespace ar {
     ERROR_CODE AREngine::CreateTelevision(cv::Point location, FrameStream &content_stream) {
-        Canny(last_gray_frame_, last_canny_map_, 100, 200);
+        Mat camera_matrix = intrinsics_ * extrinsics_;
+
+        Canny(last_gray_frame_, last_canny_map_, 60, 60 * 3);
         Mat dilated_canny;
         dilate(last_canny_map_, dilated_canny, noArray());
+        imshow("Canny", last_canny_map_);
+        waitKey(1);
 
         // Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
         vector<pair<double, shared_ptr<InterestPoint>>> left_uppers, left_lowers, right_uppers, right_lowers;
         for (auto &ip : interest_points_) {
             double dist_sqr = ip->last_observation()->l2dist_sqr(location);
             if (dist_sqr > min(last_gray_frame_.rows, last_gray_frame_.cols) * VTelevision::MEAN_TV_SIZE_RATE) {
-                if (ip->last_loc().x < location.x && ip->last_loc().y < location.y)
+                auto loc = ip->loc(camera_matrix);
+                if (loc.x < location.x && loc.y < location.y)
                     left_uppers.emplace_back(dist_sqr, ip);
-                else if (ip->last_loc().x > location.x && ip->last_loc().y < location.y)
+                else if (loc.x > location.x && loc.y < location.y)
                     right_uppers.emplace_back(dist_sqr, ip);
-                else if (ip->last_loc().x < location.x && ip->last_loc().y > location.y)
+                else if (loc.x < location.x && loc.y > location.y)
                     left_lowers.emplace_back(dist_sqr, ip);
-                else if (ip->last_loc().x > location.x && ip->last_loc().y > location.y)
+                else if (loc.x > location.x && loc.y > location.y)
                     right_lowers.emplace_back(dist_sqr, ip);
             }
         }
@@ -68,6 +74,11 @@ namespace ar {
                     }
                 }
             }
+        }
+
+        if (!found) {
+            cout << "Cannot find valid TV boundary." << endl;
+            return AR_OPERATION_FAILED;
         }
 
         // Create a virtual television, and locate it with respect to these interest points.

@@ -75,9 +75,9 @@ namespace ar {
     }
 
     /// Input a series of camera matrices and 2D points. The 2D points are all matched in order to relate to some 3D points.
-    //	Output the estimation of 3D points and estimation error.
-    ERROR_CODE Triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>> &pts,
-                           cv::Mat &points3d,
+    ///	Output the estimation of 3D points and estimation error.
+    ERROR_CODE Triangulate(const vector<pair<Mat, Mat>> &pts,
+                           Mat &points3d,
                            double *error) {
         int num_pts = -1;
         for (auto &p : pts) {
@@ -87,14 +87,14 @@ namespace ar {
                 return AR_INVALID_INPUT;
         }
 
-        // TODO: Estimate the 3D points with all the information.
-        int N = pts[0].second.rows;
-        auto n = pts.size();
-        points3d = Mat(N, 3, CV_32F);
+        // Estimate the 3D points with all the information.
+        int num_points = pts[0].second.rows;
+        auto num_cameras = pts.size();
+        points3d = Mat(num_points, 3, CV_32F);
 
-        for (int i = 0; i < N; ++i) {
-            Mat A = Mat(static_cast<int>(n << 1), 4, CV_32F);
-            for (int j = 0; j < n; ++j) {
+        for (int i = 0; i < num_points; ++i) {
+            Mat A = Mat(static_cast<int>(num_cameras << 1), 4, CV_32F);
+            for (int j = 0; j < num_cameras; ++j) {
                 ((Mat) (pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2))).copyTo(
                         A.row(2 * j));
                 ((Mat) (pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2))).copyTo(
@@ -105,7 +105,7 @@ namespace ar {
             svd.compute(A, W, U, VT);
             Mat p = VT.row(VT.rows - 1);
             p = p / p.at<float>(0, 3);
-            for (int k = 0; k < n; ++k) {
+            for (int k = 0; k < num_cameras; ++k) {
                 Mat proj = p * pts[k].first.t();
                 proj = proj.colRange(0, 2) / proj.at<float>(0, 2);
                 Mat diff = proj - pts[k].second.row(i);

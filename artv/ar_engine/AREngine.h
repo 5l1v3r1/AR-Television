@@ -82,7 +82,9 @@ namespace ar {
         inline bool ToDiscard() const { return !vis_cnt_; }
 
         /// The estimated 3D location of the point.
-        Point3d loc3d_;
+        Point3f loc3d_;
+
+        Point2f loc(Mat camera_matrix) const;
 
         inline const Mat &last_desc() const { return last_desc_; }
 
