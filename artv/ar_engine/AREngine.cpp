@@ -203,14 +203,19 @@ namespace ar {
                     points2.emplace_back(keypoints[match.second].pt);
                 }
             }
+            // Too few matches. Skip this scene.
+            if (points1.size() < 8)
+                return AR_SUCCESS;
 
             // Estimate the fundamental matrix using the matched points.
             Mat inlier_mask;
             Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_RANSAC, 3., 0.99, inlier_mask);
 
-            // If fail to compute a unique solution of fundamental matrix, this scene might be problematic. We skip it.
-            if (fundamental_matrix.rows != 3)
+            // If fail to compute a solution of fundamental matrix, this scene might be problematic. We skip it.
+            if (fundamental_matrix.empty())
                 return AR_SUCCESS;
+            if (fundamental_matrix.rows > 3)
+                fundamental_matrix = fundamental_matrix.rowRange(0, 3);
             fundamental_matrix.convertTo(fundamental_matrix, CV_32F);
 
             // Remove outliers from the matches.

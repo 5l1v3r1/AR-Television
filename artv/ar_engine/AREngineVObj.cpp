@@ -5,7 +5,7 @@ namespace ar {
     ERROR_CODE AREngine::CreateTelevision(cv::Point location, FrameStream &content_stream) {
         Canny(last_gray_frame_, last_canny_map_, 100, 200);
         Mat dilated_canny;
-        dilate(last_canny_map_, dilated_canny, NULL);
+        dilate(last_canny_map_, dilated_canny, noArray());
 
         // Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
         vector<pair<double, shared_ptr<InterestPoint>>> left_uppers, left_lowers, right_uppers, right_lowers;
