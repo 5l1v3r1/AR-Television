@@ -116,77 +116,255 @@ namespace ar {
         }
         return AR_SUCCESS;
     }
-
-    struct BALResidual {
-        BALResidual(double x2, double y2)
-                : x2_(x2), y2_(y2) {}
-
-        template<typename T>
-        bool operator()(const T *const r2, //3
-                        const T *const t2, //3
-                        const T *const point, //3
-                        const T *const K2, //9
-                        T *residuals) const {
-            Mat r2Mat(3, 1, CV_32F, (void *) r2);
-            Mat R2;
-            Rodrigues(r2Mat, R2);
-            Mat M2;
-            Mat t2Mat(3, 1, CV_32F, (void *) t2);
-            hconcat(R2, t2Mat, M2);
-            Mat C2 = Mat(3, 3, CV_32F, (void *) K2) * M2; //3*4
-            Mat P_h;
-            hconcat(Mat(3, 1, CV_32F, (void *) point), Mat(1, 1, CV_32F, 1.), P_h); //4*1
-            Mat p2_proj = C2 * P_h; //3*1
-            double p2_hat_x = p2_proj.at<double>(0, 0) / p2_proj.at<double>(2, 0);
-            double p2_hat_y = p2_proj.at<double>(1, 0) / p2_proj.at<double>(2, 0);
-            residuals[0] = T(p2_hat_x - x2_);
-            residuals[1] = T(p2_hat_y - y2_);
+    struct BALResidual_1 {
+        BALResidual_1(vector<double> pts1, int N, vector<double> K1, vector<double> M1)
+        : pts1_(pts1.begin(), pts1.end()), N_(N), K1_(K1.begin(), K1.end()), M1_(M1.begin(), M1.end()){}
+        
+        template <typename T>
+        bool operator()(const T* const points, //3*N
+                        T* residuals) const {
+            T C1[3][4];
+            for (int i = 0; i < 3; i++){
+                for(int j = 0; j < 4; j++){
+                    C1[i][j] = T(0);
+                    for (int k = 0; k < 3; k++){
+                        C1[i][j] += K1_[i*3+k] * M1_[k*4+j];
+                    }
+                }
+            }
+            bool DEBUG_FLAG = false;
+            if (DEBUG_FLAG){
+                for (int i = 0; i < 3; i++){
+                    for(int j = 0; j < 4; j++){
+                        cout << "C1 " << C1[i][j] << endl;
+                    }
+                }
+            }
+            T p1_proj[3][N_];
+            for (int i = 0; i < 3; i++){
+                for (int j = 0; j < N_; j++){
+                    p1_proj[i][j] = T(0);
+                    for (int k = 0; k < 3; k++){
+                        p1_proj[i][j] += C1[i][k] * points[j*3+k];
+                    }
+                    p1_proj[i][j] += C1[i][3];
+                }
+            }
+            if (DEBUG_FLAG){
+                for (int i = 0; i < 3; i++){
+                    for (int j = 0; j < N_; j++)
+                        cout << "p1_proj " << p1_proj[i][j] << endl;
+                }
+            }
+            if (DEBUG_FLAG){
+                for(int i = 0; i < N_; i++){
+                    cout << "p1_hat_x" << p1_proj[0][i]/p1_proj[2][i] << endl;
+                    cout << "p1_x " << pts1_[i*2] << endl;
+                    cout << "p1_hat_y" << p1_proj[1][i]/p1_proj[2][i] << endl;
+                    cout << "p1_y " << pts1_[i*2+1] << endl;
+                }
+            }
+            residuals[0] = T(0);
+            residuals[1] = T(0);
+            for (int i = 0; i < N_; i++){
+                residuals[0] += pow(p1_proj[0][i]/p1_proj[2][i] - T(pts1_[i*2]), 2.);
+                residuals[1] += pow(p1_proj[1][i]/p1_proj[2][i]- T(pts1_[i*2+1]), 2.);
+            }
+            residuals[0] = sqrt(residuals[0]);
+            residuals[1] = sqrt(residuals[1]);
             return true;
         }
-
+        
     private:
         // Observations for a sample.
-        const double x2_;
-        const double y2_;
+        const vector<double> pts1_;
+        const int N_;
+        const vector<double> K1_;
+        const vector<double> M1_;
     };
-
+    
+    struct BALResidual_2 {
+        BALResidual_2(vector<double> pts2, int N, vector<double> K2)
+        : pts2_(pts2.begin(), pts2.end()), N_(N), K2_(K2.begin(), K2.end()) {}
+        
+        template <typename T>
+        vector<T> rawRodrigues(const T* const r) const {
+            vector<T> R(9);
+            T theta = T(0);
+            for (int i = 0; i < 3; i++){
+                theta += r[i] * r[i];
+            }
+            theta = sqrt(theta);
+            if (theta < T(DBL_EPSILON)){
+                R[0] = R[4] = R[8] = T(1);
+                R[1] = R[2] = R[3] = R[5] = R[6] = R[7] = T(0);
+            }
+            else{
+                vector<T> u(3);
+                for (int i = 0; i < 3; i++){
+                    u[i] = r[i] / theta;
+                }
+                T costheta = cos(theta);
+                T sintheta = sin(theta);
+                R[0] = costheta + u[0] * u[0] * (T(1)-costheta);
+                R[1] =              u[0] * u[1] * (T(1)-costheta) - u[2] * sintheta;
+                R[2] =              u[0] * u[2] * (T(1)-costheta) + u[1] * sintheta;
+                R[3] =              u[1] * u[0] * (T(1)-costheta) + u[2] * sintheta;
+                R[4] = costheta + u[1] * u[1] * (T(1)-costheta);
+                R[5] =              u[1] * u[2] * (T(1)-costheta) - u[0] * sintheta;
+                R[6] =              u[2] * u[0] * (T(1)-costheta) - u[1] * sintheta;
+                R[7] =              u[2] * u[1] * (T(1)-costheta) + u[0] * sintheta;
+                R[8] = costheta + u[2] * u[2] * (T(1)-costheta);
+            }
+            return R;
+        }
+        
+        template <typename T>
+        bool operator()(const T* const r2, //3
+                        const T* const t2, //3
+                        const T* const points, //3*N
+                        T* residuals) const {
+            vector<T> R2 = rawRodrigues(r2);
+            //debug
+            bool DEBUG_FLAG = false;
+            if (DEBUG_FLAG){
+                for (int i = 0; i < R2.size(); i++){
+                    cout << "R2 " << R2[i] << endl;
+                }
+            }
+            T C2[3][4];
+            for (int i = 0; i < 3; i++){
+                for(int j = 0; j < 3; j++){
+                    C2[i][j] = T(0);
+                    for (int k = 0; k < 3; k++){
+                        C2[i][j] += K2_[i*3+k] * R2[k*3+j];
+                    }
+                }
+                C2[i][3] = T(0);
+                for (int k = 0; k < 3; k++){
+                    C2[i][3] += K2_[i*3+k] * t2[k];
+                }
+            }
+            if (DEBUG_FLAG){
+                for (int i = 0; i < 3; i++){
+                    for(int j = 0; j < 4; j++){
+                        cout << "C2 " << C2[i][j] << endl;
+                    }
+                }
+            }
+            T p2_proj[3][N_];
+            for (int i = 0; i < 3; i++){
+                for (int j = 0; j < N_; j++){
+                    p2_proj[i][j] = T(0);
+                    for (int k = 0; k < 3; k++){
+                        p2_proj[i][j] += C2[i][k] * points[j*3+k];
+                    }
+                    p2_proj[i][j] += C2[i][3];
+                }
+            }
+            if (DEBUG_FLAG){
+                for (int i = 0; i < 3; i++){
+                    for (int j = 0; j < N_; j++)
+                        cout << "p2_proj " << p2_proj[i][j] << endl;
+                }
+            }
+            if (DEBUG_FLAG){
+                for(int i = 0; i < N_; i++){
+                    cout << "p2_hat_x" << p2_proj[0][i]/p2_proj[2][i] << endl;
+                    cout << "p2_x " << pts2_[i*2] << endl;
+                    cout << "p2_hat_y" << p2_proj[1][i]/p2_proj[2][i] << endl;
+                    cout << "p2_y " << pts2_[i*2+1] << endl;
+                }
+            }
+            residuals[0] = T(0);
+            residuals[1] = T(0);
+            for (int i = 0; i < N_; i++){
+                residuals[0] += pow(p2_proj[0][i]/p2_proj[2][i] - T(pts2_[i*2]), 2.);
+                residuals[1] += pow(p2_proj[1][i]/p2_proj[2][i]- T(pts2_[i*2+1]), 2.);
+            }
+            residuals[0] = sqrt(residuals[0]);
+            residuals[1] = sqrt(residuals[1]);
+            return true;
+        }
+        
+    private:
+        // Observations for a sample.
+        const vector<double> pts2_;
+        const int N_;
+        const vector<double> K2_;
+    };
+    
     void BundleAdjustment(Mat K1, Mat M1, Mat pts1,
                           Mat K2, Mat &M2, Mat pts2,
-                          Mat &Points3d) {
-        Mat R2_init = M2.rowRange(0, 3).clone();
-        Mat t2_init = M2.rowRange(3, 4).clone();
+                          Mat &Points3d){
+        //cout << "initial M2 " << M2 << endl;
+        Mat R2_init = M2.colRange(0, 3).clone();
+        Mat t2_init = M2.colRange(3, 4).clone();
         Mat r2_init;
         Rodrigues(R2_init, r2_init);
-
         int N = pts1.rows;
         double r2[3], t2[3];
-        double K2array[9];
-        for (int i = 0; i < 3; i++) {
-            r2[i] = r2_init.at<double>(i, 0);
-            t2[i] = t2_init.at<double>(i, 0);
+        for (int i = 0; i < 3; i++){
+            r2[i] = double(r2_init.at<float>(i, 0));
+            t2[i] = double(t2_init.at<float>(i, 0));
         }
-        for (int i = 0; i < 9; i++) {
-            K2array[i] = K2.at<double>(i / 3, i % 3);
+        vector<double> K2v(9), K1v(9), M1v(12);
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                K1v[i*3+j] = double(K1.at<float>(i, j));
+                K2v[i*3+j] = double(K2.at<float>(i, j));
+            }
+            for(int j = 0; j < 4; j++){
+                M1v[i*4+j] = double(M1.at<float>(i, j));
+            }
         }
-        //using ceres to nonlinear optimization
+        const int supposed_max_pointnum = 150;
+        double pts3d[supposed_max_pointnum*3];
+        vector<double> pts1_(N*2);
+        vector<double> pts2_(N*2);
+        for (int i = 0; i < N; i++){
+            for (int j = 0; j < 3; j++){
+                pts3d[i*3+j] = double(Points3d.at<float>(i, j));
+            }
+            for (int j = 0; j < 2; j++)
+                pts1_[i*2+j] = double(pts1.at<float>(i, j));
+            for (int j = 0; j < 2; j++)
+                pts2_[i*2+j] = double(pts2.at<float>(i, j));
+        }
+        for (int i = N; i < supposed_max_pointnum; i++){
+            for (int j = 0; j < 3; j++){
+                pts3d[i*3+j] = 0.;
+            }
+        }
+        //using ceres for nonlinear optimization
         {
             ceres::Problem problem;
-            for (int i = 0; i < N; ++i) {
-                double pt3d[3];
-                for (int j = 0; j < 3; j++)
-                    pt3d[j] = Points3d.at<double>(i, j);
-                ceres::CostFunction *cost_function =
-                        new ceres::AutoDiffCostFunction<BALResidual, 2, 3, 3, 3, 9>(
-                                new BALResidual(pts2.at<double>(i, 0), pts2.at<double>(i, 1)));
-                problem.AddResidualBlock(cost_function, NULL, r2, t2, pt3d, K2array);
-            }
+            ceres::CostFunction* cost_function_1 =
+            new ceres::AutoDiffCostFunction<BALResidual_1, 2, supposed_max_pointnum*3>(new BALResidual_1(pts1_, N, K1v, M1v));
+            problem.AddResidualBlock(cost_function_1, NULL, pts3d);
+            
+            ceres::CostFunction* cost_function_2 =
+            new ceres::AutoDiffCostFunction<BALResidual_2, 2, 3, 3, supposed_max_pointnum*3>(new BALResidual_2(pts2_, N, K2v));
+            problem.AddResidualBlock(cost_function_2, NULL, r2, t2, pts3d);
+            
             ceres::Solver::Options options;
+            options.linear_solver_type = ceres::DENSE_SCHUR;
+            options.max_num_iterations = 1000;
+            //options.minimizer_progress_to_stdout = true;
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
             std::cout << summary.FullReport() << "\n";
         }
-        Mat R2;
-        Rodrigues(r2_init, R2);
+        Mat r2Mat(3, 1, CV_64F, (void*)r2);
+        Mat t2Mat(3, 1, CV_64F, (void*)t2);
+        Mat R2Mat;
+        Rodrigues(r2Mat, R2Mat);
+        Mat M2Mat;
+        hconcat(R2Mat, t2Mat, M2Mat);
+        M2Mat.convertTo(M2, CV_32F);
+        Mat Points3dMat(N, 3, CV_64F, (void*)pts3d);
+        Points3dMat.convertTo(Points3d, CV_32F);
+        //cout << "optimized M2 " << M2 << endl;
         return;
     }
 }
