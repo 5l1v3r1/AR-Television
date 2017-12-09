@@ -186,7 +186,9 @@ namespace ar {
                         inlier_mask.at<bool>(k) = false;
                     }
                 // We allow some errors.
-                if (invalid_cnt >= (transformed_pts3d.rows >> 2))
+//                if (invalid_cnt >= (transformed_pts3d.rows >> 2))
+//                    valid = false;
+                if (invalid_cnt != 0)
                     valid = false;
             }
             if (valid) {
@@ -356,6 +358,10 @@ namespace ar {
                         data.emplace_back(Mat(), new_pts);
 
                         Mat M2, mask;
+                        for (size_t j = 0; j < candidates.size(); ++j) {
+                            Mat(candidates[j].col(3) + candidates[j].colRange(0, 3) * last_keyframe.t).copyTo(candidates[j].col(3));
+                            Mat(candidates[j].colRange(0, 3) * last_keyframe.R).copyTo(candidates[j].colRange(0, 3));
+                        }
                         FindExtrinsics(candidates, data, M2, pts3d, mask);
                         if (!M2.empty()) {
                             extrinsics_ = M2;
@@ -399,6 +405,10 @@ namespace ar {
                         data.emplace_back(Mat(), new_pts);
 
                         Mat M2, mask;
+                        for (size_t j = 0; j < candidates.size(); ++j) {
+                            Mat(candidates[j].col(3) + candidates[j].colRange(0, 3) * last_keyframe.t).copyTo(candidates[j].col(3));
+                            Mat(candidates[j].colRange(0, 3) * last_keyframe.R).copyTo(candidates[j].colRange(0, 3));
+                        }
                         FindExtrinsics(candidates, data, M2, pts3d, mask);
                         if (!M2.empty()) {
                             extrinsics_ = M2;
@@ -432,6 +442,8 @@ namespace ar {
             Mat R = extrinsics_.colRange(0, 3);
             Mat t = extrinsics_.col(3);
 
+            cout << "Det :" << abs(determinant(R)) << endl;
+
             // Estimate the average depth.
             Mat T = Mat(pts3d.rows, 3, CV_32F);
             for (int k = 0; k < pts3d.rows; ++k)
@@ -441,13 +453,9 @@ namespace ar {
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
-            Mat t_rel = last_keyframe.t - last_keyframe.R * R.t() * t;
+            Mat t_rel = t - R * last_keyframe.R.t() * last_keyframe.t;
+//            Mat t_rel = last_keyframe.t - last_keyframe.R * R.t() * t;
             double distance = cv::norm(t_rel, cv::NormTypes::NORM_L2);
-            cout << "last_keyframe.R : " << last_keyframe.R << endl;
-            cout << "R" << R << endl;
-            for (size_t i = 0; i < candidates.size(); ++i)
-                cout << "M2" << i << endl << candidates[i] << endl;
-            cout << endl;
 
 //            double distance = cv::norm(last_keyframe.t -  t, cv::NormTypes::NORM_L2);
             cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
