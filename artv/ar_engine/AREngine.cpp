@@ -171,16 +171,19 @@ namespace ar {
             assert(estimated_pts3d.rows == data.back().second.rows);
             // These 3D points are valid if they are in front of the camera in the previous keyframes.
             bool valid = true;
-            for (int j = 0; j <= min(1, keyframe_id_) && valid; ++j) {
+            Mat inlier_mask = Mat::ones(estimated_pts3d.rows, 1, CV_8U);
+            int invalid_cnt = 0;
+            for (int j = 0; j <= min(int(data.size() - 2), keyframe_id_) && valid; ++j) {
                 auto &kf = keyframe(keyframe_id_ - j);
                 Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
                 for (int k = 0; k < estimated_pts3d.rows; ++k)
                     ((Mat) kf.t.t()).copyTo(T.row(k));
                 Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
-                int invalid_cnt = 0;
                 for (int k = 0; k < transformed_pts3d.rows; ++k)
-                    if (transformed_pts3d.at<float>(k, 2) < 1)
+                    if (inlier_mask.at<bool>(k) && transformed_pts3d.at<float>(k, 2) < 1) {
                         ++invalid_cnt;
+                        inlier_mask.at<bool>(k) = false;
+                    }
                 // We allow some errors.
                 if (invalid_cnt >= (transformed_pts3d.rows >> 2))
                     valid = false;
@@ -193,11 +196,10 @@ namespace ar {
                 for (int k = 0; k < estimated_pts3d.rows; ++k)
                     ((Mat) t.t()).copyTo(T.row(k));
                 Mat transformed_pts3d = estimated_pts3d * R.t() + T;
-                int invalid_cnt = 0;
                 for (int k = 0; k < transformed_pts3d.rows; ++k)
-                    if (transformed_pts3d.at<float>(k, 2) < 1) {
+                    if (inlier_mask.at<bool>(k) && transformed_pts3d.at<float>(k, 2) < 1) {
                         ++invalid_cnt;
-                        mask.at<bool>(k) = false;
+                        inlier_mask.at<bool>(k) = false;
                     }
                 if (invalid_cnt >= (transformed_pts3d.rows >> 2))
                     valid = false;
@@ -206,6 +208,7 @@ namespace ar {
                     least_error = err;
                     M2 = candidateM2;
                     pts3d = estimated_pts3d;
+                    mask = inlier_mask;
 
                     cout << "Found a valid solution! Error=" << err << endl;
                 }
@@ -289,7 +292,7 @@ namespace ar {
                 return AR_SUCCESS;
             matches.resize(new_size);
             // The new matches consist of all inliers.
-            inlier_mask = Mat::ones(static_cast<int>(new_size), 1, CV_8U);
+            inlier_mask = Mat::ones(static_cast<int>(matches.size()), 1, CV_8U);
 
             // Plot matches.
             Mat plot;
@@ -351,11 +354,13 @@ namespace ar {
                                                               last_keyframe.t),
                                           stored_pts2);
                         data.emplace_back(Mat(), new_pts);
-                        Mat M2;
-                        findM2(candidates, data, M2, pts3d, inlier_mask);
+
+                        Mat M2, mask;
+                        findM2(candidates, data, M2, pts3d, mask);
                         if (!M2.empty()) {
                             R = M2.colRange(0, 3);
                             t = M2.col(3);
+                            inlier_mask = mask;
                             done = true;
                         }
                     }
@@ -394,11 +399,12 @@ namespace ar {
                                 stored_pts);
                         data.emplace_back(Mat(), new_pts);
 
-                        Mat M2;
-                        findM2(candidates, data, M2, pts3d, inlier_mask);
+                        Mat M2, mask;
+                        findM2(candidates, data, M2, pts3d, mask);
                         if (!M2.empty()) {
                             R = M2.colRange(0, 3);
                             t = M2.col(3);
+                            inlier_mask = mask;
                             done = true;
                         }
                     }
@@ -419,8 +425,10 @@ namespace ar {
                     ++new_size;
                 }
             // If there are no points left, this scene is problematic. Skip it.
-            if (!new_size)
+            if (!new_size) {
+                cout << inlier_mask << endl;
                 return AR_SUCCESS;
+            }
             matches.resize(new_size);
             pts3d = pts3d.rowRange(0, static_cast<int>(new_size));
 
