@@ -24,6 +24,8 @@
 #define ARENGINE_API
 #endif
 
+//#define USE_OPENCV_TRIANGULATE
+
 namespace ar {
     using namespace std;
     using namespace cv;

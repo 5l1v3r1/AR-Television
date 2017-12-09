@@ -113,12 +113,9 @@ namespace ar {
             AR_SLEEP(1);
 
         auto new_size = interest_points_.size();
-        for (int i = 0; i < new_size; ++i) {
-            if (interest_points_[i]->ToDiscard()) {
-                interest_points_[i] = interest_points_[--new_size];
-                --i;
-            }
-        }
+        for (int i = 0; i < new_size; ++i)
+            if (interest_points_[i]->ToDiscard())
+                interest_points_[i--] = interest_points_[--new_size];
         interest_points_.resize(new_size);
 
         interest_points_mutex_.unlock();
@@ -162,7 +159,15 @@ namespace ar {
             Mat estimated_pts3d;
             double err = 0;
 
+#ifdef USE_OPENCV_TRIANGULATE
+            Mat pts4d;
+            triangulatePoints(data.front().first, data.back().first, data.front().second.t(), data.back().second.t(), pts4d);
+            for (int i = 0; i < 3; ++i)
+                Mat(pts4d.row(i) / pts4d.row(3)).copyTo(pts4d.row(i));
+            estimated_pts3d = pts4d.rowRange(0, 3).t();
+#else
             Triangulate(data, estimated_pts3d, &err);
+#endif
             assert(estimated_pts3d.rows == data.back().second.rows);
             // These 3D points are valid if they are in front of the camera in the previous keyframes.
             bool valid = true;
@@ -303,6 +308,7 @@ namespace ar {
             {
                 // Fill the data for 3D reconstruction.
                 bool done = false;
+#ifndef USE_OPENCV_TRIANGULATE
                 if (keyframe_id_ >= 1) {
                     // We maybe can use 2 keyframes.
                     auto &last_keyframe2 = keyframe(keyframe_id_ - 1);
@@ -354,6 +360,7 @@ namespace ar {
                         }
                     }
                 }
+#endif
 
                 // We can only use 1 keyframe.
                 for (int i = 0; i <= min(2, keyframe_id_) && !done; ++i) {
@@ -427,6 +434,7 @@ namespace ar {
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
             double distance = cv::norm(last_keyframe.t - last_keyframe.R * (R.t() * t), cv::NormTypes::NORM_L2);
+//            double distance = cv::norm(last_keyframe.t -  t, cv::NormTypes::NORM_L2);
             cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
             if (distance / min(average_depth, last_keyframe.average_depth) > 0.1) {
                 auto kf = Keyframe(intrinsics_,
@@ -539,9 +547,10 @@ namespace ar {
     /// Add an observation to the interest point.
     /// In the current system setting, only observations from the keyframes shall be added.
     void InterestPoint::AddObservation(shared_ptr<Observation> p) {
+        ++observation_seq_tail_;
         // Remove the information of the discarded observation.
-        if (observation_seq_tail_ + 1 >= MAX_OBSERVATIONS) {
-            auto old = observation(observation_seq_tail_ + 1);
+        if (observation_seq_tail_ >= MAX_OBSERVATIONS) {
+            auto old = observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS];
             if (old->visible)
                 --vis_cnt_;
         }
@@ -550,7 +559,7 @@ namespace ar {
             ++vis_cnt_;
             last_desc_ = p->desc;
         }
-        observation_seq_[++observation_seq_tail_ % MAX_OBSERVATIONS] = p;
+        observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS] = p;
         if (observation_seq_tail_ >= (MAX_OBSERVATIONS << 1))
             observation_seq_tail_ -= MAX_OBSERVATIONS;
         assert(last_observation().get() == p.get());
