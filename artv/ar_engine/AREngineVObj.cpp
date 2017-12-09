@@ -9,7 +9,7 @@ namespace ar {
         Canny(last_gray_frame_, last_canny_map_, 60, 60 * 3);
         Mat dilated_canny;
         dilate(last_canny_map_, dilated_canny, noArray());
-        imshow("Canny", last_canny_map_);
+        imshow("Canny", dilated_canny);
         waitKey(1);
 
         // Find the interest points that roughly form a rectangle in the real world that surrounds the given location.

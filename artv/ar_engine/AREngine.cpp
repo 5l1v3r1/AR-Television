@@ -137,7 +137,9 @@ namespace ar {
                        double _average_depth) :
             intrinsics(std::move(_intrinsics)),
             R(std::move(_R)), t(std::move(_t)),
-            average_depth(_average_depth) {}
+            average_depth(_average_depth) {
+        assert(abs(determinant(R) - 1) < 0.01);
+    }
 
     void AREngine::AddKeyframe(Keyframe &kf) {
         last_key_scene_ = last_raw_frame_.clone();
@@ -438,6 +440,7 @@ namespace ar {
 
             Mat R = extrinsics_.colRange(0, 3);
             Mat t = extrinsics_.col(3);
+            assert(abs(determinant(R) - 1) < 0.01);
 
             // Estimate the average depth.
             Mat T = Mat(pts3d.rows, 3, CV_32F);

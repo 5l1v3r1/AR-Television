@@ -43,12 +43,15 @@ namespace ar {
         W.at<float>(1, 0) = W.at<float>(2, 2) = 1;
         if (determinant(U * W * Vt) < 0)
             W = -W;
+        assert(abs(determinant(W) - 1) < 0.01 || abs(determinant(W) + 1) < 0.01);
 
         vector<Mat> res;
         res.reserve(4);
         Mat R1 = U * W * Vt;
         Mat R2 = U * W.t() * Vt;
         Mat t = U.col(2) / max({abs(U.at<float>(2, 0)), abs(U.at<float>(2, 1)), abs(U.at<float>(2, 2))});
+        assert(abs(determinant(R1) - 1) < 0.01);
+        assert(abs(determinant(R2) - 1) < 0.01);
 
         Mat candidate;
         hconcat(R1, t, candidate);
