@@ -155,6 +155,7 @@ namespace ar {
         // Try each candidate of extrinsics.
         auto least_error = DBL_MAX;
         for (auto &candidateM2 : candidates) {
+
             data.back().first = intrinsics_ * candidateM2;
             Mat estimated_pts3d;
             double err = 0;
@@ -440,7 +441,14 @@ namespace ar {
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
-            double distance = cv::norm(last_keyframe.t - last_keyframe.R * (R.t() * t), cv::NormTypes::NORM_L2);
+            Mat t_rel = last_keyframe.t - last_keyframe.R * R.t() * t;
+            double distance = cv::norm(t_rel, cv::NormTypes::NORM_L2);
+            cout << "last_keyframe.R : " << last_keyframe.R << endl;
+            cout << "R" << R << endl;
+            for (size_t i = 0; i < candidates.size(); ++i)
+                cout << "M2" << i << endl << candidates[i] << endl;
+            cout << endl;
+
 //            double distance = cv::norm(last_keyframe.t -  t, cv::NormTypes::NORM_L2);
             cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
             if (distance / min(average_depth, last_keyframe.average_depth) > 0.1) {
