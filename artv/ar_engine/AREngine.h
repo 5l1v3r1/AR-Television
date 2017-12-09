@@ -132,6 +132,8 @@ namespace ar {
         unordered_map<int, VObject *> virtual_objects_;
         vector<MotionData> accumulated_motion_data_;
         Mat intrinsics_;
+        /// 3x4 extrinsic matrix.
+        Mat extrinsics_;
 
         Mat last_key_scene_;
         Mat last_raw_frame_;
@@ -169,11 +171,11 @@ namespace ar {
 
         thread mapping_thread_;
 
-        void findM2(const vector<Mat> &candidates,
-                    vector<pair<Mat, Mat>> &data,
-                    Mat &M2,
-                    Mat &pts3d,
-                    Mat &mask) const;
+        void FindExtrinsics(const vector<Mat> &candidates,
+                            vector<pair<Mat, Mat>> &data,
+                            Mat &M2,
+                            Mat &pts3d,
+                            Mat &mask) const;
 
     public:
         ///////////////////////////////// General methods /////////////////////////////////

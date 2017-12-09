@@ -147,11 +147,11 @@ namespace ar {
             keyframe_id_ -= MAX_KEYFRAMES;
     }
 
-    void AREngine::findM2(const vector<Mat> &candidates,
-                          vector<pair<Mat, Mat>> &data,
-                          Mat &M2,
-                          Mat &pts3d,
-                          Mat &mask) const {
+    void AREngine::FindExtrinsics(const vector<Mat> &candidates,
+                                  vector<pair<Mat, Mat>> &data,
+                                  Mat &M2,
+                                  Mat &pts3d,
+                                  Mat &mask) const {
         // Try each candidate of extrinsics.
         auto least_error = DBL_MAX;
         for (auto &candidateM2 : candidates) {
@@ -305,7 +305,6 @@ namespace ar {
             // Call RecoverRotAndTranslation to recover rotation and translation.
             auto candidates = RecoverRotAndTranslation(essential_matrix);
 
-            Mat R, t;
             Mat pts3d;
             // Test for the only valid rotation and translation combination.
             {
@@ -356,10 +355,9 @@ namespace ar {
                         data.emplace_back(Mat(), new_pts);
 
                         Mat M2, mask;
-                        findM2(candidates, data, M2, pts3d, mask);
+                        FindExtrinsics(candidates, data, M2, pts3d, mask);
                         if (!M2.empty()) {
-                            R = M2.colRange(0, 3);
-                            t = M2.col(3);
+                            extrinsics_ = M2;
                             inlier_mask = mask;
                             done = true;
                         }
@@ -400,10 +398,9 @@ namespace ar {
                         data.emplace_back(Mat(), new_pts);
 
                         Mat M2, mask;
-                        findM2(candidates, data, M2, pts3d, mask);
+                        FindExtrinsics(candidates, data, M2, pts3d, mask);
                         if (!M2.empty()) {
-                            R = M2.colRange(0, 3);
-                            t = M2.col(3);
+                            extrinsics_ = M2;
                             inlier_mask = mask;
                             done = true;
                         }
@@ -421,8 +418,7 @@ namespace ar {
             for (int k = 0; k < pts3d.rows; ++k)
                 if (inlier_mask.at<bool>(k)) {
                     pts3d.row(k).copyTo(pts3d.row(static_cast<int>(new_size)));
-                    matches[new_size] = matches[k];
-                    ++new_size;
+                    matches[new_size++] = matches[k];
                 }
             // If there are no points left, this scene is problematic. Skip it.
             if (!new_size) {
@@ -432,10 +428,13 @@ namespace ar {
             matches.resize(new_size);
             pts3d = pts3d.rowRange(0, static_cast<int>(new_size));
 
+            Mat R = extrinsics_.colRange(0, 3);
+            Mat t = extrinsics_.col(3);
+
             // Estimate the average depth.
             Mat T = Mat(pts3d.rows, 3, CV_32F);
             for (int k = 0; k < pts3d.rows; ++k)
-                ((Mat) t.t()).copyTo(T.row(k));
+                Mat(t.t()).copyTo(T.row(k));
             Mat transformed_pts3d = pts3d * R.t() + T;
             double average_depth = sum(transformed_pts3d.col(2))[0] / pts3d.rows;
 
@@ -495,11 +494,8 @@ namespace ar {
         mixed_scene = raw_scene;
         for (auto vobj : virtual_objects_) {
             switch (vobj.second->GetType()) {
-                case VObjType::TV:
-                    // TODO: Draw the virtual television on the mixed_scene.
-                    break;
                 default:
-                    return AR_UNIMPLEMENTED;
+                    vobj.second->Draw(mixed_scene, intrinsics_ * extrinsics_);
             }
         }
 
