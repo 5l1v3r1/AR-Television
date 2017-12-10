@@ -43,7 +43,6 @@ namespace ar
 		bool IsSelected(cv::Point2f pt2d, int frame_id);
 		void Draw(cv::Mat& scene, const cv::Mat& camera_matrix);
 		void DrawPolygon(Mat &src, Mat &frame, vector<Point2f> &pts_src, vector<Point2f> &pts_dst);
-		inline Point2f ProjectPoint(const cv::Mat& camera_matrix, shared_ptr<const InterestPoint> point3d);		
 	};
 }
 

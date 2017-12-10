@@ -14,6 +14,7 @@
 #include <common/ARUtils.h>
 #include <common/CVUtils.h>
 
+#ifndef ARENGINE_API
 #ifdef _WIN32
 #ifdef ARENGINE_EXPORTS
 #define ARENGINE_API __declspec(dllexport)
@@ -22,6 +23,7 @@
 #endif
 #else
 #define ARENGINE_API
+#endif
 #endif
 
 //#define USE_OPENCV_TRIANGULATE
@@ -57,6 +59,8 @@ namespace ar {
             double l2dist_sqr(const Point2f &p) const;
         };
 
+        void Combine(const shared_ptr<InterestPoint> &another);
+
         shared_ptr<Observation> observation(int keyframe_id) const;
 
         inline auto &last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
@@ -89,7 +93,7 @@ namespace ar {
 
         inline const Mat &last_desc() const { return last_desc_; }
 
-        bool estimated_3d_;
+        bool has_estimated_3d_loc_;
     private:
         /// The estimated 3D location of the point.
         Point3f loc3d_;
@@ -188,7 +192,8 @@ namespace ar {
                             const Mat &baseExtrinsics,
                             vector<pair<Mat, Mat>> &data,
                             Mat &M2,
-                            Mat &pts3d) const;
+                            Mat &pts3d,
+                            Mat &mask) const;
 
     public:
         ///////////////////////////////// General methods /////////////////////////////////
