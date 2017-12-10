@@ -22,11 +22,13 @@ namespace ar {
     /// Estimate the 3D location of the interest points with the latest keyframe asynchronously.
     ///	Perform bundle adjustment based on the rough estimation of the extrinsics.
     void AREngine::EstimateMap() {
+
         interest_points_mutex_.lock();
 
         keyframe_mutex_.lock();
         int keyframe_id = keyframe_id_;
         keyframe_mutex_.unlock();
+        cout << "Key Frame #" << keyframe_id << endl;
         const auto &last_frame1 = keyframe(keyframe_id - 2);
         auto &last_frame2 = keyframe(keyframe_id - 1);
         auto &last_frame3 = keyframe(keyframe_id);
@@ -439,9 +441,6 @@ namespace ar {
                             }
                         }
                         vector<pair<Mat, Mat>> data;
-//                        cout << "ID : " << id << endl;
-//                        cout << "C : " << endl;
-//                        cout << keyframe(id).intrinsics() * keyframe(id).extrinsics() << endl << "~~~~~~~~~~~~~~~~~~" << endl;
                         data.emplace_back(keyframe(id).intrinsics() * keyframe(id).extrinsics(),
                                           stored_pts);
                         data.emplace_back(Mat(), new_pts);

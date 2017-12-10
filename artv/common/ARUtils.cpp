@@ -301,15 +301,6 @@ namespace ar {
 
         cout << "Finished rodrigues!" << endl;
 
-        cout << "Initial r2=";
-        for (double i : r2_raw)
-            cout << i << ' ';
-        cout << endl << "Initial t2=" << t2 << endl;
-        cout << "Initial r3=";
-        for (double i : r3_raw)
-            cout << i << ' ';
-        cout << endl << "Initial t3=" << t3 << endl;
-
         // Use ceres for nonlinear optimization.
         ceres::Problem problem;
         auto *cost_function_1 =
@@ -343,7 +334,7 @@ namespace ar {
         options.linear_solver_type = ceres::DENSE_SCHUR;
         //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
         //options.linear_solver_type = ceres::SPARSE_SCHUR;
-        options.max_num_iterations = 1000;
+        options.max_num_iterations = 2000;
         //options.minimizer_progress_to_stdout = true;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
