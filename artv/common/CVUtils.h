@@ -68,7 +68,7 @@ namespace ar {
 
     protected:
         /// Nearest-neighbour matching ratio.
-        const double NN_MATCH_RATIO = 0.72f;
+        const double NN_MATCH_RATIO = 0.8f;
         cv::Ptr<cv::Feature2D> detector_;
         cv::Ptr<cv::DescriptorMatcher> matcher_;
     };
