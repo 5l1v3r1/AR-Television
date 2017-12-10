@@ -37,6 +37,8 @@ namespace ar {
         auto M2 = last_frame2.extrinsics().clone();
         auto M3 = last_frame3.extrinsics().clone();
 
+        cout << M2 << endl << M3 << endl << "------------------" << endl;
+
         vector<shared_ptr<InterestPoint>> used_points;
         // Find usable interest points.
         for (auto &interest_point : interest_points_) {
@@ -112,7 +114,7 @@ namespace ar {
         int last_keyframe_ind;
         while (!to_terminate_) {
             last_keyframe_ind = keyframe_id_;
-//            EstimateMap();
+            EstimateMap();
             while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
                 AR_SLEEP(1);
         }
@@ -193,6 +195,7 @@ namespace ar {
             extrinsics_(std::move(_extrinsics.clone())),
             average_depth(_average_depth) {
         assert(abs(determinant(extrinsics_.colRange(0, 3)) - 1) < 0.001);
+//        cout << extrinsics_ << endl;
     }
 
     void AREngine::AddKeyframe(Keyframe &kf) {
