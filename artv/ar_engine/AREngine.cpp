@@ -27,20 +27,15 @@ namespace ar {
         keyframe_mutex_.lock();
         int keyframe_id = keyframe_id_;
         keyframe_mutex_.unlock();
-        auto &last_frame1 = keyframe(keyframe_id - 2);
+        const auto &last_frame1 = keyframe(keyframe_id - 2);
         auto &last_frame2 = keyframe(keyframe_id - 1);
         auto &last_frame3 = keyframe(keyframe_id);
-
-//        cout << "Frame: " << keyframe_id << endl << keyframe(0).extrinsics() << endl << keyframe(1).extrinsics() << endl;
-
         auto K1 = last_frame1.intrinsics().clone();
         auto K2 = last_frame2.intrinsics().clone();
         auto K3 = last_frame3.intrinsics().clone();
         auto M1 = last_frame1.extrinsics().clone();
         auto M2 = last_frame2.extrinsics().clone();
         auto M3 = last_frame3.extrinsics().clone();
-
-        cout << "Frame: " << keyframe_id << endl << M2 << endl << M3 << endl << "----------------" << endl;
 
         vector<shared_ptr<InterestPoint>> used_points;
         // Find usable interest points.
@@ -86,15 +81,14 @@ namespace ar {
         interest_points_mutex_.unlock();
         bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2, K3, M3, p3,
                                           pts3d);
-        last_frame2.extrinsics(M2);
-        last_frame3.extrinsics(M3);
-
         delete[] p1;
         delete[] p2;
         delete[] p3;
 
         if (converged) {
             // Recalculate the depth.
+            last_frame2.extrinsics(M2);
+            last_frame3.extrinsics(M3);
             double total_depth = 0;
             ind3d = 0;
             for (auto &ip : used_points) {
@@ -106,7 +100,7 @@ namespace ar {
                 auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
                 total_depth += depth;
             }
-            last_frame1.average_depth = total_depth / used_points.size();
+            last_frame3.average_depth = total_depth / used_points.size();
         }
         delete[] pts3d;
     }
@@ -446,6 +440,9 @@ namespace ar {
                             }
                         }
                         vector<pair<Mat, Mat>> data;
+//                        cout << "ID : " << id << endl;
+//                        cout << "C : " << endl;
+//                        cout << keyframe(id).intrinsics() * keyframe(id).extrinsics() << endl << "~~~~~~~~~~~~~~~~~~" << endl;
                         data.emplace_back(keyframe(id).intrinsics() * keyframe(id).extrinsics(),
                                           stored_pts);
                         data.emplace_back(Mat(), new_pts);
