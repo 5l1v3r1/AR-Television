@@ -12,6 +12,8 @@ namespace ar {
         imshow("Canny", dilated_canny);
         waitKey(1);
 
+        interest_points_mutex_.lock();
+
         // Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
         vector<pair<double, shared_ptr<InterestPoint>>> left_uppers, left_lowers, right_uppers, right_lowers;
         for (auto &ip : interest_points_) {
@@ -28,6 +30,9 @@ namespace ar {
                     right_lowers.emplace_back(dist_sqr, ip);
             }
         }
+
+        interest_points_mutex_.unlock();
+
         sort(left_uppers.begin(), left_uppers.end());
         sort(right_uppers.begin(), right_uppers.end());
         sort(left_lowers.begin(), left_lowers.end());

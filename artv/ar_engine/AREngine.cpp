@@ -27,64 +27,70 @@ namespace ar {
         auto &last_frame1 = keyframe(keyframe_id_ - 2);
         auto &last_frame2 = keyframe(keyframe_id_ - 1);
         auto &last_frame3 = keyframe(keyframe_id_);
-        auto &K1 = last_frame1.intrinsics;
-        auto &K2 = last_frame2.intrinsics;
-        auto &K3 = last_frame3.intrinsics;
-        auto &M1 = last_frame1.extrinsics;
-        auto &M2 = last_frame2.extrinsics;
-        auto &M3 = last_frame3.extrinsics;
+        auto K1 = last_frame1.intrinsics.clone();
+        auto K2 = last_frame2.intrinsics.clone();
+        auto K3 = last_frame3.intrinsics.clone();
+        auto M1 = last_frame1.extrinsics.clone();
+        auto M2 = last_frame2.extrinsics.clone();
+        auto M3 = last_frame3.extrinsics.clone();
 
-        vector<int> utilized_indices;
+        vector<shared_ptr<InterestPoint>> used_points;
         // Find usable interest points.
-        utilized_indices.reserve(interest_points_.size());
-        for (int i = 0; i < interest_points_.size(); ++i) {
+        for (auto &interest_point : interest_points_) {
             bool usable = true;
             for (int j = 0; j <= max(2, keyframe_id_); ++j) {
-                if (!interest_points_[i]->observation(keyframe_id_ - j)->visible) {
+                if (!interest_point->observation(keyframe_id_ - j)->visible) {
                     usable = false;
                     break;
                 }
             }
             if (usable)
-                utilized_indices.push_back(i);
+                used_points.push_back(interest_point);
         }
-        if (utilized_indices.empty()) {
+
+        if (used_points.empty()) {
             interest_points_mutex_.unlock();
             return;
         }
-        vector<shared_ptr<InterestPoint>> used_points;
-        used_points.reserve(utilized_indices.size());
-        for (auto ind : utilized_indices)
-            used_points.push_back(interest_points_[utilized_indices[ind]]);
-
-        interest_points_mutex_.unlock();
 
         cout << "Using " << used_points.size() << " points for BA." << endl;
         // Fill the data.
-        Mat pts1(static_cast<int>(utilized_indices.size()), 2, CV_32F);
-        Mat pts2(static_cast<int>(utilized_indices.size()), 2, CV_32F);
-        Mat pts3(static_cast<int>(utilized_indices.size()), 2, CV_32F);
-        Mat Points3d(static_cast<int>(utilized_indices.size()), 3, CV_32F);
+        Mat p1(static_cast<int>(used_points.size()), 2, CV_32F);
+        Mat p2(static_cast<int>(used_points.size()), 2, CV_32F);
+        Mat p3(static_cast<int>(used_points.size()), 2, CV_32F);
+        Mat pts3d(static_cast<int>(used_points.size()), 3, CV_32F);
         int cnt = 0;
         for (auto &ip : used_points) {
-            Mat(ip->observation(keyframe_id_ - 2)->pt.pt, false).copyTo(pts1.row(cnt));
-            Mat(ip->observation(keyframe_id_ - 1)->pt.pt, false).copyTo(pts2.row(cnt));
-            Mat(ip->observation(keyframe_id_)->pt.pt, false).copyTo(pts3.row(cnt));
-            Mat(ip->loc3d_, false).copyTo(Points3d.row(cnt));
+            assert(ip);
+            p1.at<double>(cnt, 0) = ip->observation(keyframe_id_ - 2)->pt.pt.x;
+            p1.at<double>(cnt, 1) = ip->observation(keyframe_id_ - 2)->pt.pt.y;
+            p2.at<double>(cnt, 0) = ip->observation(keyframe_id_ - 1)->pt.pt.x;
+            p2.at<double>(cnt, 1) = ip->observation(keyframe_id_ - 1)->pt.pt.y;
+            p3.at<double>(cnt, 0) = ip->observation(keyframe_id_)->pt.pt.x;
+            p3.at<double>(cnt, 1) = ip->observation(keyframe_id_)->pt.pt.y;
+            pts3d.at<double>(cnt, 0) = ip->loc3d_.x;
+            pts3d.at<double>(cnt, 1) = ip->loc3d_.y;
+            pts3d.at<double>(cnt, 1) = ip->loc3d_.y;
+            ++cnt;
         }
-        //temporary
-        BundleAdjustment(K1, M1, pts1, K2, M2, pts2, K3, M3, pts3, Points3d);
 
-        // Recalculate the average depth.
+        interest_points_mutex_.unlock();
+        BundleAdjustment(K1, M1, p1, K2, M2, p2, K3, M3, p3, pts3d);
+        last_frame2.extrinsics = M2;
+        last_frame3.extrinsics = M3;
+
+        // Recalculate the depth.
         double total_depth = 0;
         cnt = 0;
-        for (auto &ip : used_points)
-            if (ip->is_visible(keyframe_id_)) {
-                float data[] = {ip->loc3d_.x, ip->loc3d_.y, ip->loc3d_.z, 1};
-                auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
-                total_depth += depth;
-                ++cnt;
-            }
+        for (auto &ip : used_points) {
+            ip->loc3d_.x = pts3d.at<float>(cnt, 0);
+            ip->loc3d_.y = pts3d.at<float>(cnt, 1);
+            ip->loc3d_.z = pts3d.at<float>(cnt, 2);
+            float data[] = {ip->loc3d_.x, ip->loc3d_.y, ip->loc3d_.z, 1};
+            auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+            total_depth += depth;
+            ++cnt;
+        }
         last_frame1.average_depth = total_depth / cnt;
     }
 
@@ -241,7 +247,7 @@ namespace ar {
                     M2 = combined;
                     pts3d = estimated_pts3d;
 
-                    cout << "Found a valid solution! Error=" << err << endl;
+//                    cout << "Found a valid solution! Error=" << err << endl;
                 }
             }
         }
@@ -464,7 +470,7 @@ namespace ar {
             double distance = cv::norm(t_rel, cv::NormTypes::NORM_L2);
 
             // double distance = cv::norm(last_keyframe.t -  t, cv::NormTypes::NORM_L2);
-            cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
+//            cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
             if (distance / min(average_depth, last_keyframe.average_depth) > 0.1) {
                 auto kf = Keyframe(intrinsics_,
                                    extrinsics_,
@@ -474,6 +480,8 @@ namespace ar {
                 // Try to match new keypoints to the stored keypoints.
                 vector<bool> matched_new(keypoints.size(), false);
                 vector<bool> matched_stored(interest_points_.size(), false);
+
+                interest_points_mutex_.lock();
 
                 // Add an observation in this keyframe to the interest points.
                 for (auto match :matches) {
@@ -498,6 +506,8 @@ namespace ar {
                     if (!matched_new[i])
                         interest_points_.push_back(
                                 make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
+
+                interest_points_mutex_.unlock();
 
                 ReduceInterestPoints();
             }
