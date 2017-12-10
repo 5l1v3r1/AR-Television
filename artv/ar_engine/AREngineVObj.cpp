@@ -19,7 +19,7 @@ namespace ar {
         vector<pair<double, shared_ptr<InterestPoint>>> left_uppers, left_lowers, right_uppers, right_lowers;
         cout << camera_matrix << endl;
         for (auto &ip : interest_points_)
-            if (ip->estimated_3d_) {
+            if (ip->has_estimated_3d_loc_) {
                 double dist_sqr = ip->last_observation()->l2dist_sqr(location);
                 if (dist_sqr > min(last_gray_frame_.rows, last_gray_frame_.cols) * VTelevision::MIN_TV_SIZE_RATE) {
                     auto loc = ip->loc(camera_matrix);

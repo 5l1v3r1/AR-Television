@@ -280,7 +280,6 @@ namespace ar {
         K3.convertTo(K3, CV_64F);
         M3.convertTo(M3, CV_64F);
 
-
         cout << "Finished converting!" << endl;
 
         double t2_raw[3] = {M2.at<double>(0, 3), M2.at<double>(1, 3), M2.at<double>(2, 3)};
@@ -334,7 +333,7 @@ namespace ar {
         options.linear_solver_type = ceres::DENSE_SCHUR;
         //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
         //options.linear_solver_type = ceres::SPARSE_SCHUR;
-        options.max_num_iterations = 2000;
+        options.max_num_iterations = 1000;
         //options.minimizer_progress_to_stdout = true;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);

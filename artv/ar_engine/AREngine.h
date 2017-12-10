@@ -14,6 +14,7 @@
 #include <common/ARUtils.h>
 #include <common/CVUtils.h>
 
+#ifndef ARENGINE_API
 #ifdef _WIN32
 #ifdef ARENGINE_EXPORTS
 #define ARENGINE_API __declspec(dllexport)
@@ -23,6 +24,7 @@
 #else
 #define ARENGINE_API
 #endif
+#endif ARENGINE_API
 
 //#define USE_OPENCV_TRIANGULATE
 
@@ -91,7 +93,7 @@ namespace ar {
 
         inline const Mat &last_desc() const { return last_desc_; }
 
-        bool estimated_3d_;
+        bool has_estimated_3d_loc_;
     private:
         /// The estimated 3D location of the point.
         Point3f loc3d_;
@@ -190,7 +192,8 @@ namespace ar {
                             const Mat &baseExtrinsics,
                             vector<pair<Mat, Mat>> &data,
                             Mat &M2,
-                            Mat &pts3d) const;
+                            Mat &pts3d,
+                            Mat &mask) const;
 
     public:
         ///////////////////////////////// General methods /////////////////////////////////
