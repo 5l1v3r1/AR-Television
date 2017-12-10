@@ -72,14 +72,15 @@ namespace ar {
             p3[ind2d] = ip->observation(keyframe_id)->pt.pt.x;
             p3[ind2d + 1] = ip->observation(keyframe_id)->pt.pt.y;
             ind2d += 2;
-            pts3d[ind3d] = ip->loc3d_.x;
-            pts3d[ind3d + 1] = ip->loc3d_.y;
-            pts3d[ind3d + 2] = ip->loc3d_.z;
+            pts3d[ind3d] = ip->loc3d().x;
+            pts3d[ind3d + 1] = ip->loc3d().y;
+            pts3d[ind3d + 2] = ip->loc3d().z;
             ind3d += 3;
         }
 
         interest_points_mutex_.unlock();
-        bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2, K3, M3, p3, pts3d);
+        bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2, K3, M3, p3,
+                                          pts3d);
         last_frame2.extrinsics(M2);
         last_frame3.extrinsics(M3);
 
@@ -92,10 +93,11 @@ namespace ar {
             double total_depth = 0;
             ind3d = 0;
             for (auto &ip : used_points) {
-                ip->loc3d_.x = static_cast<float>(pts3d[ind3d++]);
-                ip->loc3d_.y = static_cast<float>(pts3d[ind3d++]);
-                ip->loc3d_.z = static_cast<float>(pts3d[ind3d++]);
-                float data[] = {ip->loc3d_.x, ip->loc3d_.y, ip->loc3d_.z, 1};
+                ip->loc3d(static_cast<float>(pts3d[ind3d]),
+                          static_cast<float>(pts3d[ind3d + 1]),
+                          static_cast<float>(pts3d[ind3d + 2]));
+                ind3d += 3;
+                float data[] = {ip->loc3d().x, ip->loc3d().y, ip->loc3d().z, 1};
                 auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
                 total_depth += depth;
             }
@@ -110,7 +112,7 @@ namespace ar {
         int last_keyframe_ind;
         while (!to_terminate_) {
             last_keyframe_ind = keyframe_id_;
-            EstimateMap();
+//            EstimateMap();
             while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
                 AR_SLEEP(1);
         }
@@ -153,15 +155,15 @@ namespace ar {
             // Check whether the interest point is not visible in several keyframes.
             if (interest_points_[i]->ToDiscard())
                 interest_points_[i--] = interest_points_[--new_size];
-            else if (interest_points_[i]->loc3d_.x != 0 ||
-                     interest_points_[i]->loc3d_.y != 0 ||
-                     interest_points_[i]->loc3d_.z != 0) {
+            else if (interest_points_[i]->loc3d().x != 0 ||
+                     interest_points_[i]->loc3d().y != 0 ||
+                     interest_points_[i]->loc3d().z != 0) {
                 // Check whether the interest point can be combined to another existing point.
                 for (int j = 0; j < i; ++j)
-                    if ((interest_points_[j]->loc3d_.x != 0 ||
-                         interest_points_[j]->loc3d_.y != 0 ||
-                         interest_points_[j]->loc3d_.z != 0) &&
-                        norm(interest_points_[i]->loc3d_ - interest_points_[j]->loc3d_) < 1) {
+                    if ((interest_points_[j]->loc3d().x != 0 ||
+                         interest_points_[j]->loc3d().y != 0 ||
+                         interest_points_[j]->loc3d().z != 0) &&
+                        norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 1) {
                         if (interest_points_[j]->last_observation()->keyframe_id <
                             interest_points_[i]->last_observation()->keyframe_id)
                             interest_points_[j]->AddObservation(interest_points_[i]->last_observation());
@@ -496,9 +498,9 @@ namespace ar {
                             make_shared<InterestPoint::Observation>(keyframe_id_,
                                                                     keypoints[match.second],
                                                                     descriptors.row(match.second)));
-                    interest_points_[match.first]->loc3d_.x = pts3d.at<float>(match.first, 0);
-                    interest_points_[match.first]->loc3d_.y = pts3d.at<float>(match.first, 1);
-                    interest_points_[match.first]->loc3d_.z = pts3d.at<float>(match.first, 2);
+                    interest_points_[match.first]->loc3d(pts3d.at<float>(match.first, 0),
+                                                         pts3d.at<float>(match.first, 1),
+                                                         pts3d.at<float>(match.first, 2));
                 }
 
                 // These interest points are not visible at this frame.
@@ -580,6 +582,13 @@ namespace ar {
                                                                                initial_desc);
     }
 
+    void InterestPoint::loc3d(float x, float y, float z) {
+        loc3d_.x = x;
+        loc3d_.y = y;
+        loc3d_.z = z;
+        estimated_3d_ = true;
+    }
+
     /// Add an observation to the interest point.
     /// In the current system setting, only observations from the keyframes shall be added.
     void InterestPoint::AddObservation(shared_ptr<Observation> p) {
@@ -599,6 +608,11 @@ namespace ar {
         if (observation_seq_tail_ >= (MAX_OBSERVATIONS << 1))
             observation_seq_tail_ -= MAX_OBSERVATIONS;
         assert(last_observation().get() == p.get());
+    }
+
+    void InterestPoint::loc3d(const Point3f &pt3d) {
+        loc3d_ = pt3d;
+        estimated_3d_ = true;
     }
 
     InterestPoint::Observation::Observation() : visible(false) {}

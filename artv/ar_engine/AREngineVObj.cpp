@@ -9,27 +9,38 @@ namespace ar {
         Canny(last_gray_frame_, last_canny_map_, 60, 60 * 3);
         Mat dilated_canny;
         dilate(last_canny_map_, dilated_canny, noArray());
-        imshow("Canny", dilated_canny);
-        waitKey(1);
+
+        Mat canvas = dilated_canny.clone();
+        cvtColor(canvas, canvas, CV_GRAY2RGB);
 
         interest_points_mutex_.lock();
 
         // Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
         vector<pair<double, shared_ptr<InterestPoint>>> left_uppers, left_lowers, right_uppers, right_lowers;
-        for (auto &ip : interest_points_) {
-            double dist_sqr = ip->last_observation()->l2dist_sqr(location);
-            if (dist_sqr > min(last_gray_frame_.rows, last_gray_frame_.cols) * VTelevision::MEAN_TV_SIZE_RATE) {
-                auto loc = ip->loc(camera_matrix);
-                if (loc.x < location.x && loc.y < location.y)
-                    left_uppers.emplace_back(dist_sqr, ip);
-                else if (loc.x > location.x && loc.y < location.y)
-                    right_uppers.emplace_back(dist_sqr, ip);
-                else if (loc.x < location.x && loc.y > location.y)
-                    left_lowers.emplace_back(dist_sqr, ip);
-                else if (loc.x > location.x && loc.y > location.y)
-                    right_lowers.emplace_back(dist_sqr, ip);
+        cout << camera_matrix << endl;
+        for (auto &ip : interest_points_)
+            if (ip->estimated_3d_) {
+                double dist_sqr = ip->last_observation()->l2dist_sqr(location);
+                if (dist_sqr > min(last_gray_frame_.rows, last_gray_frame_.cols) * VTelevision::MIN_TV_SIZE_RATE) {
+                    auto loc = ip->loc(camera_matrix);
+                    if (loc.x < location.x && loc.y < location.y) {
+                        left_uppers.emplace_back(dist_sqr, ip);
+                        circle(canvas, loc, 2, Scalar(0, 0, 255), 2);
+                    } else if (loc.x > location.x && loc.y < location.y) {
+                        right_uppers.emplace_back(dist_sqr, ip);
+                        circle(canvas, loc, 2, Scalar(0, 255, 255), 2);
+                    } else if (loc.x < location.x && loc.y > location.y) {
+                        left_lowers.emplace_back(dist_sqr, ip);
+                        circle(canvas, loc, 2, Scalar(255, 0, 255), 2);
+                    } else if (loc.x > location.x && loc.y > location.y) {
+                        right_lowers.emplace_back(dist_sqr, ip);
+                        circle(canvas, loc, 2, Scalar(255, 255, 0), 2);
+                    }
+                }
             }
-        }
+
+        imshow("Canny", canvas);
+        waitKey(1);
 
         interest_points_mutex_.unlock();
 

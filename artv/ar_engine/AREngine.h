@@ -79,14 +79,20 @@ namespace ar {
 
         inline bool ToDiscard() const { return !vis_cnt_; }
 
-        /// The estimated 3D location of the point.
-        Point3f loc3d_;
+        inline const Point3f &loc3d() const { return loc3d_; }
+
+        void loc3d(float x, float y, float z);
+
+        void loc3d(const Point3f &pt3d);
 
         Point2f loc(Mat camera_matrix) const;
 
         inline const Mat &last_desc() const { return last_desc_; }
 
+        bool estimated_3d_;
     private:
+        /// The estimated 3D location of the point.
+        Point3f loc3d_;
         Mat last_desc_;
         /// Looped queue of observations (2D locations and descriptors) in the frames.
         shared_ptr<Observation> observation_seq_[MAX_OBSERVATIONS];
@@ -102,10 +108,13 @@ namespace ar {
         double average_depth = 0;
 
         inline Mat translation() const { return extrinsics_.col(3); }
+
         inline Mat rotation() const { return extrinsics_.colRange(0, 3); }
 
         inline Mat intrinsics() const { return intrinsics_; }
+
         inline Mat extrinsics() const { return extrinsics_; }
+
         inline void extrinsics(Mat value) { extrinsics_ = value.clone(); }
 
         Keyframe(Mat intrinsics,

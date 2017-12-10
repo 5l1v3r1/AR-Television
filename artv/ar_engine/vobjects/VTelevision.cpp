@@ -10,7 +10,7 @@ using namespace std;
 using namespace cv;
 
 namespace ar {
-    const double VTelevision::MEAN_TV_SIZE_RATE = 0.1;
+    const double VTelevision::MIN_TV_SIZE_RATE = 0.01;
 
     VTelevision::VTelevision(AREngine &engine,
                              int id,
@@ -68,9 +68,9 @@ namespace ar {
         Point2f result;
         Mat origin(4, 1, CV_32F);
         Mat projected(3, 1, CV_32F);
-        origin.at<float>(0) = point3d->loc3d_.x;
-        origin.at<float>(1) = point3d->loc3d_.y;
-        origin.at<float>(2) = point3d->loc3d_.z;
+        origin.at<float>(0) = point3d->loc3d().x;
+        origin.at<float>(1) = point3d->loc3d().y;
+        origin.at<float>(2) = point3d->loc3d().z;
         origin.at<float>(3) = 1.f;
         projected = camera_matrix * origin;
         result.x = projected.data[0] / projected.data[2];

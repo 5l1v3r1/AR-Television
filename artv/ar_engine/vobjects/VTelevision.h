@@ -27,7 +27,7 @@ namespace ar
 		shared_ptr<const InterestPoint> right_upper_;
 		shared_ptr<const InterestPoint> right_lower_;
 	public:
-		static const double MEAN_TV_SIZE_RATE;
+		static const double MIN_TV_SIZE_RATE;
 
 		VTelevision(AREngine& engine,
 					int id,
