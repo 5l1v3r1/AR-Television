@@ -144,6 +144,17 @@ namespace ar {
         memcpy(intrinsics_.data, default_intrinsics, sizeof(float) * 3 * 3);
     }
 
+    void InterestPoint::Combine(const shared_ptr<InterestPoint> &another) {
+        int last_keyframe_id = observation_seq_[observation_seq_tail_]->keyframe_id;
+        for (int i = 0; i < MAX_OBSERVATIONS; ++i)
+            if (another->observation(last_keyframe_id - i)->visible &&
+                (!observation_seq_[(observation_seq_tail_ + MAX_OBSERVATIONS - i) % MAX_OBSERVATIONS] ||
+                 !observation_seq_[(observation_seq_tail_ + MAX_OBSERVATIONS - i) % MAX_OBSERVATIONS]->visible)) {
+                observation_seq_[(observation_seq_tail_ + MAX_OBSERVATIONS - i) % MAX_OBSERVATIONS] =
+                        another->observation(last_keyframe_id - i);
+            }
+    }
+
     /// If we have stored too many interest points, we remove the oldest location record
     ///	of the interest points, and remove the interest points that are determined not visible anymore.
     void AREngine::ReduceInterestPoints() {
@@ -163,9 +174,7 @@ namespace ar {
                          interest_points_[j]->loc3d().y != 0 ||
                          interest_points_[j]->loc3d().z != 0) &&
                         norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 1) {
-                        if (interest_points_[j]->last_observation()->keyframe_id <
-                            interest_points_[i]->last_observation()->keyframe_id)
-                            interest_points_[j]->AddObservation(interest_points_[i]->last_observation());
+                        interest_points_[j]->Combine(interest_points_[i]);
                         interest_points_[i--] = interest_points_[--new_size];
                         break;
                     }
@@ -174,7 +183,7 @@ namespace ar {
 
         interest_points_mutex_.unlock();
 
-        cout << "Currently there are " << interest_points_.size() << " points." << endl;
+//        cout << "Currently there are " << interest_points_.size() << " points." << endl;
 
         // Also remove virtual objects that are based on the removed interest points.
         vector<int> to_remove;

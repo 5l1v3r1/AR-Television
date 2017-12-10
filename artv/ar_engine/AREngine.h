@@ -57,6 +57,8 @@ namespace ar {
             double l2dist_sqr(const Point2f &p) const;
         };
 
+        void Combine(const shared_ptr<InterestPoint> &another);
+
         shared_ptr<Observation> observation(int keyframe_id) const;
 
         inline auto &last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
