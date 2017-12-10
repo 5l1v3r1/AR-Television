@@ -95,13 +95,18 @@ namespace ar {
         int vis_cnt_;
     };
 
-    struct Keyframe {
-        Mat intrinsics;
-        Mat extrinsics;
+    class Keyframe {
+        Mat intrinsics_;
+        Mat extrinsics_;
+    public:
         double average_depth = 0;
 
-        inline Mat translation() const { return extrinsics.col(3); }
-        inline Mat rotation() const { return extrinsics.colRange(0, 3); }
+        inline Mat translation() const { return extrinsics_.col(3); }
+        inline Mat rotation() const { return extrinsics_.colRange(0, 3); }
+
+        inline Mat intrinsics() const { return intrinsics_; }
+        inline Mat extrinsics() const { return extrinsics_; }
+        inline void extrinsics(Mat value) { extrinsics_ = value.clone(); }
 
         Keyframe(Mat intrinsics,
                  Mat extrinsics,
@@ -118,7 +123,6 @@ namespace ar {
     ///	holograms projected into the real world.
     class ARENGINE_API AREngine {
         bool to_terminate_ = false;
-        int thread_cnt_ = 0;
 
         static const int MAX_KEYFRAMES = 10;
 
@@ -161,6 +165,7 @@ namespace ar {
 
         Keyframe recent_keyframes_[MAX_KEYFRAMES];
         int keyframe_id_ = -1;
+        mutex keyframe_mutex_;
 
         void AddKeyframe(Keyframe &keyframe);
 

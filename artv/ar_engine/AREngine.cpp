@@ -24,15 +24,18 @@ namespace ar {
     void AREngine::EstimateMap() {
         interest_points_mutex_.lock();
 
-        auto &last_frame1 = keyframe(keyframe_id_ - 2);
-        auto &last_frame2 = keyframe(keyframe_id_ - 1);
-        auto &last_frame3 = keyframe(keyframe_id_);
-        auto K1 = last_frame1.intrinsics.clone();
-        auto K2 = last_frame2.intrinsics.clone();
-        auto K3 = last_frame3.intrinsics.clone();
-        auto M1 = last_frame1.extrinsics.clone();
-        auto M2 = last_frame2.extrinsics.clone();
-        auto M3 = last_frame3.extrinsics.clone();
+        keyframe_mutex_.lock();
+        int keyframe_id = keyframe_id_;
+        keyframe_mutex_.unlock();
+        auto &last_frame1 = keyframe(keyframe_id - 2);
+        auto &last_frame2 = keyframe(keyframe_id - 1);
+        auto &last_frame3 = keyframe(keyframe_id);
+        auto K1 = last_frame1.intrinsics().clone();
+        auto K2 = last_frame2.intrinsics().clone();
+        auto K3 = last_frame3.intrinsics().clone();
+        auto M1 = last_frame1.extrinsics().clone();
+        auto M2 = last_frame2.extrinsics().clone();
+        auto M3 = last_frame3.extrinsics().clone();
 
         vector<shared_ptr<InterestPoint>> used_points;
         // Find usable interest points.
@@ -55,57 +58,62 @@ namespace ar {
 
         cout << "Using " << used_points.size() << " points for BA." << endl;
         // Fill the data.
-        Mat p1(static_cast<int>(used_points.size()), 2, CV_32F);
-        Mat p2(static_cast<int>(used_points.size()), 2, CV_32F);
-        Mat p3(static_cast<int>(used_points.size()), 2, CV_32F);
-        Mat pts3d(static_cast<int>(used_points.size()), 3, CV_32F);
-        int cnt = 0;
+        auto *p1 = new double[used_points.size() << 1];
+        auto *p2 = new double[used_points.size() << 1];
+        auto *p3 = new double[used_points.size() << 1];
+        auto *pts3d = new double[used_points.size() * 3];
+        int ind2d = 0, ind3d = 0;
         for (auto &ip : used_points) {
             assert(ip);
-            p1.at<double>(cnt, 0) = ip->observation(keyframe_id_ - 2)->pt.pt.x;
-            p1.at<double>(cnt, 1) = ip->observation(keyframe_id_ - 2)->pt.pt.y;
-            p2.at<double>(cnt, 0) = ip->observation(keyframe_id_ - 1)->pt.pt.x;
-            p2.at<double>(cnt, 1) = ip->observation(keyframe_id_ - 1)->pt.pt.y;
-            p3.at<double>(cnt, 0) = ip->observation(keyframe_id_)->pt.pt.x;
-            p3.at<double>(cnt, 1) = ip->observation(keyframe_id_)->pt.pt.y;
-            pts3d.at<double>(cnt, 0) = ip->loc3d_.x;
-            pts3d.at<double>(cnt, 1) = ip->loc3d_.y;
-            pts3d.at<double>(cnt, 1) = ip->loc3d_.y;
-            ++cnt;
+            p1[ind2d] = ip->observation(keyframe_id - 2)->pt.pt.x;
+            p1[ind2d + 1] = ip->observation(keyframe_id - 2)->pt.pt.y;
+            p2[ind2d] = ip->observation(keyframe_id - 1)->pt.pt.x;
+            p2[ind2d + 1] = ip->observation(keyframe_id - 1)->pt.pt.y;
+            p3[ind2d] = ip->observation(keyframe_id)->pt.pt.x;
+            p3[ind2d + 1] = ip->observation(keyframe_id)->pt.pt.y;
+            ind2d += 2;
+            pts3d[ind3d] = ip->loc3d_.x;
+            pts3d[ind3d + 1] = ip->loc3d_.y;
+            pts3d[ind3d + 2] = ip->loc3d_.z;
+            ind3d += 3;
         }
 
         interest_points_mutex_.unlock();
-        BundleAdjustment(K1, M1, p1, K2, M2, p2, K3, M3, p3, pts3d);
-        last_frame2.extrinsics = M2;
-        last_frame3.extrinsics = M3;
+        bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2, K3, M3, p3, pts3d);
+        last_frame2.extrinsics(M2);
+        last_frame3.extrinsics(M3);
 
-        // Recalculate the depth.
-        double total_depth = 0;
-        cnt = 0;
-        for (auto &ip : used_points) {
-            ip->loc3d_.x = pts3d.at<float>(cnt, 0);
-            ip->loc3d_.y = pts3d.at<float>(cnt, 1);
-            ip->loc3d_.z = pts3d.at<float>(cnt, 2);
-            float data[] = {ip->loc3d_.x, ip->loc3d_.y, ip->loc3d_.z, 1};
-            auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
-            total_depth += depth;
-            ++cnt;
+        delete[] p1;
+        delete[] p2;
+        delete[] p3;
+
+        if (converged) {
+            // Recalculate the depth.
+            double total_depth = 0;
+            ind3d = 0;
+            for (auto &ip : used_points) {
+                ip->loc3d_.x = static_cast<float>(pts3d[ind3d++]);
+                ip->loc3d_.y = static_cast<float>(pts3d[ind3d++]);
+                ip->loc3d_.z = static_cast<float>(pts3d[ind3d++]);
+                float data[] = {ip->loc3d_.x, ip->loc3d_.y, ip->loc3d_.z, 1};
+                auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                total_depth += depth;
+            }
+            last_frame1.average_depth = total_depth / used_points.size();
         }
-        last_frame1.average_depth = total_depth / cnt;
+        delete[] pts3d;
     }
 
     void AREngine::MapEstimationLoop() {
-        ++thread_cnt_;
         while (interest_points_.empty() && keyframe_id_ < 2 && !to_terminate_)
             AR_SLEEP(1);
-        int last_keyframe_ind = keyframe_id_;
+        int last_keyframe_ind;
         while (!to_terminate_) {
+            last_keyframe_ind = keyframe_id_;
             EstimateMap();
             while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
                 AR_SLEEP(1);
         }
-
-        --thread_cnt_;
     }
 
     void AREngine::CallMapEstimationLoop(AREngine *engine) {
@@ -114,9 +122,7 @@ namespace ar {
 
     AREngine::~AREngine() {
         to_terminate_ = true;
-        do {
-            AR_SLEEP(1);
-        } while (thread_cnt_);
+        mapping_thread_.join();
     }
 
     shared_ptr<InterestPoint::Observation> InterestPoint::observation(int keyframe_id) const {
@@ -181,18 +187,20 @@ namespace ar {
     Keyframe::Keyframe(Mat _intrinsics,
                        Mat _extrinsics,
                        double _average_depth) :
-            intrinsics(std::move(_intrinsics)),
-            extrinsics(std::move(_extrinsics)),
+            intrinsics_(std::move(_intrinsics.clone())),
+            extrinsics_(std::move(_extrinsics.clone())),
             average_depth(_average_depth) {
-        assert(abs(determinant(extrinsics.colRange(0, 3)) - 1) < 0.001);
+        assert(abs(determinant(extrinsics_.colRange(0, 3)) - 1) < 0.001);
     }
 
     void AREngine::AddKeyframe(Keyframe &kf) {
         last_key_scene_ = last_raw_frame_.clone();
 
+        keyframe_mutex_.lock();
         keyframe(++keyframe_id_) = kf;
         if (keyframe_id_ >= (MAX_KEYFRAMES << 1))
             keyframe_id_ -= MAX_KEYFRAMES;
+        keyframe_mutex_.unlock();
     }
 
     void AREngine::FindExtrinsics(const vector<Mat> &candidates,
@@ -387,14 +395,14 @@ namespace ar {
                                 ++cnt;
                             }
                         vector<pair<Mat, Mat>> data;
-                        data.emplace_back(last_keyframe2.intrinsics * last_keyframe2.extrinsics,
+                        data.emplace_back(last_keyframe2.intrinsics() * last_keyframe2.extrinsics(),
                                           stored_pts1);
-                        data.emplace_back(last_keyframe.intrinsics * last_keyframe.extrinsics,
+                        data.emplace_back(last_keyframe.intrinsics() * last_keyframe.extrinsics(),
                                           stored_pts2);
                         data.emplace_back(Mat(), new_pts);
 
                         Mat M2;
-                        FindExtrinsics(candidates, last_keyframe.extrinsics, data, M2, pts3d);
+                        FindExtrinsics(candidates, last_keyframe.extrinsics(), data, M2, pts3d);
                         if (!M2.empty()) {
                             extrinsics_ = M2;
                             done = true;
@@ -430,12 +438,12 @@ namespace ar {
                             }
                         }
                         vector<pair<Mat, Mat>> data;
-                        data.emplace_back(keyframe(id).intrinsics * keyframe(id).extrinsics,
+                        data.emplace_back(keyframe(id).intrinsics() * keyframe(id).extrinsics(),
                                           stored_pts);
                         data.emplace_back(Mat(), new_pts);
 
                         Mat M2;
-                        FindExtrinsics(candidates, keyframe(id).extrinsics, data, M2, pts3d);
+                        FindExtrinsics(candidates, keyframe(id).extrinsics(), data, M2, pts3d);
                         if (!M2.empty()) {
                             extrinsics_ = M2;
                             done = true;
@@ -466,12 +474,9 @@ namespace ar {
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
             Mat t_rel = t - R * last_keyframe.rotation().t() * last_keyframe.translation();
-            //Mat t_rel = last_keyframe.t - last_keyframe.R * R.t() * t;
             double distance = cv::norm(t_rel, cv::NormTypes::NORM_L2);
-
-            // double distance = cv::norm(last_keyframe.t -  t, cv::NormTypes::NORM_L2);
-//            cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
-            if (distance / min(average_depth, last_keyframe.average_depth) > 0.1) {
+            cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
+            if (distance / min(average_depth, last_keyframe.average_depth) > 0.1 || last_keyframe.average_depth < 0) {
                 auto kf = Keyframe(intrinsics_,
                                    extrinsics_,
                                    average_depth);

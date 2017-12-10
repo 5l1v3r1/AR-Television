@@ -128,8 +128,8 @@ namespace ar {
 
     struct BALResidual_1 {
         BALResidual_1(double pts1[], int N, double K1[], double M1[]) : N_(N) {
-            pts1_ = new double[N];
-            memcpy(pts1_, pts1, sizeof(double) * N);
+            pts1_ = new double[N * 2];
+            memcpy(pts1_, pts1, sizeof(double) * N * 2);
             memcpy(K1_, K1, sizeof(double) * 9);
             memcpy(M1_, M1, sizeof(double) * 9);
         }
@@ -139,8 +139,9 @@ namespace ar {
         }
 
         template<typename T>
-        bool operator()(const T *const points, //3*N
+        bool operator()(T const *const *parameters, //3*N
                         T *residuals) const {
+            T const *points = parameters[0];
             T C1[3][4];
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < 4; j++) {
@@ -160,14 +161,10 @@ namespace ar {
                     p1_proj[i][j] += C1[i][3];
                 }
             }
-            residuals[0] = T(0);
-            residuals[1] = T(0);
             for (int i = 0; i < N_; i++) {
-                residuals[0] += pow(p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i * 2]), 2.);
-                residuals[1] += pow(p1_proj[1][i] / p1_proj[2][i] - T(pts1_[i * 2 + 1]), 2.);
+                residuals[i << 1] = pow(p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]), 2.);
+                residuals[(i << 1) | 1] = pow(p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]), 2.);
             }
-            residuals[0] = sqrt(residuals[0]);
-            residuals[1] = sqrt(residuals[1]);
             return true;
         }
 
@@ -181,8 +178,8 @@ namespace ar {
 
     struct BALResidual_2 {
         BALResidual_2(double pts2[], int N, double K2[]) : N_(N) {
-            pts2_ = new double[N];
-            memcpy(pts2_, pts2, sizeof(double) * N);
+            pts2_ = new double[N * 2];
+            memcpy(pts2_, pts2, sizeof(double) * N * 2);
             memcpy(K2_, K2, sizeof(double) * 9);
         }
 
@@ -191,8 +188,7 @@ namespace ar {
         }
 
         template<typename T>
-        vector<T> rawRodrigues(const T *const r) const {
-            vector<T> R(9);
+        void Rodrigues(const T *const r, T *R) const {
             T theta = T(0);
             for (int i = 0; i < 3; i++) {
                 theta += r[i] * r[i];
@@ -218,15 +214,17 @@ namespace ar {
                 R[7] = u[2] * u[1] * (T(1) - costheta) + u[0] * sintheta;
                 R[8] = costheta + u[2] * u[2] * (T(1) - costheta);
             }
-            return R;
         }
 
         template<typename T>
-        bool operator()(const T *const r2, //3
-                        const T *const t2, //3
-                        const T *const points, //3*N
+        bool operator()(T const *const *parameters, // 3+3+3*N
                         T *residuals) const {
-            vector<T> R2 = rawRodrigues(r2);
+            T const *r2 = parameters[0]; //3
+            T const *t2 = parameters[1]; //3
+            T const *points = parameters[2]; //3*N
+
+            T R2[9];
+            Rodrigues(r2, R2);
             //debug
             bool DEBUG_FLAG = false;
             T C2[3][4];
@@ -252,14 +250,10 @@ namespace ar {
                     p2_proj[i][j] += C2[i][3];
                 }
             }
-            residuals[0] = T(0);
-            residuals[1] = T(0);
             for (int i = 0; i < N_; i++) {
-                residuals[0] += pow(p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i * 2]), 2.);
-                residuals[1] += pow(p2_proj[1][i] / p2_proj[2][i] - T(pts2_[i * 2 + 1]), 2.);
+                residuals[i << 1] = pow(p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]), 2.);
+                residuals[(i << 1) | 1] = pow(p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]), 2.);
             }
-            residuals[0] = sqrt(residuals[0]);
-            residuals[1] = sqrt(residuals[1]);
             return true;
         }
 
@@ -270,84 +264,107 @@ namespace ar {
         double K2_[9]{};
     };
 
-    void BundleAdjustment(Mat K1, Mat M1, Mat p1,
-                          Mat K2, Mat &M2, Mat p2,
-                          Mat K3, Mat &M3, Mat p3,
-                          Mat &pts3d) {
+    bool BundleAdjustment(int num_points,
+                          Mat K1, Mat M1, double p1[],
+                          Mat K2, Mat &M2, double p2[],
+                          Mat K3, Mat &M3, double p3[],
+                          double pts3d[]) {
         double start_time = omp_get_wtime();
+
+        // TODO: Examine correctness of BA.
 
         K1.convertTo(K1, CV_64F);
         M1.convertTo(M1, CV_64F);
-        p1.convertTo(p1, CV_64F);
         K2.convertTo(K2, CV_64F);
         M2.convertTo(M2, CV_64F);
-        p2.convertTo(p2, CV_64F);
         K3.convertTo(K3, CV_64F);
         M3.convertTo(M2, CV_64F);
-        p3.convertTo(p3, CV_64F);
-        pts3d.convertTo(pts3d, CV_64F);
 
         cout << "Finished converting!" << endl;
 
-        Mat t2 = M2.col(3);
+        double t2_raw[3] = {M2.at<double>(0, 3), M2.at<double>(1, 3), M2.at<double>(2, 3)};
+        Mat t2(3, 1, CV_64F, t2_raw);
+
         Mat r2;
         Rodrigues(M2.colRange(0, 3), r2);
+        double r2_raw[3] = {r2.at<double>(0), r2.at<double>(1), r2.at<double>(2)};
+        r2 = Mat(3, 1, CV_64F, r2_raw);
 
-        Mat t3 = M3.col(3);
+        double t3_raw[3] = {M3.at<double>(0, 3), M3.at<double>(1, 3), M3.at<double>(2, 3)};
+        Mat t3(3, 1, CV_64F, t3_raw);
+
         Mat r3;
         Rodrigues(M3.colRange(0, 3), r3);
+        double r3_raw[3] = {r3.at<double>(0), r3.at<double>(1), r3.at<double>(2)};
+        r3 = Mat(3, 1, CV_64F, r2_raw);
 
         cout << "Finished rodrigues!" << endl;
 
-        int num_points = p1.rows;
-        const int MAX_NUM_POINT = 150;
-        //using ceres for nonlinear optimization
-        {
-            ceres::Problem problem;
-            ceres::CostFunction *cost_function_1 =
-                    new ceres::AutoDiffCostFunction<BALResidual_1, 2, MAX_NUM_POINT * 3>(
-                            new BALResidual_1((double *) p1.data, num_points, (double *) K1.data,
-                                              (double *) M1.data));
-            problem.AddResidualBlock(cost_function_1, nullptr, (double *) pts3d.data);
+        cout << "Initial r2=";
+        for (double i : r2_raw)
+            cout << i << ' ';
+        cout << endl;
+        cout << "Initial r3=";
+        for (double i : r3_raw)
+            cout << i << ' ';
+        cout << endl;
 
-            ceres::CostFunction *cost_function_2 =
-                    new ceres::AutoDiffCostFunction<BALResidual_2, 2, 3, 3, MAX_NUM_POINT * 3>(
-                            new BALResidual_2((double *) p2.data, num_points, (double *) K2.data));
-            problem.AddResidualBlock(cost_function_2, nullptr, (double *) r2.data, (double *) t2.data,
-                                     (double *) pts3d.data);
+        // Use ceres for nonlinear optimization.
+        ceres::Problem problem;
+        auto *cost_function_1 =
+                new ceres::DynamicAutoDiffCostFunction<BALResidual_1>(
+                        new BALResidual_1(p1, num_points, (double *) K1.data, (double *) M1.data));
+        cost_function_1->AddParameterBlock(num_points * 3);
+        cost_function_1->SetNumResiduals(num_points * 2);
+        problem.AddResidualBlock(cost_function_1, nullptr, pts3d);
 
-            ceres::CostFunction *cost_function_3 =
-                    new ceres::AutoDiffCostFunction<BALResidual_2, 2, 3, 3, MAX_NUM_POINT * 3>(
-                            new BALResidual_2((double *) p3.data, num_points, (double *) K3.data));
-            problem.AddResidualBlock(cost_function_3, nullptr, (double *) r3.data, (double *) t3.data,
-                                     (double *) pts3d.data);
+        auto *cost_function_2 =
+                new ceres::DynamicAutoDiffCostFunction<BALResidual_2>(
+                        new BALResidual_2(p2, num_points, (double *) K2.data));
+        cost_function_2->AddParameterBlock(3);
+        cost_function_2->AddParameterBlock(3);
+        cost_function_2->AddParameterBlock(num_points * 3);
+        cost_function_2->SetNumResiduals(num_points * 2);
+        problem.AddResidualBlock(cost_function_2, nullptr, r2_raw, t2_raw, pts3d);
 
-            cout << "Start solving..." << endl;
+        auto *cost_function_3 =
+                new ceres::DynamicAutoDiffCostFunction<BALResidual_2>(
+                        new BALResidual_2(p3, num_points, (double *) K3.data));
+        cost_function_3->AddParameterBlock(3);
+        cost_function_3->AddParameterBlock(3);
+        cost_function_3->AddParameterBlock(num_points * 3);
+        cost_function_3->SetNumResiduals(num_points * 2);
+        problem.AddResidualBlock(cost_function_3, nullptr, r3_raw, t3_raw, pts3d);
 
-            ceres::Solver::Options options;
-            options.linear_solver_type = ceres::DENSE_SCHUR;
-            //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-            //options.linear_solver_type = ceres::SPARSE_SCHUR;
-            options.max_num_iterations = 1000;
-            //options.minimizer_progress_to_stdout = true;
-            ceres::Solver::Summary summary;
-            ceres::Solve(options, &problem, &summary);
+        cout << "Start solving..." << endl;
 
-            std::cout << summary.FullReport() << endl;
-        }
-        Mat R2;
-        Rodrigues(r2, R2);
-        hconcat(R2, t2, M2);
-        M2.convertTo(M2, CV_32F);
+        ceres::Solver::Options options;
+        options.linear_solver_type = ceres::DENSE_SCHUR;
+        //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+        //options.linear_solver_type = ceres::SPARSE_SCHUR;
+        options.max_num_iterations = 1000;
+        //options.minimizer_progress_to_stdout = true;
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
 
-        Mat R3;
-        Rodrigues(r3, R3);
-        hconcat(R3, t3, M3);
-        M3.convertTo(M3, CV_32F);
-
-        pts3d.convertTo(pts3d, CV_32F);
+        std::cout << summary.FullReport() << endl;
 
         double end_time = omp_get_wtime();
         cout << "Finished BA in " << int(end_time - start_time) << "ms." << endl;
+
+        if (summary.termination_type == ceres::TerminationType::CONVERGENCE) {
+            Mat R2;
+            Rodrigues(r2, R2);
+            hconcat(R2, t2, M2);
+            M2.convertTo(M2, CV_32F);
+
+            Mat R3;
+            Rodrigues(r3, R3);
+            hconcat(R3, t3, M3);
+            M3.convertTo(M3, CV_32F);
+
+            return true;
+        } else
+            return false;
     }
 }

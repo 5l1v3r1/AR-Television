@@ -59,9 +59,10 @@ namespace ar {
 									  cv::Mat &points3d,
 									  double *error = nullptr);
 
-    void COMMON_API BundleAdjustment(cv::Mat K1, cv::Mat M1, cv::Mat p1,
-                                     cv::Mat K2, cv::Mat& M2, cv::Mat p2,
-                                     cv::Mat K3, cv::Mat& M3, cv::Mat p3,
-                                     cv::Mat &Points3d);
+    bool COMMON_API BundleAdjustment(int num_points,
+									 cv::Mat K1, cv::Mat M1, double p1[],
+									 cv::Mat K2, cv::Mat& M2, double p2[],
+									 cv::Mat K3, cv::Mat& M3, double p3[],
+									 double pts3d[]);
 	cv::Mat COMMON_API CombineExtrinsics(const cv::Mat& base, const cv::Mat& rel);
 }
