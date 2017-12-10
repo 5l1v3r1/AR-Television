@@ -112,8 +112,25 @@ namespace ar {
 
         auto new_size = interest_points_.size();
         for (int i = 0; i < new_size; ++i)
+            // Check whether the interest point is not visible in several keyframes.
             if (interest_points_[i]->ToDiscard())
                 interest_points_[i--] = interest_points_[--new_size];
+            else if (interest_points_[i]->loc3d_.x != 0 ||
+                     interest_points_[i]->loc3d_.y != 0 ||
+                     interest_points_[i]->loc3d_.z != 0) {
+                // Check whether the interest point can be combined to another existing point.
+                for (int j = 0; j < i; ++j)
+                    if ((interest_points_[j]->loc3d_.x != 0 ||
+                         interest_points_[j]->loc3d_.y != 0 ||
+                         interest_points_[j]->loc3d_.z != 0) &&
+                        norm(interest_points_[i]->loc3d_ - interest_points_[j]->loc3d_) < 1) {
+                        if (interest_points_[j]->last_observation()->keyframe_id <
+                            interest_points_[i]->last_observation()->keyframe_id)
+                            interest_points_[j]->AddObservation(interest_points_[i]->last_observation());
+                        interest_points_[i--] = interest_points_[--new_size];
+                        break;
+                    }
+            }
         interest_points_.resize(new_size);
 
         interest_points_mutex_.unlock();
@@ -400,11 +417,12 @@ namespace ar {
                 }
             }
 
+//            cout << pts3d << endl;
+//            AR_PAUSE;
+
             Mat R = extrinsics_.colRange(0, 3);
             Mat t = extrinsics_.col(3);
             assert(abs(determinant(R) - 1) < 0.001);
-
-            cout << "Det :" << abs(determinant(R)) << endl;
 
             // Estimate the average depth.
             Mat T = Mat(pts3d.rows, 3, CV_32F);
@@ -428,8 +446,8 @@ namespace ar {
                 AddKeyframe(kf);
 
                 // Try to match new keypoints to the stored keypoints.
-                vector<bool> matched_new(keypoints.size(), 0);
-                vector<bool> matched_stored(interest_points_.size(), 0);
+                vector<bool> matched_new(keypoints.size(), false);
+                vector<bool> matched_stored(interest_points_.size(), false);
 
                 // Add an observation in this keyframe to the interest points.
                 for (auto match :matches) {
@@ -456,7 +474,6 @@ namespace ar {
                                 make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
 
                 ReduceInterestPoints();
-
             }
         }
 
@@ -478,10 +495,6 @@ namespace ar {
         }
 
         return AR_SUCCESS;
-    }
-
-    double InterestPoint::Observation::l2dist_sqr(const Observation &o) const {
-        return l2dist_sqr(o.loc());
     }
 
     double InterestPoint::Observation::l2dist_sqr(const Point2f &p) const {

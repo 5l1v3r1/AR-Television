@@ -54,8 +54,6 @@ namespace ar {
                         const KeyPoint &_pt,
                         const Mat &_desc);
 
-            double l2dist_sqr(const Observation &o) const;
-
             double l2dist_sqr(const Point2f &p) const;
         };
 
