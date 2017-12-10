@@ -28,21 +28,12 @@ namespace ar {
         int keyframe_id = keyframe_id_;
         keyframe_mutex_.unlock();
         cout << "Key Frame #" << keyframe_id << endl;
-        const auto &last_frame1 = keyframe(keyframe_id - 2);
-        auto &last_frame2 = keyframe(keyframe_id - 1);
-        auto &last_frame3 = keyframe(keyframe_id);
-        auto K1 = last_frame1.intrinsics().clone();
-        auto K2 = last_frame2.intrinsics().clone();
-        auto K3 = last_frame3.intrinsics().clone();
-        auto M1 = last_frame1.extrinsics().clone();
-        auto M2 = last_frame2.extrinsics().clone();
-        auto M3 = last_frame3.extrinsics().clone();
 
         vector<shared_ptr<InterestPoint>> used_points;
         // Find usable interest points.
         for (auto &interest_point : interest_points_) {
             bool usable = true;
-            for (int j = 0; j <= max(2, keyframe_id_); ++j) {
+            for (int j = 0; j <= 2; ++j) {
                 if (!interest_point->observation(keyframe_id_ - j)->visible) {
                     usable = false;
                     break;
@@ -53,57 +44,129 @@ namespace ar {
         }
 
         if (used_points.empty()) {
-            interest_points_mutex_.unlock();
-            return;
-        }
+            // There are not enough points for 3 camera BA. Try 2 cameras.
+            // Find usable interest points.
+            for (auto &interest_point : interest_points_)
+                if (interest_point->observation(keyframe_id_)->visible &&
+                    interest_point->observation(keyframe_id_ - 1)->visible)
+                    used_points.push_back(interest_point);
 
-        cout << "Using " << used_points.size() << " points for BA." << endl;
-        // Fill the data.
-        auto *p1 = new double[used_points.size() << 1];
-        auto *p2 = new double[used_points.size() << 1];
-        auto *p3 = new double[used_points.size() << 1];
-        auto *pts3d = new double[used_points.size() * 3];
-        int ind2d = 0, ind3d = 0;
-        for (auto &ip : used_points) {
-            assert(ip);
-            p1[ind2d] = ip->observation(keyframe_id - 2)->pt.pt.x;
-            p1[ind2d + 1] = ip->observation(keyframe_id - 2)->pt.pt.y;
-            p2[ind2d] = ip->observation(keyframe_id - 1)->pt.pt.x;
-            p2[ind2d + 1] = ip->observation(keyframe_id - 1)->pt.pt.y;
-            p3[ind2d] = ip->observation(keyframe_id)->pt.pt.x;
-            p3[ind2d + 1] = ip->observation(keyframe_id)->pt.pt.y;
-            ind2d += 2;
-            pts3d[ind3d] = ip->loc3d().x;
-            pts3d[ind3d + 1] = ip->loc3d().y;
-            pts3d[ind3d + 2] = ip->loc3d().z;
-            ind3d += 3;
-        }
-
-        interest_points_mutex_.unlock();
-        bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2, K3, M3, p3,
-                                          pts3d);
-        delete[] p1;
-        delete[] p2;
-        delete[] p3;
-
-        if (converged) {
-            last_frame2.extrinsics(M2);
-            last_frame3.extrinsics(M3);
-            // Recalculate the depth.
-            double total_depth = 0;
-            ind3d = 0;
-            for (auto &ip : used_points) {
-                ip->loc3d(static_cast<float>(pts3d[ind3d]),
-                          static_cast<float>(pts3d[ind3d + 1]),
-                          static_cast<float>(pts3d[ind3d + 2]));
-                ind3d += 3;
-                float data[] = {ip->loc3d().x, ip->loc3d().y, ip->loc3d().z, 1};
-                auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
-                total_depth += depth;
+            if (used_points.empty()) {
+                // There are not enough points for BA.
+                interest_points_mutex_.unlock();
+                return;
             }
-            last_frame3.average_depth = total_depth / used_points.size();
+
+            cout << "Using " << used_points.size() << " points for 2 camera BA." << endl;
+
+            const auto &last_frame1 = keyframe(keyframe_id - 1);
+            auto &last_frame2 = keyframe(keyframe_id);
+            auto K1 = last_frame1.intrinsics().clone();
+            auto K2 = last_frame2.intrinsics().clone();
+            auto M1 = last_frame1.extrinsics().clone();
+            auto M2 = last_frame2.extrinsics().clone();
+
+            // Fill the data.
+            auto *p1 = new double[used_points.size() << 1];
+            auto *p2 = new double[used_points.size() << 1];
+            auto *pts3d = new double[used_points.size() * 3];
+            int ind2d = 0, ind3d = 0;
+            for (auto &ip : used_points) {
+                assert(ip);
+                p1[ind2d] = ip->observation(keyframe_id - 1)->pt.pt.x;
+                p1[ind2d + 1] = ip->observation(keyframe_id - 1)->pt.pt.y;
+                p2[ind2d] = ip->observation(keyframe_id - 2)->pt.pt.x;
+                p2[ind2d + 1] = ip->observation(keyframe_id - 2)->pt.pt.y;
+                ind2d += 2;
+                pts3d[ind3d] = ip->loc3d().x;
+                pts3d[ind3d + 1] = ip->loc3d().y;
+                pts3d[ind3d + 2] = ip->loc3d().z;
+                ind3d += 3;
+            }
+
+            interest_points_mutex_.unlock();
+            bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2,
+                                              pts3d);
+            delete[] p1;
+            delete[] p2;
+
+            if (converged) {
+                last_frame2.extrinsics(M2);
+                // Recalculate the depth.
+                double total_depth = 0;
+                ind3d = 0;
+                for (auto &ip : used_points) {
+                    ip->loc3d(static_cast<float>(pts3d[ind3d]),
+                              static_cast<float>(pts3d[ind3d + 1]),
+                              static_cast<float>(pts3d[ind3d + 2]));
+                    ind3d += 3;
+                    float data[] = {ip->loc3d().x, ip->loc3d().y, ip->loc3d().z, 1};
+                    auto depth = Mat(M2.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                    total_depth += depth;
+                }
+                last_frame2.average_depth = total_depth / used_points.size();
+            }
+            delete[] pts3d;
+        } else {
+            cout << "Using " << used_points.size() << " points for 3 camera BA." << endl;
+
+            const auto &last_frame1 = keyframe(keyframe_id - 2);
+            auto &last_frame2 = keyframe(keyframe_id - 1);
+            auto &last_frame3 = keyframe(keyframe_id);
+            auto K1 = last_frame1.intrinsics().clone();
+            auto K2 = last_frame2.intrinsics().clone();
+            auto K3 = last_frame3.intrinsics().clone();
+            auto M1 = last_frame1.extrinsics().clone();
+            auto M2 = last_frame2.extrinsics().clone();
+            auto M3 = last_frame3.extrinsics().clone();
+
+            // Fill the data.
+            auto *p1 = new double[used_points.size() << 1];
+            auto *p2 = new double[used_points.size() << 1];
+            auto *p3 = new double[used_points.size() << 1];
+            auto *pts3d = new double[used_points.size() * 3];
+            int ind2d = 0, ind3d = 0;
+            for (auto &ip : used_points) {
+                assert(ip);
+                p1[ind2d] = ip->observation(keyframe_id - 2)->pt.pt.x;
+                p1[ind2d + 1] = ip->observation(keyframe_id - 2)->pt.pt.y;
+                p2[ind2d] = ip->observation(keyframe_id - 1)->pt.pt.x;
+                p2[ind2d + 1] = ip->observation(keyframe_id - 1)->pt.pt.y;
+                p3[ind2d] = ip->observation(keyframe_id)->pt.pt.x;
+                p3[ind2d + 1] = ip->observation(keyframe_id)->pt.pt.y;
+                ind2d += 2;
+                pts3d[ind3d] = ip->loc3d().x;
+                pts3d[ind3d + 1] = ip->loc3d().y;
+                pts3d[ind3d + 2] = ip->loc3d().z;
+                ind3d += 3;
+            }
+
+            interest_points_mutex_.unlock();
+            bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2, K3, M3, p3,
+                                              pts3d);
+            delete[] p1;
+            delete[] p2;
+            delete[] p3;
+
+            if (converged) {
+                last_frame2.extrinsics(M2);
+                last_frame3.extrinsics(M3);
+                // Recalculate the depth.
+                double total_depth = 0;
+                ind3d = 0;
+                for (auto &ip : used_points) {
+                    ip->loc3d(static_cast<float>(pts3d[ind3d]),
+                              static_cast<float>(pts3d[ind3d + 1]),
+                              static_cast<float>(pts3d[ind3d + 2]));
+                    ind3d += 3;
+                    float data[] = {ip->loc3d().x, ip->loc3d().y, ip->loc3d().z, 1};
+                    auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                    total_depth += depth;
+                }
+                last_frame3.average_depth = total_depth / used_points.size();
+            }
+            delete[] pts3d;
         }
-        delete[] pts3d;
     }
 
     void AREngine::MapEstimationLoop() {
@@ -344,7 +407,7 @@ namespace ar {
             }
             // Too few matches. Skip this scene.
             if (points1.size() < 8) {
-                cout << "Too few matched!" << endl;
+//                cout << "Too few matched!" << endl;
                 return AR_SUCCESS;
             }
 
@@ -354,7 +417,7 @@ namespace ar {
 
             // If fail to compute a solution of fundamental matrix, this scene might be problematic. We skip it.
             if (fundamental_matrix.empty()) {
-                cout << "Failed to estimate fundamental matrix!" << endl;
+//                cout << "Failed to estimate fundamental matrix!" << endl;
                 return AR_SUCCESS;
             }
             if (fundamental_matrix.rows > 3)
@@ -368,7 +431,7 @@ namespace ar {
                     matches[new_size++] = matches[i];
             // If there are too few inliers, this scene is problematic. Skip it.
             if (new_size < 4) {
-                cout << "Too few inliers!" << endl;
+//                cout << "Too few inliers!" << endl;
                 return AR_SUCCESS;
             }
             matches.resize(new_size);
@@ -483,7 +546,7 @@ namespace ar {
 
                 if (!done) {
                     // This frame is problematic. Skip it.
-                    cout << "Cannot find valid solution for extrinsics!" << endl;
+//                    cout << "Cannot find valid solution for extrinsics!" << endl;
                     return AR_SUCCESS;
                 }
             }
@@ -495,7 +558,7 @@ namespace ar {
                     matches[new_size++] = matches[i];
             // If there are too few inliers, this scene is problematic. Skip it.
             if (new_size < 4) {
-                cout << "Too few inliers!" << endl;
+//                cout << "Too few inliers!" << endl;
                 return AR_SUCCESS;
             }
             matches.resize(new_size);

@@ -24,7 +24,7 @@
 #else
 #define ARENGINE_API
 #endif
-#endif ARENGINE_API
+#endif
 
 //#define USE_OPENCV_TRIANGULATE
 
