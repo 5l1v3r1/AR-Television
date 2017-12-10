@@ -288,31 +288,27 @@ namespace ar {
 
         Mat r2;
         Rodrigues(M2.colRange(0, 3), r2);
-        cout << M2.colRange(0, 3) << endl << "r2" << r2 << endl;
         double r2_raw[3] = {r2.at<double>(0), r2.at<double>(1), r2.at<double>(2)};
         r2 = Mat(3, 1, CV_64F, r2_raw);
-
 
         double t3_raw[3] = {M3.at<double>(0, 3), M3.at<double>(1, 3), M3.at<double>(2, 3)};
         Mat t3(3, 1, CV_64F, t3_raw);
 
         Mat r3;
         Rodrigues(M3.colRange(0, 3), r3);
-        cout << M3.colRange(0, 3) << endl << "r3" << r3 << endl;
         double r3_raw[3] = {r3.at<double>(0), r3.at<double>(1), r3.at<double>(2)};
         r3 = Mat(3, 1, CV_64F, r3_raw);
-
 
         cout << "Finished rodrigues!" << endl;
 
         cout << "Initial r2=";
         for (double i : r2_raw)
             cout << i << ' ';
-        cout << endl;
+        cout << endl << "Initial t2=" << t2 << endl;
         cout << "Initial r3=";
         for (double i : r3_raw)
             cout << i << ' ';
-        cout << endl;
+        cout << endl << "Initial t3=" << t3 << endl;
 
         // Use ceres for nonlinear optimization.
         ceres::Problem problem;
