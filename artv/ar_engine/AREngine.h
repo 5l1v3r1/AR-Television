@@ -35,7 +35,7 @@ namespace ar {
     ///	estimated 3D location of it in the real world.
     class ARENGINE_API InterestPoint {
     public:
-        static const int MAX_OBSERVATIONS = 8;
+        static const int MAX_OBSERVATIONS = 10;
 
         /// An observation of the interest point at a frame.
         struct Observation {

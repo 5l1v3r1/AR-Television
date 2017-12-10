@@ -25,11 +25,12 @@ namespace ar {
         while (!interest_points_mutex_.try_lock())
             AR_SLEEP(1);
 
-        auto last_frame1 = keyframe(keyframe_id_);
-        auto last_frame2 = keyframe(keyframe_id_ - 1);
-        auto K1 = last_frame1.intrinsics;
-        auto K2 = last_frame2.intrinsics;
-        Mat M1 = last_frame1.extrinsics, M2 = last_frame2.extrinsics;
+        auto &last_frame1 = keyframe(keyframe_id_);
+        auto &last_frame2 = keyframe(keyframe_id_ - 1);
+        auto &K1 = last_frame1.intrinsics;
+        auto &K2 = last_frame2.intrinsics;
+        auto &M1 = last_frame1.extrinsics;
+        auto &M2 = last_frame2.extrinsics;
 
         vector<int> utilized_interest_points;
         // Find utilized_interest_points.
@@ -50,13 +51,23 @@ namespace ar {
         Mat pts2(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
         Mat Points3d(static_cast<int>(utilized_interest_points.size()), 3, CV_32F);
         for (auto ip_id : utilized_interest_points) {
-            pts1.row(ip_id) = Mat(interest_points_[ip_id]->observation(keyframe_id_ - 1)->pt.pt, false);
-            pts2.row(ip_id) = Mat(interest_points_[ip_id]->observation(keyframe_id_)->pt.pt, false);
-            Points3d.row(ip_id) = Mat(interest_points_[ip_id]->loc3d_, false);
+            Mat(interest_points_[ip_id]->observation(keyframe_id_ - 1)->pt.pt, false).copyTo(pts1.row(ip_id));
+            Mat(interest_points_[ip_id]->observation(keyframe_id_)->pt.pt, false).copyTo(pts2.row(ip_id));
+            Mat(interest_points_[ip_id]->loc3d_, false).copyTo(Points3d.row(ip_id));
         }
         BundleAdjustment(K1, M1, pts1, K2, M2, pts2, Points3d);
 
-        // TODO: Recalculate the average depth.
+        // Recalculate the average depth.
+        double total_depth = 0;
+        int cnt = 0;
+        for (auto &ip : interest_points_)
+            if (ip->is_visible(keyframe_id_)) {
+                float data[] = {ip->loc3d_.x, ip->loc3d_.y, ip->loc3d_.z, 1};
+                auto depth = Mat(M2.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                total_depth += depth;
+                ++cnt;
+            }
+        last_frame1.average_depth = total_depth / cnt;
 
         interest_points_mutex_.unlock();
     }
@@ -67,7 +78,7 @@ namespace ar {
             AR_SLEEP(1);
         int last_keyframe_ind = keyframe_id_;
         while (!to_terminate_) {
-//            EstimateMap();
+            EstimateMap();
             while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
                 AR_SLEEP(1);
         }
