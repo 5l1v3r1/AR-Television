@@ -178,9 +178,9 @@ namespace ar {
 
         void AddKeyframe(Keyframe &keyframe);
 
-        inline auto &keyframe(int ind) { return recent_keyframes_[keyframe_id_ % MAX_KEYFRAMES]; }
+        inline auto &keyframe(int ind) { return recent_keyframes_[ind % MAX_KEYFRAMES]; }
 
-        inline auto &keyframe(int ind) const { return recent_keyframes_[keyframe_id_ % MAX_KEYFRAMES]; }
+        inline auto &keyframe(int ind) const { return recent_keyframes_[ind % MAX_KEYFRAMES]; }
 
         thread mapping_thread_;
 

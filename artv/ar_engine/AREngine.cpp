@@ -30,17 +30,17 @@ namespace ar {
         auto &last_frame1 = keyframe(keyframe_id - 2);
         auto &last_frame2 = keyframe(keyframe_id - 1);
         auto &last_frame3 = keyframe(keyframe_id);
-        cout << "Frame: " << keyframe_id << endl << keyframe(0).extrinsics() << endl << keyframe(1).extrinsics() << endl;
+
+//        cout << "Frame: " << keyframe_id << endl << keyframe(0).extrinsics() << endl << keyframe(1).extrinsics() << endl;
+
         auto K1 = last_frame1.intrinsics().clone();
         auto K2 = last_frame2.intrinsics().clone();
         auto K3 = last_frame3.intrinsics().clone();
         auto M1 = last_frame1.extrinsics().clone();
         auto M2 = last_frame2.extrinsics().clone();
         auto M3 = last_frame3.extrinsics().clone();
-        cout << "Frame: " << keyframe_id << endl << M2 << endl << M3 << endl;
 
-
-        cout << M2 << endl << M3 << endl << "------------------" << endl;
+        cout << "Frame: " << keyframe_id << endl << M2 << endl << M3 << endl << "----------------" << endl;
 
         vector<shared_ptr<InterestPoint>> used_points;
         // Find usable interest points.
@@ -194,11 +194,10 @@ namespace ar {
     Keyframe::Keyframe(Mat _intrinsics,
                        Mat _extrinsics,
                        double _average_depth) :
-            intrinsics_(std::move(_intrinsics.clone())),
-            extrinsics_(std::move(_extrinsics.clone())),
+            intrinsics_(_intrinsics.clone()),
+            extrinsics_(_extrinsics.clone()),
             average_depth(_average_depth) {
         assert(abs(determinant(extrinsics_.colRange(0, 3)) - 1) < 0.001);
-//        cout << extrinsics_ << endl;
     }
 
     void AREngine::AddKeyframe(Keyframe &kf) {
