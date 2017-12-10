@@ -22,60 +22,75 @@ namespace ar {
     /// Estimate the 3D location of the interest points with the latest keyframe asynchronously.
     ///	Perform bundle adjustment based on the rough estimation of the extrinsics.
     void AREngine::EstimateMap() {
-        while (!interest_points_mutex_.try_lock())
-            AR_SLEEP(1);
+        interest_points_mutex_.lock();
 
-        auto &last_frame1 = keyframe(keyframe_id_);
+        auto &last_frame1 = keyframe(keyframe_id_ - 2);
         auto &last_frame2 = keyframe(keyframe_id_ - 1);
+        auto &last_frame3 = keyframe(keyframe_id_);
         auto &K1 = last_frame1.intrinsics;
         auto &K2 = last_frame2.intrinsics;
+        auto &K3 = last_frame3.intrinsics;
         auto &M1 = last_frame1.extrinsics;
         auto &M2 = last_frame2.extrinsics;
+        auto &M3 = last_frame3.extrinsics;
 
-        vector<int> utilized_interest_points;
-        // Find utilized_interest_points.
-        utilized_interest_points.reserve(interest_points_.size());
+        vector<int> utilized_indices;
+        // Find usable interest points.
+        utilized_indices.reserve(interest_points_.size());
         for (int i = 0; i < interest_points_.size(); ++i) {
             bool usable = true;
-            for (int j = 0; j <= max(1, keyframe_id_); ++j) {
-                if (!interest_points_[i]->observation(keyframe_id_ - 1)->visible) {
+            for (int j = 0; j <= max(2, keyframe_id_); ++j) {
+                if (!interest_points_[i]->observation(keyframe_id_ - j)->visible) {
                     usable = false;
                     break;
                 }
             }
             if (usable)
-                utilized_interest_points.push_back(i);
+                utilized_indices.push_back(i);
         }
+        if (utilized_indices.empty()) {
+            interest_points_mutex_.unlock();
+            return;
+        }
+        vector<shared_ptr<InterestPoint>> used_points;
+        used_points.reserve(utilized_indices.size());
+        for (auto ind : utilized_indices)
+            used_points.push_back(interest_points_[utilized_indices[ind]]);
+
+        interest_points_mutex_.unlock();
+
+        cout << "Using " << used_points.size() << " points for BA." << endl;
         // Fill the data.
-        Mat pts1(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
-        Mat pts2(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
-        Mat Points3d(static_cast<int>(utilized_interest_points.size()), 3, CV_32F);
-        for (auto ip_id : utilized_interest_points) {
-            Mat(interest_points_[ip_id]->observation(keyframe_id_ - 1)->pt.pt, false).copyTo(pts1.row(ip_id));
-            Mat(interest_points_[ip_id]->observation(keyframe_id_)->pt.pt, false).copyTo(pts2.row(ip_id));
-            Mat(interest_points_[ip_id]->loc3d_, false).copyTo(Points3d.row(ip_id));
+        Mat pts1(static_cast<int>(utilized_indices.size()), 2, CV_32F);
+        Mat pts2(static_cast<int>(utilized_indices.size()), 2, CV_32F);
+        Mat pts3(static_cast<int>(utilized_indices.size()), 2, CV_32F);
+        Mat Points3d(static_cast<int>(utilized_indices.size()), 3, CV_32F);
+        int cnt = 0;
+        for (auto &ip : used_points) {
+            Mat(ip->observation(keyframe_id_ - 2)->pt.pt, false).copyTo(pts1.row(cnt));
+            Mat(ip->observation(keyframe_id_ - 1)->pt.pt, false).copyTo(pts2.row(cnt));
+            Mat(ip->observation(keyframe_id_)->pt.pt, false).copyTo(pts3.row(cnt));
+            Mat(ip->loc3d_, false).copyTo(Points3d.row(cnt));
         }
         //temporary
-        BundleAdjustment(K1, M1, pts1, K2, M2, pts2, K2, M2, pts2, Points3d);
+        BundleAdjustment(K1, M1, pts1, K2, M2, pts2, K3, M3, pts3, Points3d);
 
         // Recalculate the average depth.
         double total_depth = 0;
-        int cnt = 0;
-        for (auto &ip : interest_points_)
+        cnt = 0;
+        for (auto &ip : used_points)
             if (ip->is_visible(keyframe_id_)) {
                 float data[] = {ip->loc3d_.x, ip->loc3d_.y, ip->loc3d_.z, 1};
-                auto depth = Mat(M2.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
                 total_depth += depth;
                 ++cnt;
             }
         last_frame1.average_depth = total_depth / cnt;
-
-        interest_points_mutex_.unlock();
     }
 
     void AREngine::MapEstimationLoop() {
         ++thread_cnt_;
-        while (interest_points_.empty() && keyframe_id_ < 1 && !to_terminate_)
+        while (interest_points_.empty() && keyframe_id_ < 2 && !to_terminate_)
             AR_SLEEP(1);
         int last_keyframe_ind = keyframe_id_;
         while (!to_terminate_) {
@@ -119,8 +134,7 @@ namespace ar {
     /// If we have stored too many interest points, we remove the oldest location record
     ///	of the interest points, and remove the interest points that are determined not visible anymore.
     void AREngine::ReduceInterestPoints() {
-        while (!interest_points_mutex_.try_lock())
-            AR_SLEEP(1);
+        interest_points_mutex_.lock();
 
         auto new_size = interest_points_.size();
         for (int i = 0; i < new_size; ++i)

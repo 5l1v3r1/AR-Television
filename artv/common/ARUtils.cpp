@@ -305,23 +305,23 @@ namespace ar {
     void BundleAdjustment(Mat K1, Mat M1, Mat pts1,
                           Mat K2, Mat &M2, Mat pts2,
                           Mat K3, Mat &M3, Mat pts3,
-                          Mat &Points3d){
+                          Mat &Points3d) {
         //cout << "initial M2 " << M2 << endl;
         //cout << "start copying!" << endl;
         Mat R2_init = M2.colRange(0, 3).clone();
         Mat t2_init = M2.colRange(3, 4).clone();
         Mat r2_init;
         Rodrigues(R2_init, r2_init);
-        
+
         Mat R3_init = M3.colRange(0, 3).clone();
         Mat t3_init = M3.colRange(3, 4).clone();
         Mat r3_init;
         Rodrigues(R3_init, r3_init);
-        
+
         int N = pts1.rows;
         double r2[3], t2[3];
         double r3[3], t3[3];
-        for (int i = 0; i < 3; i++){
+        for (int i = 0; i < 3; i++) {
             r2[i] = double(r2_init.at<float>(i, 0));
             t2[i] = double(t2_init.at<float>(i, 0));
             r3[i] = double(r3_init.at<float>(i, 0));
@@ -329,53 +329,56 @@ namespace ar {
         }
         vector<double> M1v(12);
         vector<double> K1v(9), K2v(9), K3v(9);
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
-                K1v[i*3+j] = double(K1.at<float>(i, j));
-                K2v[i*3+j] = double(K2.at<float>(i, j));
-                K3v[i*3+j] = double(K3.at<float>(i, j));
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                K1v[i * 3 + j] = double(K1.at<float>(i, j));
+                K2v[i * 3 + j] = double(K2.at<float>(i, j));
+                K3v[i * 3 + j] = double(K3.at<float>(i, j));
             }
-            for(int j = 0; j < 4; j++){
-                M1v[i*4+j] = double(M1.at<float>(i, j));
+            for (int j = 0; j < 4; j++) {
+                M1v[i * 4 + j] = double(M1.at<float>(i, j));
             }
         }
         const int supposed_max_pointnum = 150;
-        double pts3d[supposed_max_pointnum*3];
-        vector<double> pts1_(N*2);
-        vector<double> pts2_(N*2);
-        vector<double> pts3_(N*2);
-        for (int i = 0; i < N; i++){
-            for (int j = 0; j < 3; j++){
-                pts3d[i*3+j] = double(Points3d.at<float>(i, j));
+        double pts3d[supposed_max_pointnum * 3];
+        vector<double> pts1_(N * 2);
+        vector<double> pts2_(N * 2);
+        vector<double> pts3_(N * 2);
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < 3; j++) {
+                pts3d[i * 3 + j] = double(Points3d.at<float>(i, j));
             }
             for (int j = 0; j < 2; j++)
-                pts1_[i*2+j] = double(pts1.at<float>(i, j));
+                pts1_[i * 2 + j] = double(pts1.at<float>(i, j));
             for (int j = 0; j < 2; j++)
-                pts2_[i*2+j] = double(pts2.at<float>(i, j));
+                pts2_[i * 2 + j] = double(pts2.at<float>(i, j));
             for (int j = 0; j < 2; j++)
-                pts3_[i*2+j] = double(pts3.at<float>(i, j));
+                pts3_[i * 2 + j] = double(pts3.at<float>(i, j));
         }
-        for (int i = N; i < supposed_max_pointnum; i++){
-            for (int j = 0; j < 3; j++){
-                pts3d[i*3+j] = 0.;
+        for (int i = N; i < supposed_max_pointnum; i++) {
+            for (int j = 0; j < 3; j++) {
+                pts3d[i * 3 + j] = 0.;
             }
         }
         //cout << "start optimizing!" << endl;
         //using ceres for nonlinear optimization
         {
             ceres::Problem problem;
-            ceres::CostFunction* cost_function_1 =
-            new ceres::AutoDiffCostFunction<BALResidual_1, 2, supposed_max_pointnum*3>(new BALResidual_1(pts1_, N, K1v, M1v));
+            ceres::CostFunction *cost_function_1 =
+                    new ceres::AutoDiffCostFunction<BALResidual_1, 2, supposed_max_pointnum * 3>(
+                            new BALResidual_1(pts1_, N, K1v, M1v));
             problem.AddResidualBlock(cost_function_1, NULL, pts3d);
-            
-            ceres::CostFunction* cost_function_2 =
-            new ceres::AutoDiffCostFunction<BALResidual_2, 2, 3, 3, supposed_max_pointnum*3>(new BALResidual_2(pts2_, N, K2v));
+
+            ceres::CostFunction *cost_function_2 =
+                    new ceres::AutoDiffCostFunction<BALResidual_2, 2, 3, 3, supposed_max_pointnum * 3>(
+                            new BALResidual_2(pts2_, N, K2v));
             problem.AddResidualBlock(cost_function_2, NULL, r2, t2, pts3d);
-            
-            ceres::CostFunction* cost_function_3 =
-            new ceres::AutoDiffCostFunction<BALResidual_2, 2, 3, 3, supposed_max_pointnum*3>(new BALResidual_2(pts3_, N, K3v));
+
+            ceres::CostFunction *cost_function_3 =
+                    new ceres::AutoDiffCostFunction<BALResidual_2, 2, 3, 3, supposed_max_pointnum * 3>(
+                            new BALResidual_2(pts3_, N, K3v));
             problem.AddResidualBlock(cost_function_3, NULL, r3, t3, pts3d);
-            
+
             ceres::Solver::Options options;
             options.linear_solver_type = ceres::DENSE_SCHUR;
             //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
@@ -387,23 +390,23 @@ namespace ar {
             //std::cout << summary.FullReport() << "\n";
         }
         //cout << "end optimization!" << endl;
-        Mat r2Mat(3, 1, CV_64F, (void*)r2);
-        Mat t2Mat(3, 1, CV_64F, (void*)t2);
+        Mat r2Mat(3, 1, CV_64F, (void *) r2);
+        Mat t2Mat(3, 1, CV_64F, (void *) t2);
         Mat R2Mat;
         Rodrigues(r2Mat, R2Mat);
         Mat M2Mat;
         hconcat(R2Mat, t2Mat, M2Mat);
         M2Mat.convertTo(M2, CV_32F);
-        
-        Mat r3Mat(3, 1, CV_64F, (void*)r3);
-        Mat t3Mat(3, 1, CV_64F, (void*)t3);
+
+        Mat r3Mat(3, 1, CV_64F, (void *) r3);
+        Mat t3Mat(3, 1, CV_64F, (void *) t3);
         Mat R3Mat;
         Rodrigues(r3Mat, R3Mat);
         Mat M3Mat;
         hconcat(R3Mat, t3Mat, M3Mat);
         M3Mat.convertTo(M3, CV_32F);
-        
-        Mat Points3dMat(N, 3, CV_64F, (void*)pts3d);
+
+        Mat Points3dMat(N, 3, CV_64F, (void *) pts3d);
         Points3dMat.convertTo(Points3d, CV_32F);
         //cout << "optimized M2 " << M2 << endl;
         return;
