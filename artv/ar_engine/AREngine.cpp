@@ -55,7 +55,8 @@ namespace ar {
             Mat(interest_points_[ip_id]->observation(keyframe_id_)->pt.pt, false).copyTo(pts2.row(ip_id));
             Mat(interest_points_[ip_id]->loc3d_, false).copyTo(Points3d.row(ip_id));
         }
-        BundleAdjustment(K1, M1, pts1, K2, M2, pts2, Points3d);
+        //temporary
+        BundleAdjustment(K1, M1, pts1, K2, M2, pts2, K2, M2, pts2, Points3d);
 
         // Recalculate the average depth.
         double total_depth = 0;

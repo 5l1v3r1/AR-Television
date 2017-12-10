@@ -58,9 +58,10 @@ namespace ar {
 	ERROR_CODE COMMON_API Triangulate(const std::vector<std::pair<cv::Mat, cv::Mat>> &camera_matrices_and_2d_points,
 									  cv::Mat &points3d,
 									  double *error = nullptr);
+
     void COMMON_API BundleAdjustment(cv::Mat K1, cv::Mat M1, cv::Mat pts1,
                                      cv::Mat K2, cv::Mat& M2, cv::Mat pts2,
+                                     cv::Mat K3, cv::Mat& M3, cv::Mat pts3,
                                      cv::Mat &Points3d);
-
 	cv::Mat COMMON_API CombineExtrinsics(const cv::Mat& base, const cv::Mat& rel);
 }
