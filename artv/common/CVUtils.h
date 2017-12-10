@@ -35,7 +35,7 @@ namespace ar {
     ///	a required frame on call of the nextFrame method.
     class COMMON_API FrameStream {
     public:
-        virtual int NextFrame(cv::Mat &outputBuf) = 0;
+        virtual ERROR_CODE NextFrame(cv::Mat &outputBuf) = 0;
     };
 
     class COMMON_API RealtimeLocalVideoStream : public FrameStream {

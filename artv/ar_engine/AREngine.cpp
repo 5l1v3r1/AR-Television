@@ -184,6 +184,7 @@ namespace ar {
 
         // Also remove virtual objects that are based on the removed interest points.
         vector<int> to_remove;
+        to_remove.reserve(virtual_objects_.size());
         for (auto &vobj : virtual_objects_)
             if (!vobj.second->IsAlive())
                 to_remove.push_back(vobj.first);
