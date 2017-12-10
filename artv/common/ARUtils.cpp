@@ -1,4 +1,4 @@
-#include <omp.h>
+//#include <omp.h>
 #include <common/ARUtils.h>
 
 using namespace std;
@@ -269,7 +269,7 @@ namespace ar {
                           Mat K2, Mat &M2, double p2[],
                           Mat K3, Mat &M3, double p3[],
                           double pts3d[]) {
-        double start_time = omp_get_wtime();
+//        double start_time = omp_get_wtime();
 
         // TODO: Examine correctness of BA.
 
@@ -278,7 +278,8 @@ namespace ar {
         K2.convertTo(K2, CV_64F);
         M2.convertTo(M2, CV_64F);
         K3.convertTo(K3, CV_64F);
-        M3.convertTo(M2, CV_64F);
+        M3.convertTo(M3, CV_64F);
+
 
         cout << "Finished converting!" << endl;
 
@@ -287,16 +288,20 @@ namespace ar {
 
         Mat r2;
         Rodrigues(M2.colRange(0, 3), r2);
+        cout << M2.colRange(0, 3) << endl << "r2" << r2 << endl;
         double r2_raw[3] = {r2.at<double>(0), r2.at<double>(1), r2.at<double>(2)};
         r2 = Mat(3, 1, CV_64F, r2_raw);
+
 
         double t3_raw[3] = {M3.at<double>(0, 3), M3.at<double>(1, 3), M3.at<double>(2, 3)};
         Mat t3(3, 1, CV_64F, t3_raw);
 
         Mat r3;
         Rodrigues(M3.colRange(0, 3), r3);
+        cout << M3.colRange(0, 3) << endl << "r3" << r3 << endl;
         double r3_raw[3] = {r3.at<double>(0), r3.at<double>(1), r3.at<double>(2)};
-        r3 = Mat(3, 1, CV_64F, r2_raw);
+        r3 = Mat(3, 1, CV_64F, r3_raw);
+
 
         cout << "Finished rodrigues!" << endl;
 
@@ -349,8 +354,8 @@ namespace ar {
 
         std::cout << summary.FullReport() << endl;
 
-        double end_time = omp_get_wtime();
-        cout << "Finished BA in " << int(end_time - start_time) << "ms." << endl;
+//        double end_time = omp_get_wtime();
+//        cout << "Finished BA in " << int(end_time - start_time) << "ms." << endl;
 
         if (summary.termination_type == ceres::TerminationType::CONVERGENCE) {
             Mat R2;

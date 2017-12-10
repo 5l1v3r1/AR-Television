@@ -30,12 +30,15 @@ namespace ar {
         auto &last_frame1 = keyframe(keyframe_id - 2);
         auto &last_frame2 = keyframe(keyframe_id - 1);
         auto &last_frame3 = keyframe(keyframe_id);
+        cout << "Frame: " << keyframe_id << endl << keyframe(0).extrinsics() << endl << keyframe(1).extrinsics() << endl;
         auto K1 = last_frame1.intrinsics().clone();
         auto K2 = last_frame2.intrinsics().clone();
         auto K3 = last_frame3.intrinsics().clone();
         auto M1 = last_frame1.extrinsics().clone();
         auto M2 = last_frame2.extrinsics().clone();
         auto M3 = last_frame3.extrinsics().clone();
+        cout << "Frame: " << keyframe_id << endl << M2 << endl << M3 << endl;
+
 
         cout << M2 << endl << M3 << endl << "------------------" << endl;
 
@@ -109,7 +112,7 @@ namespace ar {
     }
 
     void AREngine::MapEstimationLoop() {
-        while (interest_points_.empty() && keyframe_id_ < 2 && !to_terminate_)
+        while ((interest_points_.empty() || keyframe_id_ < 2) && !to_terminate_)
             AR_SLEEP(1);
         int last_keyframe_ind;
         while (!to_terminate_) {
@@ -462,8 +465,6 @@ namespace ar {
                 }
             }
 
-//            cout << pts3d << endl;
-//            AR_PAUSE;
 
             Mat R = extrinsics_.colRange(0, 3);
             Mat t = extrinsics_.col(3);
@@ -518,7 +519,6 @@ namespace ar {
                                 make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
 
                 interest_points_mutex_.unlock();
-
                 ReduceInterestPoints();
             }
         }
