@@ -59,13 +59,12 @@ namespace ar {
             double l2dist_sqr(const Point2f &p) const;
         };
 
+        bool visible_in_last_frame_;
+        Point2f last_loc_;
+
         void Combine(const shared_ptr<InterestPoint> &another);
 
         shared_ptr<Observation> observation(int keyframe_id) const;
-
-        inline auto &last_observation() { return observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]; }
-
-        inline auto &last_loc() { return last_observation()->loc(); }
 
         inline auto is_visible(int keyframe_id) const { return observation(keyframe_id)->visible; }
 
@@ -138,6 +137,8 @@ namespace ar {
         bool to_terminate_ = false;
 
         static const int MAX_KEYFRAMES = 10;
+        static const int MIN_POINTS_FOR_BA = 16;
+        static const int MAX_POINTS_FOR_BA = 32;
 
         /// For objects in this engine, they should automatically disappear if not viewed
         ///	for this long period (in milliseconds). This period might be dynamically
@@ -234,6 +235,6 @@ namespace ar {
 
         ///////////////////////// Special object creating methods /////////////////////////
         ///	Create a screen displaying the content at the location in the last input scene.
-        ERROR_CODE CreateTelevision(Point location, FrameStream &content_stream);
+        ERROR_CODE CreateTelevision(Point2f location, FrameStream &content_stream);
     };
 }

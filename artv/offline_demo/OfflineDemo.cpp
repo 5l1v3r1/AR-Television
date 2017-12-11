@@ -137,7 +137,8 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    auto *tv_show = new RealtimeLocalVideoStream;
+//    auto *tv_show = new RealtimeLocalVideoStream;
+    auto *tv_show = new NaiveFrameStream;
     auto ret = tv_show->Open(movie_path);
     if (ret < 0) {
         cerr << "Cannot initialize the TV show: " << ErrCode2Msg(ret) << endl;

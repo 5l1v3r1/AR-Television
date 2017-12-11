@@ -38,6 +38,14 @@ namespace ar {
         virtual ERROR_CODE NextFrame(cv::Mat &outputBuf) = 0;
     };
 
+    class COMMON_API NaiveFrameStream : public FrameStream {
+        cv::VideoCapture cap_;
+    public:
+        inline ERROR_CODE Open(const char *videoPath) { cap_.open(videoPath); return AR_SUCCESS; }
+
+        inline ERROR_CODE NextFrame(cv::Mat &outputBuf) override { cap_ >> outputBuf; return AR_SUCCESS; }
+    };
+
     class COMMON_API RealtimeLocalVideoStream : public FrameStream {
         cv::VideoCapture cap_;
         double fps_{};
