@@ -46,32 +46,25 @@ namespace ar
 	void VTelevision::Draw(cv::Mat& scene, const cv::Mat& camera_matrix) {
 		// TODO: Need implementation. Use the camera matrix to project the television and the
 		// video content on the scene.
-		Point2f lu = ProjectPoint(camera_matrix, left_upper_);
-		Point2f ll = ProjectPoint(camera_matrix, left_lower_);
-		Point2f ru = ProjectPoint(camera_matrix, right_upper_);
-		Point2f rl = ProjectPoint(camera_matrix, right_lower_);
+
+		Point3f lu = TransferPoint(left_upper_);
+		Point3f ll = TransferPoint(left_lower_);
+		Point3f ru = TransferPoint(right_upper_);
+		Point3f rl = TransferPoint(right_lower_);
 		Mat frame;
 		content_stream_.NextFrame(frame);
-		vector<Point2f> pts_src = { Point(0,0), Point(frame.cols,0), Point(0,frame.rows), Point(frame.cols,frame.rows) };
-		vector<Point2f> pts_dst = { lu, ru, ll, rl };
-		DrawPolygon(scene, frame, pts_src, pts_dst);
+		vector<Point3f> corners_ori = { lu, ru, rl, ll };
+		//Point3f normal_vector = Point3f(0, 0, -0.1);
+		Point3f normal_vector = get_normal_vector(corners_ori);
+		vector<Point3f> corners_dst = add_vector(corners_ori, normal_vector);
+		vector<Point2f> pts_src = { Point(0,0), Point(frame.cols,0), Point(frame.cols,frame.rows), Point(0,frame.rows) };
+		//vector<Point2f> pts_ori = { Point(100,50), Point(600,100), Point(550,300), Point(120,200) };
+		//vector<Point2f> pts_dst = { Point(120,70), Point(500,100), Point(450,350), Point(150,250) };
+		vector<Point2f> pts_ori = ProjectCorners(camera_matrix, corners_ori);//{ lu, ru, rl, ll };
+		vector<Point2f> pts_dst = ProjectCorners(camera_matrix, corners_dst);
 	}
 
-	inline Point2f VTelevision::ProjectPoint(const cv::Mat& camera_matrix, shared_ptr<const InterestPoint> point3d) {
-		Point2f result;
-		Mat origin(4, 1, CV_64F);
-		Mat projected(3, 1, CV_64F);
-		origin.data[0] = point3d->loc3d_.x;
-		origin.data[0] = point3d->loc3d_.y;
-		origin.data[0] = point3d->loc3d_.z;
-		origin.data[0] = double(1);
-		projected = camera_matrix * origin;
-		result.x = projected.data[0] / projected.data[2];
-		result.y = projected.data[1] / projected.data[2];
-		return result;
-	}
-
-	void VTelevision::DrawPolygon(Mat &scene, Mat &frame, vector<Point2f> &pts_src, vector<Point2f> &pts_dst) {
+	void VTelevision::DrawPolygon(cv::Mat &scene, cv::Mat &frame, vector<Point2f> &pts_src, vector<Point2f> &pts_dst) {
 		Mat dst = scene.clone();
 		Mat h = findHomography(pts_src, pts_dst);
 		Mat mask(scene.rows, scene.cols, CV_8UC3, Scalar(0, 0, 0));
@@ -79,5 +72,85 @@ namespace ar
 		mask = (mask == dst);
 		bitwise_and(scene, mask, scene);
 		scene = scene + dst;
+	}
+
+	void VTelevision::DrawBoards(cv::Mat &scene, vector<Point2f> &pts_ori, vector<Point2f> &pts_dst, cv::Scalar color) {
+		vector<vector<Point>> boards[4];
+		boards[0].push_back({ pts_ori[0], pts_dst[0], pts_dst[1], pts_ori[1] });
+		boards[1].push_back({ pts_ori[1], pts_dst[1], pts_dst[2], pts_ori[2] });
+		boards[2].push_back({ pts_ori[2], pts_dst[2], pts_dst[3], pts_ori[3] });
+		boards[3].push_back({ pts_ori[3], pts_dst[3], pts_dst[0], pts_ori[0] });
+		for (int i = 0; i < 4; i++)
+			cv::fillPoly(scene, boards[i], color);
+		for (int i = 0; i < 4; i++) {
+			cv::line(scene, pts_ori[i], pts_dst[i], Scalar(0, 0, 0));
+			//cv::line(scene, pts_ori[i], pts_ori[(i + 1) % 4], Scalar(0, 0, 0));
+			cv::line(scene, pts_dst[i], pts_dst[(i + 1) % 4], Scalar(0, 0, 0));
+		}
+	}
+
+	inline Point3f VTelevision::TransferPoint(shared_ptr<const InterestPoint> pt) {
+		Point3f result;
+		result.x = pt->loc3d_.x;
+		result.y = pt->loc3d_.y;
+		result.z = pt->loc3d_.z;
+		return result;
+	}
+
+	inline Point2f VTelevision::ProjectPoint(const cv::Mat& camera_matrix, cv::Point3f point3f) {
+		Point2f result;
+		Mat origin(4, 1, CV_32F);
+		Mat projected(3, 1, CV_32F);
+		origin.at<float>(0, 0) = point3f.x;
+		origin.at<float>(1, 0) = point3f.y;
+		origin.at<float>(2, 0) = point3f.z;
+		origin.at<float>(3, 0) = double(1);
+		projected = camera_matrix * origin;
+		result.x = projected.at<float>(0, 0) / projected.at<float>(2, 0);
+		result.y = projected.at<float>(1, 0) / projected.at<float>(2, 0);
+		return result;
+	}
+
+	inline vector<Point2f> VTelevision::ProjectCorners(const cv::Mat& camera_matrix, vector<Point3f> &corners) {
+		vector<Point2f> result(4);
+		for (int i = 0; i < 4; i++) {
+			result[i] = ProjectPoint(camera_matrix, corners[i]);
+		}
+		return result;
+	}
+
+	void VTelevision::normalize_vector(Point3f &v, float width) {
+		float length = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+		float times = width / length;
+		v = v * times;
+		if (v.z > 0)
+			v = -v;
+	}
+
+	Point3f VTelevision::get_normal_vector(const vector<Point3f> &ori) {
+		Mat A = Mat(6, 4, CV_32F);
+		int index = 0;
+		for (int i = 0; i < 4; i++)
+			for (int j = i + 1; j < 4; j++, index++) {
+				A.at<float>(index, 0) = ori[i].x - ori[j].x;
+				A.at<float>(index, 1) = ori[i].y - ori[j].y;
+				A.at<float>(index, 2) = ori[i].z - ori[j].z;
+				A.at<float>(index, 3) = 1;
+			}
+		Mat U, S, V;
+		SVD::compute(A, U, S, V);
+		Point3f result;
+		result.x = V.at<float>(3, 0);
+		result.y = V.at<float>(3, 1);
+		result.z = V.at<float>(3, 2);
+		normalize_vector(result, 0.1);
+		return result;
+	}
+
+	inline vector<Point3f> VTelevision::add_vector(const vector<Point3f> &ori, const Point3f &normal_vector) {
+		vector<Point3f> result(4);
+		for (int i = 0; i < 4; i++)
+			result[i] = ori[i] + normal_vector;
+		return result;
 	}
 }
