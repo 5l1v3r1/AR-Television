@@ -171,6 +171,7 @@ namespace ar {
                     auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
                     total_depth += depth;
                 }
+                cout << "depth: " << last_frame3.average_depth << "->" << total_depth / used_points.size() << endl;
                 last_frame3.average_depth = total_depth / used_points.size();
             }
             delete[] pts3d;
@@ -184,6 +185,7 @@ namespace ar {
         while (!to_terminate_) {
             last_keyframe_ind = keyframe_id_;
             EstimateMap();
+            while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
             while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
                 AR_SLEEP(1);
         }
@@ -472,7 +474,7 @@ namespace ar {
                         if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
                             interest_points_[match.first]->is_visible(keyframe_id_))
                             ++cnt;
-                    if (cnt >= (matches.size() >> 2)) {
+                    if (cnt >= (matches.size() >> 3)) {
                         // There are enough points for triangulate.
                         Mat stored_pts1(cnt, 2, CV_32F);
                         Mat stored_pts2(cnt, 2, CV_32F);
@@ -577,14 +579,26 @@ namespace ar {
             for (int k = 0; k < pts3d.rows; ++k)
                 Mat(t.t()).copyTo(T.row(k));
             Mat transformed_pts3d = pts3d * R.t() + T;
-            double average_depth = sum(transformed_pts3d.col(2))[0] / pts3d.rows;
+            double average_depth = 0;
+            int cnt = 0;
+            for (int i = 0; i < pts3d.rows; ++i) {
+                double w = transformed_pts3d.at<float>(i, 2);
+                if (w < 0 || w > 1000)
+                    continue;
+                ++cnt;
+                average_depth += w;
+            }
+            average_depth /= cnt;
+//            double average_depth = sum(transformed_pts3d.col(2))[0] / pts3d.rows;
+
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
             Mat t_rel = t - R * last_keyframe.rotation().t() * last_keyframe.translation();
             double distance = cv::norm(t_rel, cv::NormTypes::NORM_L2);
-            cout << "Distance=" << distance << " vs AverageDepth=" << last_keyframe.average_depth << endl;
-            if (distance / min(average_depth, last_keyframe.average_depth) > 0.1 || last_keyframe.average_depth < 0) {
+
+            if (distance / average_depth > 0.1) {
+                cout << "Distance=" << distance << " vs AverageDepth=" << average_depth << endl;
                 auto kf = Keyframe(intrinsics_,
                                    extrinsics_,
                                    average_depth);

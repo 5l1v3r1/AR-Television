@@ -95,15 +95,18 @@ namespace ar {
         int num_points = pts[0].second.rows;
         auto num_cameras = pts.size();
         points3d = Mat(num_points, 3, CV_32F);
-
+//        cout << "num_cameras: " << num_cameras << endl;
         for (int i = 0; i < num_points; ++i) {
             Mat A = Mat(static_cast<int>(num_cameras << 1), 4, CV_32F);
+//            cout << "Points in 2D: " << endl;
             for (int j = 0; j < num_cameras; ++j) {
+//                cout << pts[j].second.row(i) << endl;
                 ((Mat) (pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2))).copyTo(
                         A.row(2 * j));
                 ((Mat) (pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2))).copyTo(
                         A.row(2 * j + 1));
             }
+//            cout << "~~~~~~~~~~~~~~~~~~~" << endl;
             Mat U, W, VT;
             auto svd = SVD();
             svd.compute(A, W, U, VT);
@@ -118,6 +121,7 @@ namespace ar {
                 double err = diff.at<float>(0) * diff.at<float>(0) + diff.at<float>(1) * diff.at<float>(1);
                 *error += err;
             }
+            *error /= num_cameras * num_points;
             p.colRange(0, 3).copyTo(points3d.row(i));
         }
         return AR_SUCCESS;
@@ -350,10 +354,10 @@ namespace ar {
         cout << "Start solving..." << endl;
 
         ceres::Solver::Options options;
-        options.linear_solver_type = ceres::DENSE_SCHUR;
+//        options.linear_solver_type = ceres::DENSE_SCHUR;
         //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-        //options.linear_solver_type = ceres::SPARSE_SCHUR;
-        options.max_num_iterations = 1000;
+        options.linear_solver_type = ceres::SPARSE_SCHUR;
+//        options.max_num_iterations = 100;
         //options.minimizer_progress_to_stdout = true;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
@@ -392,6 +396,7 @@ namespace ar {
 
         Mat r2;
         Rodrigues(M2.colRange(0, 3), r2);
+
         double r2_raw[3] = {r2.at<double>(0), r2.at<double>(1), r2.at<double>(2)};
         r2 = Mat(3, 1, CV_64F, r2_raw);
 
@@ -433,10 +438,10 @@ namespace ar {
         cout << "Start solving..." << endl;
 
         ceres::Solver::Options options;
-        options.linear_solver_type = ceres::DENSE_SCHUR;
+//        options.linear_solver_type = ceres::DENSE_SCHUR;
         //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-        //options.linear_solver_type = ceres::SPARSE_SCHUR;
-        options.max_num_iterations = 2000;
+        options.linear_solver_type = ceres::SPARSE_SCHUR;
+//        options.max_num_iterations = 100;
         //options.minimizer_progress_to_stdout = true;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
