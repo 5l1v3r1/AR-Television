@@ -107,16 +107,24 @@ namespace ar {
                 // Recalculate the depth.
                 double total_depth = 0;
                 ind3d = 0;
+                int cnt = 0;
                 for (auto &ip : used_points) {
                     ip->loc3d(static_cast<float>(pts3d[ind3d]),
                               static_cast<float>(pts3d[ind3d + 1]),
                               static_cast<float>(pts3d[ind3d + 2]));
                     ind3d += 3;
                     float data[] = {ip->loc3d().x, ip->loc3d().y, ip->loc3d().z, 1};
-                    auto depth = Mat(M2.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
-                    total_depth += depth;
+                    auto w = Mat(M2.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                    if (w < 0 || w > 1000)
+                        continue;
+                    total_depth += w;
+                    ++cnt;
                 }
-                last_frame2.average_depth = total_depth / used_points.size();
+                cout << "depth: " << last_frame2.average_depth << "->";
+                if (cnt != 0 && abs(total_depth / cnt -  last_frame2.average_depth) < 30) {
+                    last_frame2.average_depth = total_depth / cnt;
+                }
+                cout << last_frame2.average_depth << endl;
             }
             delete[] pts3d;
         } else {
@@ -170,17 +178,24 @@ namespace ar {
                 // Recalculate the depth.
                 double total_depth = 0;
                 ind3d = 0;
+                int cnt = 0;
                 for (auto &ip : used_points) {
                     ip->loc3d(static_cast<float>(pts3d[ind3d]),
                               static_cast<float>(pts3d[ind3d + 1]),
                               static_cast<float>(pts3d[ind3d + 2]));
                     ind3d += 3;
                     float data[] = {ip->loc3d().x, ip->loc3d().y, ip->loc3d().z, 1};
-                    auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
-                    total_depth += depth;
+                    auto w = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                    if (w < 0 || w > 1000)
+                        continue;
+                    total_depth += w;
+                    ++cnt;
                 }
-                cout << "depth: " << last_frame3.average_depth << "->" << total_depth / used_points.size() << endl;
-                last_frame3.average_depth = total_depth / used_points.size();
+                cout << "depth: " << last_frame3.average_depth << "->";
+                if (cnt != 0 && abs(total_depth / cnt -  last_frame3.average_depth) < 30) {
+                    last_frame3.average_depth = total_depth / cnt;
+                }
+                cout << last_frame3.average_depth << endl;
             }
             delete[] pts3d;
         }
@@ -619,7 +634,6 @@ namespace ar {
                 average_depth += w;
             }
             average_depth /= cnt;
-//            double average_depth = sum(transformed_pts3d.col(2))[0] / pts3d.rows;
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
