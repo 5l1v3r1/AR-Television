@@ -419,6 +419,7 @@ namespace ar {
                 ip->visible_in_last_frame_ = false;
             for (auto& match : matches) {
                 matched_new[match.second] = true;
+                interest_points_[match.first]->visible_in_last_frame_ = true;
                 interest_points_[match.first]->last_loc_ = keypoints[match.second].pt;
             }
             interest_points_mutex_.lock();

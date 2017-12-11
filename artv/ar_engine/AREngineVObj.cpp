@@ -8,12 +8,13 @@ namespace ar {
 
         Canny(last_gray_frame_, last_canny_map_, 60, 60 * 3);
         Mat dilated_canny;
-        dilate(last_canny_map_, dilated_canny, noArray());
+        dilate(last_canny_map_, dilated_canny, getStructuringElement(MORPH_RECT, Size(4, 4)));
 
         Mat canvas = dilated_canny.clone();
         cvtColor(canvas, canvas, CV_GRAY2RGB);
 
         interest_points_mutex_.lock();
+        cout << "Lock!" << endl;
 
         // Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
         vector<pair<double, shared_ptr<InterestPoint>>> candidates;
@@ -31,6 +32,7 @@ namespace ar {
         waitKey(1);
 
         interest_points_mutex_.unlock();
+        cout << "Unlock!" << endl;
 
         sort(candidates.begin(), candidates.end());
         auto CountEdgeOnLine = [dilated_canny](const Point2f &start, const Point2f &end) {
@@ -43,49 +45,58 @@ namespace ar {
             auto y = static_cast<int>(start.y + dy);
             int edge_cnt = 0;
             for (int i = 1; i < dist; ++i)
-                if (dilated_canny.at<uchar>(static_cast<int>(round(y + i * dy)), static_cast<int>(round(x + i * dx))) > 0)
+                if (dilated_canny.at<uchar>(static_cast<int>(round(y + i * dy)), static_cast<int>(round(x + i * dx))) >
+                    0)
                     ++edge_cnt;
             return edge_cnt / dist;
         };
+        cout << "Finding boundary..." << endl;
         shared_ptr<InterestPoint> lu_corner, ru_corner, ll_corner, rl_corner;
         bool found = false;
-        for (auto &lu : candidates) {
+        for (auto &left_upper : candidates) {
             if (found)
                 break;
-            for (auto &ru : candidates) {
+            for (auto &right_upper : candidates) {
                 if (found)
                     break;
-                if (ru == lu)
+                if (norm(right_upper.second->last_loc_ - left_upper.second->last_loc_) < 1)
                     continue;
-                if ((ru.second->last_loc_ - lu.second->last_loc_).cross(location - ru.second->last_loc_) > 0)
+                if ((right_upper.second->last_loc_ - left_upper.second->last_loc_).cross(
+                        location - right_upper.second->last_loc_) < 0)
                     continue;
-                if (CountEdgeOnLine(lu.second->last_loc_, ru.second->last_loc_) < 0.8)
+                if (CountEdgeOnLine(left_upper.second->last_loc_, right_upper.second->last_loc_) < 0.8)
                     continue;
-                for (auto &rl : candidates) {
+                for (auto &right_lower : candidates) {
                     if (found)
                         break;
-                    if (rl == lu || rl == ru)
+                    if (norm(right_lower.second->last_loc_ - left_upper.second->last_loc_) < 1 ||
+                        norm(right_lower.second->last_loc_ - right_upper.second->last_loc_) < 1)
                         continue;
-                    if ((rl.second->last_loc_ - ru.second->last_loc_).cross(location - rl.second->last_loc_) > 0)
+                    if ((right_lower.second->last_loc_ - right_upper.second->last_loc_).cross(
+                            location - right_lower.second->last_loc_) < 0)
                         continue;
-                    if (CountEdgeOnLine(lu.second->last_loc_, rl.second->last_loc_) < 0.8)
+                    if (CountEdgeOnLine(right_upper.second->last_loc_, right_lower.second->last_loc_) < 0.8)
                         continue;
-                    for (auto &ll : candidates) {
-                        if (ll == lu || ll == ru || ll == rl)
+                    for (auto &left_lower : candidates) {
+                        if (norm(left_lower.second->last_loc_ - left_upper.second->last_loc_) < 1 ||
+                            norm(left_lower.second->last_loc_ - right_upper.second->last_loc_) < 1 ||
+                            norm(left_lower.second->last_loc_ - right_lower.second->last_loc_) < 1)
                             continue;
-                        if ((ll.second->last_loc_ - rl.second->last_loc_).cross(location - ll.second->last_loc_) > 0)
+                        if ((left_lower.second->last_loc_ - right_lower.second->last_loc_).cross(
+                                location - left_lower.second->last_loc_) < 0)
                             continue;
-                        if ((lu.second->last_loc_ - ll.second->last_loc_).cross(location - ll.second->last_loc_) > 0)
+                        if ((left_upper.second->last_loc_ - left_lower.second->last_loc_).cross(
+                                location - left_lower.second->last_loc_) < 0)
                             continue;
-                        if (CountEdgeOnLine(rl.second->last_loc_, ll.second->last_loc_) < 0.8)
+                        if (CountEdgeOnLine(right_lower.second->last_loc_, left_lower.second->last_loc_) < 0.8)
                             continue;
-                        if (CountEdgeOnLine(ll.second->last_loc_, lu.second->last_loc_) < 0.8)
+                        if (CountEdgeOnLine(left_lower.second->last_loc_, left_upper.second->last_loc_) < 0.8)
                             continue;
                         found = true;
-                        lu_corner = lu.second;
-                        ru_corner = ru.second;
-                        ll_corner = ll.second;
-                        rl_corner = rl.second;
+                        lu_corner = left_upper.second;
+                        ru_corner = right_upper.second;
+                        ll_corner = left_lower.second;
+                        rl_corner = right_lower.second;
                     }
                 }
             }
@@ -95,11 +106,16 @@ namespace ar {
             cout << "Cannot find valid TV boundary." << endl;
             return AR_OPERATION_FAILED;
         }
+        cout << "Found!" << endl;
 
-        line(canvas, lu_corner->last_loc_, ru_corner->last_loc_, Scalar(255, 0, 0), 16);
-        line(canvas, ru_corner->last_loc_, rl_corner->last_loc_, Scalar(255, 0, 0), 8);
-        line(canvas, rl_corner->last_loc_, ll_corner->last_loc_, Scalar(255, 0, 0), 16);
-        line(canvas, ll_corner->last_loc_, lu_corner->last_loc_, Scalar(255, 0, 0), 8);
+        putText(canvas, "1", lu_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 8, Scalar(255, 0, 0));
+        putText(canvas, "2", ru_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 8, Scalar(255, 0, 0));
+        putText(canvas, "3", rl_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 8, Scalar(255, 0, 0));
+        putText(canvas, "4", ll_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 8, Scalar(255, 0, 0));
+        line(canvas, lu_corner->last_loc_, ru_corner->last_loc_, Scalar(255, 0, 0), 4);
+        line(canvas, ru_corner->last_loc_, rl_corner->last_loc_, Scalar(255, 0, 0), 4);
+        line(canvas, rl_corner->last_loc_, ll_corner->last_loc_, Scalar(255, 0, 0), 4);
+        line(canvas, ll_corner->last_loc_, lu_corner->last_loc_, Scalar(255, 0, 0), 4);
         imshow("Canny", canvas);
         waitKey(1);
 
