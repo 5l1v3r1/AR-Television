@@ -252,7 +252,7 @@ namespace ar {
                 // Check whether the interest point can be combined to another existing point.
                 for (int j = 0; j < i; ++j)
                     if ((interest_points_[j]->has_estimated_3d_loc_) &&
-                        norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 0.1) {
+                        norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 1) {
 //                        cout << "Combining points with distance " << norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) << endl;
                         interest_points_[j]->Combine(interest_points_[i]);
                         interest_points_[i--] = interest_points_[--new_size];
