@@ -157,6 +157,8 @@ namespace ar {
         Mat last_gray_frame_;
         Mat last_canny_map_;
 
+        bool to_screenshot_ = false;
+
         /// Descriptor length of interest points.
         int desc_length_ = 0;
         /// Interest points in recent frames.

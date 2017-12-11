@@ -114,16 +114,18 @@ namespace ar {
         interest_points_.push_back(rl_corner);
         interest_points_mutex_.unlock();
 
-        putText(canvas, "1", lu_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 8, Scalar(255, 0, 0));
-        putText(canvas, "2", ru_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 8, Scalar(255, 0, 0));
-        putText(canvas, "3", rl_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 8, Scalar(255, 0, 0));
-        putText(canvas, "4", ll_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 8, Scalar(255, 0, 0));
-        line(canvas, lu_corner->last_loc_, ru_corner->last_loc_, Scalar(255, 0, 0), 4);
-        line(canvas, ru_corner->last_loc_, rl_corner->last_loc_, Scalar(255, 0, 0), 4);
-        line(canvas, rl_corner->last_loc_, ll_corner->last_loc_, Scalar(255, 0, 0), 4);
-        line(canvas, ll_corner->last_loc_, lu_corner->last_loc_, Scalar(255, 0, 0), 4);
+        putText(canvas, "1", lu_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 4, Scalar(0, 0, 255), 4);
+        putText(canvas, "2", ru_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 4, Scalar(0, 0, 255), 4);
+        putText(canvas, "3", rl_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 4, Scalar(0, 0, 255), 4);
+        putText(canvas, "4", ll_corner->last_loc_, HersheyFonts::FONT_HERSHEY_PLAIN, 4, Scalar(0, 0, 255), 4);
+        line(canvas, lu_corner->last_loc_, ru_corner->last_loc_, Scalar(0, 0, 255), 4);
+        line(canvas, ru_corner->last_loc_, rl_corner->last_loc_, Scalar(0, 0, 255), 4);
+        line(canvas, rl_corner->last_loc_, ll_corner->last_loc_, Scalar(0, 0, 255), 4);
+        line(canvas, ll_corner->last_loc_, lu_corner->last_loc_, Scalar(0, 0, 255), 4);
         imshow("Canny", canvas);
+        imwrite("Canny.jpg", canvas);
         waitKey(1);
+        to_screenshot_ = true;
 
         // Create a virtual television, and locate it with respect to these interest points.
         int id = rand();

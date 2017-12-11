@@ -687,6 +687,12 @@ namespace ar {
             }
         }
 
+        if (to_screenshot_) {
+            imwrite("Origin.jpg", raw_scene);
+            imwrite("Mixed.jpg", mixed_scene);
+            to_screenshot_ = false;
+        }
+
         return AR_SUCCESS;
     }
 

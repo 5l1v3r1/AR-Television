@@ -74,6 +74,10 @@ namespace ar {
 
     void VTelevision::DrawPolygon(Mat &scene, Mat &frame, vector<Point2f> &pts_src, vector<Point2f> &pts_dst) {
         Mat dst;
+        for (int i = 0; i < 4; ++i) {
+            pts_dst[i].x -= 16;
+            pts_dst[i].y -= 16;
+        }
         Mat h = findHomography(pts_src, pts_dst);
         Mat mask(scene.size(), scene.type(), Scalar(0, 0, 0));
         warpPerspective(frame, dst, h, scene.size());
