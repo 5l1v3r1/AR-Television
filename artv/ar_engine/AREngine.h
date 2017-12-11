@@ -161,6 +161,7 @@ namespace ar {
         int desc_length_ = 0;
         /// Interest points in recent frames.
         vector<shared_ptr<InterestPoint>> interest_points_;
+        vector<shared_ptr<InterestPoint>> transient_interest_points_;
         /// The vector of interest points are protected by mutex in case of concurrent reading
         ///	and writing across different threads.
         mutex interest_points_mutex_;

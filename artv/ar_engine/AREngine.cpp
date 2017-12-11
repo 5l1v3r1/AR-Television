@@ -192,10 +192,10 @@ namespace ar {
         int last_keyframe_ind;
         while (!to_terminate_) {
             last_keyframe_ind = keyframe_id_;
-            EstimateMap();
+//            EstimateMap();
             while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
-            while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
-                AR_SLEEP(1);
+                while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
+                    AR_SLEEP(1);
         }
         cout << "Exiting map estimation loop!" << endl;
     }
@@ -253,8 +253,11 @@ namespace ar {
                 for (int j = 0; j < i; ++j)
                     if ((interest_points_[j]->has_estimated_3d_loc_) &&
                         norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 1) {
-//                        cout << "Combining points with distance " << norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) << endl;
-                        interest_points_[j]->Combine(interest_points_[i]);
+                        if (interest_points_[i].use_count() > interest_points_[j].use_count()) {
+                            interest_points_[i]->Combine(interest_points_[j]);
+                            interest_points_[j] = interest_points_[i];
+                        } else
+                            interest_points_[j]->Combine(interest_points_[i]);
                         interest_points_[i--] = interest_points_[--new_size];
                         break;
                     }
@@ -417,22 +420,21 @@ namespace ar {
 
             // Update all last observation.
             vector<bool> matched_new(keypoints.size(), false);
-            for (auto& ip : interest_points_)
+            for (auto &ip : interest_points_)
                 ip->visible_in_last_frame_ = false;
-            for (auto& match : matches) {
+            for (auto &match : matches) {
                 matched_new[match.second] = true;
                 interest_points_[match.first]->visible_in_last_frame_ = true;
                 interest_points_[match.first]->last_loc_ = keypoints[match.second].pt;
             }
             interest_points_mutex_.lock();
-            vector<shared_ptr<InterestPoint>> transient_interest_points;
-            transient_interest_points.reserve(keypoints.size());
+            transient_interest_points_.clear();
+            transient_interest_points_.reserve(keypoints.size());
             // These interest points are not ever visible in the previous frames.
             for (int i = 0; i < keypoints.size(); ++i)
                 if (!matched_new[i]) {
                     auto ip = make_shared<InterestPoint>(-1, keypoints[i], descriptors.row(i));
-                    transient_interest_points.push_back(ip);
-                    interest_points_.push_back(ip);
+                    transient_interest_points_.push_back(ip);
                 }
             interest_points_mutex_.unlock();
 
@@ -650,9 +652,11 @@ namespace ar {
                     if (!matched_stored[i])
                         interest_points_[i]->AddObservation(make_shared<InterestPoint::Observation>());
 
-                // Mark the transient interest points to belong to the keyframe.
-                for (auto& ip : transient_interest_points)
+                // Mark the transient interest points to belong to the last keyframe.
+                for (auto &ip : transient_interest_points_) {
                     ip->observation(-1)->keyframe_id = keyframe_id_;
+                    interest_points_.push_back(ip);
+                }
 
                 interest_points_mutex_.unlock();
                 ReduceInterestPoints();
