@@ -350,10 +350,10 @@ namespace ar {
         cout << "Start solving..." << endl;
 
         ceres::Solver::Options options;
-        options.linear_solver_type = ceres::DENSE_SCHUR;
-        //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+//        options.linear_solver_type = ceres::DENSE_SCHUR;
+//        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
         //options.linear_solver_type = ceres::SPARSE_SCHUR;
-        options.max_num_iterations = 1000;
+//        options.max_num_iterations = 100;
         //options.minimizer_progress_to_stdout = true;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
