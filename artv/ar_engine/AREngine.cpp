@@ -413,29 +413,45 @@ namespace ar {
                 interest_points_[i]->last_desc().copyTo(stored_descriptors.row(i));
             auto matches = interest_points_tracker_.MatchKeypoints(stored_descriptors, descriptors);
 
+            // Update all last observation.
+            vector<bool> matched_new(keypoints.size(), false);
+            for (auto& ip : interest_points_)
+                ip->visible_in_last_frame_ = false;
+            for (auto& match : matches) {
+                matched_new[match.second] = true;
+                interest_points_[match.first]->last_loc_ = keypoints[match.second].pt;
+            }
+            interest_points_mutex_.lock();
+            vector<shared_ptr<InterestPoint>> transient_interest_points;
+            transient_interest_points.reserve(keypoints.size());
+            // These interest points are not ever visible in the previous frames.
+            for (int i = 0; i < keypoints.size(); ++i)
+                if (!matched_new[i]) {
+                    auto ip = make_shared<InterestPoint>(-1, keypoints[i], descriptors.row(i));
+                    transient_interest_points.push_back(ip);
+                    interest_points_.push_back(ip);
+                }
+            interest_points_mutex_.unlock();
+
             // Estimate the fundamental matrix from the last keyframe.
             vector<Point2f> points1, points2;
             for (auto &match : matches) {
                 if (interest_points_[match.first]->is_visible(keyframe_id_)) {
-                    points1.emplace_back(interest_points_[match.first]->last_loc());
+                    points1.emplace_back(interest_points_[match.first]->loc(keyframe_id_));
                     points2.emplace_back(keypoints[match.second].pt);
                 }
             }
             // Too few matches. Skip this scene.
-            if (points1.size() < 8) {
-//                cout << "Too few matched!" << endl;
+            if (points1.size() < 8)
                 return AR_SUCCESS;
-            }
 
             // Estimate the fundamental matrix using the matched points.
             Mat inlier_mask;
             Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_RANSAC, 3., 0.99, inlier_mask);
 
             // If fail to compute a solution of fundamental matrix, this scene might be problematic. We skip it.
-            if (fundamental_matrix.empty()) {
-//                cout << "Failed to estimate fundamental matrix!" << endl;
+            if (fundamental_matrix.empty())
                 return AR_SUCCESS;
-            }
             if (fundamental_matrix.rows > 3)
                 fundamental_matrix = fundamental_matrix.rowRange(0, 3);
             fundamental_matrix.convertTo(fundamental_matrix, CV_32F);
@@ -446,10 +462,8 @@ namespace ar {
                 if (inlier_mask.at<bool>(i))
                     matches[new_size++] = matches[i];
             // If there are too few inliers, this scene is problematic. Skip it.
-            if (new_size < 4) {
-//                cout << "Too few inliers!" << endl;
+            if (new_size < 4)
                 return AR_SUCCESS;
-            }
             matches.resize(new_size);
             // The new matches consist of all inliers.
             inlier_mask = Mat::ones(static_cast<int>(matches.size()), 1, CV_8U);
@@ -571,7 +585,6 @@ namespace ar {
 
             if (!done) {
                 // This frame is problematic. Skip it.
-//                    cout << "Cannot find valid solution for extrinsics!" << endl;
                 return AR_SUCCESS;
             }
 
@@ -598,16 +611,13 @@ namespace ar {
                 AddKeyframe(kf);
 
                 // Try to match new keypoints to the stored keypoints.
-                vector<bool> matched_new(keypoints.size(), false);
                 vector<bool> matched_stored(interest_points_.size(), false);
 
                 interest_points_mutex_.lock();
 
                 // Add an observation in this keyframe to the interest points.
-                for (int i = 0; i < matches.size(); ++i) {
-                    const auto &match = matches[i];
+                for (const auto &match : matches) {
                     matched_stored[match.first] = true;
-                    matched_new[match.second] = true;
                     interest_points_[match.first]->AddObservation(
                             make_shared<InterestPoint::Observation>(keyframe_id_,
                                                                     keypoints[match.second],
@@ -626,11 +636,9 @@ namespace ar {
                     if (!matched_stored[i])
                         interest_points_[i]->AddObservation(make_shared<InterestPoint::Observation>());
 
-                // These interest points are not ever visible in the previous frames.
-                for (int i = 0; i < keypoints.size(); ++i)
-                    if (!matched_new[i])
-                        interest_points_.push_back(
-                                make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
+                // Mark the transient interest points to belong to the keyframe.
+                for (auto& ip : transient_interest_points)
+                    ip->observation(-1)->keyframe_id = keyframe_id_;
 
                 interest_points_mutex_.unlock();
                 ReduceInterestPoints();
@@ -697,6 +705,8 @@ namespace ar {
         observation_seq_[observation_seq_tail_ = 0] = make_shared<Observation>(initial_keyframe_id,
                                                                                initial_loc,
                                                                                initial_desc);
+        visible_in_last_frame_ = true;
+        last_loc_ = initial_loc.pt;
     }
 
     void InterestPoint::loc3d(float x, float y, float z) {
@@ -725,7 +735,6 @@ namespace ar {
         observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS] = p;
         if (observation_seq_tail_ >= (MAX_OBSERVATIONS << 1))
             observation_seq_tail_ -= MAX_OBSERVATIONS;
-        assert(last_observation().get() == p.get());
     }
 
     void InterestPoint::loc3d(const Point3f &pt3d) {

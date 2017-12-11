@@ -3,7 +3,7 @@
 #include <ar_engine/vobjects/VTelevision.h>
 
 namespace ar {
-    ERROR_CODE AREngine::CreateTelevision(cv::Point location, FrameStream &content_stream) {
+    ERROR_CODE AREngine::CreateTelevision(cv::Point2f location, FrameStream &content_stream) {
         Mat camera_matrix = intrinsics_ * extrinsics_;
 
         Canny(last_gray_frame_, last_canny_map_, 60, 60 * 3);
@@ -16,38 +16,23 @@ namespace ar {
         interest_points_mutex_.lock();
 
         // Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
-        vector<pair<double, shared_ptr<InterestPoint>>> left_uppers, left_lowers, right_uppers, right_lowers;
-        cout << camera_matrix << endl;
+        vector<pair<double, shared_ptr<InterestPoint>>> candidates;
         for (auto &ip : interest_points_)
-            if (ip->has_estimated_3d_loc_) {
-                double dist_sqr = ip->last_observation()->l2dist_sqr(location);
+            if (ip->visible_in_last_frame_) {
+                auto dist_sqr = norm(ip->last_loc_ - location);
                 if (dist_sqr > min(last_gray_frame_.rows, last_gray_frame_.cols) * VTelevision::MIN_TV_SIZE_RATE) {
-                    auto loc = ip->loc(camera_matrix);
-                    if (loc.x < location.x && loc.y < location.y) {
-                        left_uppers.emplace_back(dist_sqr, ip);
-                        circle(canvas, loc, 2, Scalar(0, 0, 255), 2);
-                    } else if (loc.x > location.x && loc.y < location.y) {
-                        right_uppers.emplace_back(dist_sqr, ip);
-                        circle(canvas, loc, 2, Scalar(0, 255, 255), 2);
-                    } else if (loc.x < location.x && loc.y > location.y) {
-                        left_lowers.emplace_back(dist_sqr, ip);
-                        circle(canvas, loc, 2, Scalar(255, 0, 255), 2);
-                    } else if (loc.x > location.x && loc.y > location.y) {
-                        right_lowers.emplace_back(dist_sqr, ip);
-                        circle(canvas, loc, 2, Scalar(255, 255, 0), 2);
-                    }
+                    candidates.emplace_back(dist_sqr, ip);
+                    circle(canvas, ip->last_loc_, 2, Scalar(0, 0, 255), 2);
                 }
             }
 
+        circle(canvas, location, 4, Scalar(0, 255, 0), 4);
         imshow("Canny", canvas);
         waitKey(1);
 
         interest_points_mutex_.unlock();
 
-        sort(left_uppers.begin(), left_uppers.end());
-        sort(right_uppers.begin(), right_uppers.end());
-        sort(left_lowers.begin(), left_lowers.end());
-        sort(right_lowers.begin(), right_lowers.end());
+        sort(candidates.begin(), candidates.end());
         auto CountEdgeOnLine = [dilated_canny](const Point2f &start, const Point2f &end) {
             double dx = end.x - start.x;
             double dy = end.y - start.y;
@@ -58,30 +43,44 @@ namespace ar {
             auto y = static_cast<int>(start.y + dy);
             int edge_cnt = 0;
             for (int i = 1; i < dist; ++i)
-                if (dilated_canny.at<double>(y, x) > DBL_EPSILON)
+                if (dilated_canny.at<uchar>(static_cast<int>(round(y + i * dy)), static_cast<int>(round(x + i * dx))) > 0)
                     ++edge_cnt;
             return edge_cnt / dist;
         };
         shared_ptr<InterestPoint> lu_corner, ru_corner, ll_corner, rl_corner;
         bool found = false;
-        for (auto &lu : left_uppers) {
+        for (auto &lu : candidates) {
             if (found)
                 break;
-            for (auto &ru : right_uppers) {
+            for (auto &ru : candidates) {
                 if (found)
                     break;
-                if (CountEdgeOnLine(lu.second->last_loc(), ru.second->last_loc()) < 0.8)
-                    break;
-                for (auto &ll : left_lowers) {
+                if (ru == lu)
+                    continue;
+                if ((ru.second->last_loc_ - lu.second->last_loc_).cross(location - ru.second->last_loc_) > 0)
+                    continue;
+                if (CountEdgeOnLine(lu.second->last_loc_, ru.second->last_loc_) < 0.8)
+                    continue;
+                for (auto &rl : candidates) {
                     if (found)
                         break;
-                    if (CountEdgeOnLine(lu.second->last_loc(), ll.second->last_loc()) < 0.8)
-                        break;
-                    for (auto &rl : right_lowers) {
-                        if (CountEdgeOnLine(ru.second->last_loc(), rl.second->last_loc()) < 0.8)
-                            break;
-                        if (CountEdgeOnLine(ll.second->last_loc(), rl.second->last_loc()) < 0.8)
-                            break;
+                    if (rl == lu || rl == ru)
+                        continue;
+                    if ((rl.second->last_loc_ - ru.second->last_loc_).cross(location - rl.second->last_loc_) > 0)
+                        continue;
+                    if (CountEdgeOnLine(lu.second->last_loc_, rl.second->last_loc_) < 0.8)
+                        continue;
+                    for (auto &ll : candidates) {
+                        if (ll == lu || ll == ru || ll == rl)
+                            continue;
+                        if ((ll.second->last_loc_ - rl.second->last_loc_).cross(location - ll.second->last_loc_) > 0)
+                            continue;
+                        if ((lu.second->last_loc_ - ll.second->last_loc_).cross(location - ll.second->last_loc_) > 0)
+                            continue;
+                        if (CountEdgeOnLine(rl.second->last_loc_, ll.second->last_loc_) < 0.8)
+                            continue;
+                        if (CountEdgeOnLine(ll.second->last_loc_, lu.second->last_loc_) < 0.8)
+                            continue;
                         found = true;
                         lu_corner = lu.second;
                         ru_corner = ru.second;
@@ -96,6 +95,13 @@ namespace ar {
             cout << "Cannot find valid TV boundary." << endl;
             return AR_OPERATION_FAILED;
         }
+
+        line(canvas, lu_corner->last_loc_, ru_corner->last_loc_, Scalar(255, 0, 0), 16);
+        line(canvas, ru_corner->last_loc_, rl_corner->last_loc_, Scalar(255, 0, 0), 8);
+        line(canvas, rl_corner->last_loc_, ll_corner->last_loc_, Scalar(255, 0, 0), 16);
+        line(canvas, ll_corner->last_loc_, lu_corner->last_loc_, Scalar(255, 0, 0), 8);
+        imshow("Canny", canvas);
+        waitKey(1);
 
         // Create a virtual television, and locate it with respect to these interest points.
         int id = rand();

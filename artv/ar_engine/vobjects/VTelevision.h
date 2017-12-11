@@ -33,10 +33,10 @@ namespace ar
 					int id,
 					FrameStream& content_stream);
 
-		void locate(const std::shared_ptr<const InterestPoint>& left_upper,
-					const std::shared_ptr<const InterestPoint>& left_lower,
-					const std::shared_ptr<const InterestPoint>& right_upper,
-					const std::shared_ptr<const InterestPoint>& right_lower);
+		void locate(std::shared_ptr<InterestPoint> left_upper,
+					std::shared_ptr<InterestPoint> left_lower,
+					std::shared_ptr<InterestPoint> right_upper,
+					std::shared_ptr<InterestPoint> right_lower);
 
 		bool IsAlive() override;
 		inline VObjType GetType() { return TV; }

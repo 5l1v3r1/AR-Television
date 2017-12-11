@@ -38,25 +38,25 @@ namespace ar {
                && (lu - ll).cross(pt2d - ll) > 0;
     }
 
-    void VTelevision::locate(const shared_ptr<const InterestPoint> &left_upper,
-                             const shared_ptr<const InterestPoint> &left_lower,
-                             const shared_ptr<const InterestPoint> &right_upper,
-                             const shared_ptr<const InterestPoint> &right_lower) {
-        assert(left_upper_ && left_lower_ && right_upper_ && right_lower_);
+    void VTelevision::locate(shared_ptr<InterestPoint> left_upper,
+                             shared_ptr<InterestPoint> left_lower,
+                             shared_ptr<InterestPoint> right_upper,
+                             shared_ptr<InterestPoint> right_lower) {
         left_upper_ = left_upper;
         left_lower_ = left_lower;
         right_upper_ = right_upper;
         right_lower_ = right_lower;
+        assert(left_upper_ && left_lower_ && right_upper_ && right_lower_);
         assert(left_upper_.use_count() > 1);
     }
 
     void VTelevision::Draw(cv::Mat &scene, const cv::Mat &camera_matrix) {
         // Use the camera matrix to project the television and the
         // video content on the scene.
-        Point2f lu = left_upper_->loc(camera_matrix);
-        Point2f ll = left_lower_->loc(camera_matrix);
-        Point2f ru = right_upper_->loc(camera_matrix);
-        Point2f rl = right_lower_->loc(camera_matrix);
+        Point2f lu = left_upper_->last_loc_;
+        Point2f ll = left_lower_->last_loc_;
+        Point2f ru = right_upper_->last_loc_;
+        Point2f rl = right_lower_->last_loc_;
         Mat frame;
         AR_SAFE_CALL(content_stream_.NextFrame(frame));
         vector<Point2f> pts_src = {Point(0, 0), Point(frame.cols, 0), Point(0, frame.rows),
