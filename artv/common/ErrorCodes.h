@@ -1,9 +1,9 @@
-///////////////////////////////////////////////////////////
-// AR Television
-// Copyright(c) 2017 Carnegie Mellon University
-// Licensed under The MIT License[see LICENSE for details]
-// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
-///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+/// AR Television
+/// Copyright(c) 2017 Carnegie Mellon University
+/// Licensed under The MIT License[see LICENSE for details]
+/// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
+////////////////////////////////////////////////////////////
 #pragma once
 
 #ifndef ERRORCODES_H
@@ -15,6 +15,7 @@
 #define AR_NO_MORE_FRAMES	-3
 #define AR_INVALID_INPUT    -4
 #define AR_UNIMPLEMENTED    -5
+#define AR_OPERATION_FAILED	-6
 
 namespace ar {
 	typedef int ERROR_CODE;

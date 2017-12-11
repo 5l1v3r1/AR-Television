@@ -1,14 +1,15 @@
-///////////////////////////////////////////////////////////
-// AR Television
-// Copyright(c) 2017 Carnegie Mellon University
-// Licensed under The MIT License[see LICENSE for details]
-// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
-///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+/// AR Television
+/// Copyright(c) 2017 Carnegie Mellon University
+/// Licensed under The MIT License[see LICENSE for details]
+/// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
+////////////////////////////////////////////////////////////
 #include <iostream>
 
 #include <opencv2/opencv.hpp>
 
 #include <common/OSUtils.h>
+#include <common/Utils.h>
 #include <ar_engine/AREngine.h>
 
 using namespace std;
@@ -136,7 +137,8 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    auto *tv_show = new RealtimeLocalVideoStream;
+//    auto *tv_show = new RealtimeLocalVideoStream;
+    auto *tv_show = new NaiveFrameStream;
     auto ret = tv_show->Open(movie_path);
     if (ret < 0) {
         cerr << "Cannot initialize the TV show: " << ErrCode2Msg(ret) << endl;
@@ -168,7 +170,7 @@ int main(int argc, char *argv[]) {
             break;
         imshow("Origin scene", raw_scene);
 
-        ar_engine->GetMixedScene(raw_scene, mixed_scene);
+        AR_SAFE_CALL(ar_engine->GetMixedScene(raw_scene, mixed_scene));
         recorder << mixed_scene;
         imshow("Mixed scene", mixed_scene);
         waitKey(1);

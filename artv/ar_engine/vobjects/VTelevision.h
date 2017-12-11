@@ -1,9 +1,9 @@
-///////////////////////////////////////////////////////////
-// AR Television
-// Copyright(c) 2017 Carnegie Mellon University
-// Licensed under The MIT License[see LICENSE for details]
-// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
-///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+/// AR Television
+/// Copyright(c) 2017 Carnegie Mellon University
+/// Licensed under The MIT License[see LICENSE for details]
+/// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
+////////////////////////////////////////////////////////////
 #pragma once
 
 #ifndef VTELEVISION_H
@@ -20,21 +20,25 @@ namespace ar
 	{
 		FrameStream& content_stream_;
 
+		bool alive_ = true;
+
 		shared_ptr<const InterestPoint> left_upper_;
 		shared_ptr<const InterestPoint> left_lower_;
 		shared_ptr<const InterestPoint> right_upper_;
 		shared_ptr<const InterestPoint> right_lower_;
 	public:
-		static const double MEAN_TV_SIZE_RATE;
+		static const double MIN_TV_SIZE_RATE;
 
 		VTelevision(AREngine& engine,
 					int id,
 					FrameStream& content_stream);
 
-		void locate(const std::shared_ptr<const InterestPoint>& left_upper,
-					const std::shared_ptr<const InterestPoint>& left_lower,
-					const std::shared_ptr<const InterestPoint>& right_upper,
-					const std::shared_ptr<const InterestPoint>& right_lower);
+		void locate(std::shared_ptr<InterestPoint> left_upper,
+					std::shared_ptr<InterestPoint> left_lower,
+					std::shared_ptr<InterestPoint> right_upper,
+					std::shared_ptr<InterestPoint> right_lower);
+
+		bool IsAlive() override;
 
 		inline VObjType GetType() { return TV; }
 
@@ -53,8 +57,6 @@ namespace ar
 						vector<Point2f> &pts_ori, 
 						vector<Point2f> &pts_dst, 
 						cv::Scalar color);
-
-		inline Point3f TransferPoint(shared_ptr<const InterestPoint> pt);
 
 		inline Point2f ProjectPoint(const cv::Mat& camera_matrix, 
 									cv::Point3f point3f);

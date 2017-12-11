@@ -1,12 +1,13 @@
-///////////////////////////////////////////////////////////
-// AR Television
-// Copyright(c) 2017 Carnegie Mellon University
-// Licensed under The MIT License[see LICENSE for details]
-// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
-///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+/// AR Television
+/// Copyright(c) 2017 Carnegie Mellon University
+/// Licensed under The MIT License[see LICENSE for details]
+/// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
+////////////////////////////////////////////////////////////
 #include <opencv2/features2d.hpp>
 
 #include <common/OSUtils.h>
+#include <common/Utils.h>
 #include <ar_engine/AREngine.h>
 #include <ar_engine/vobjects/VTelevision.h>
 
@@ -14,462 +15,189 @@ using namespace std;
 using namespace cv;
 
 namespace ar {
-<<<<<<< HEAD
-	//! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
-	//	Perform bundle adjustment based on the rough estimation of the extrinsics.
-	void AREngine::EstimateMap() {
-		// TODO: Need implementation. Remember to calculate the average depth!
-	}
-
-	void AREngine::MapEstimationLoop() {
-		++thread_cnt_;
-		while (interest_points_.empty() && !to_terminate_)
-			AR_SLEEP(1);
-		while (!to_terminate_)
-			EstimateMap();
-		--thread_cnt_;
-	}
-
-	void AREngine::CallMapEstimationLoop(AREngine* engine) {
-		engine->MapEstimationLoop();
-	}
-
-	AREngine::~AREngine() {
-		to_terminate_ = true;
-		do {
-			AR_SLEEP(1);
-		} while (thread_cnt_);
-	}
-
-	AREngine::AREngine() : interest_points_tracker_(ORB::create(), DescriptorMatcher::create("FLANNBASED")) {
-		mapping_thread_ = thread(AREngine::CallMapEstimationLoop, this);
-	}
-
-	//! If we have stored too many interest points, we remove the oldest location record
-	//	of the interest points, and remove the interest points that are determined not visible anymore.
-	void AREngine::ReduceInterestPoints() {
-		if (interest_points_.size() > MAX_INTEREST_POINTS) {
-			int new_size = int(interest_points_.size());
-			for (int i = 0; i < new_size; ++i) {
-				if (interest_points_[i]->ToDiscard()) {
-					interest_points_[i] = interest_points_[--new_size];
-					--i;
-				}
-			}
-			interest_points_.resize(new_size);
-		}
-	}
-
-	void AREngine::UpdateInterestPoints(const cv::Mat& scene) {
-		// Generate new keypoints.
-		std::vector<cv::KeyPoint> keypoints;
-		cv::Mat descriptors;
-		interest_points_tracker_.GenKeypointsDesc(scene, keypoints, descriptors);
-
-		// Match the new keypoints to the stored keypoints.
-		cv::Mat stored_descriptors;
-		for (int i = 0; i < interest_points_.size(); ++i)
-			vconcat(stored_descriptors, interest_points_[i]->average_desc_);
-		auto matches = interest_points_tracker_.MatchKeypoints(descriptors, stored_descriptors);
-
-		// Update the stored keypoints.
-		bool* matched_new = new bool[keypoints.size()];
-		bool* matched_stored = new bool[interest_points_.size()];
-		memset(matched_new, 0, sizeof(bool) * keypoints.size());
-		memset(matched_stored, 0, sizeof(bool) * interest_points_.size());
-		for (auto match : matches) {
-			matched_new[match.first] = true;
-			matched_stored[match.second] = true;
-			interest_points_[match.second]->AddObservation(
-				InterestPoint::Observation(keypoints[match.first], descriptors.row(match.first)));
-		}
-		// These interest points are not ever visible in the previous frames.
-		for (int i = 0; i < keypoints.size(); ++i)
-			if (!matched_new[i])
-				interest_points_.push_back(shared_ptr<InterestPoint>(
-					new InterestPoint(frame_id_, keypoints[i], descriptors.row(i))));
-		// These interest points are not visible at this frame.
-		for (int i = 0; i < interest_points_.size(); ++i)
-			interest_points_[i]->AddObservation(InterestPoint::Observation());
-		delete[] matched_new;
-		delete[] matched_stored;
-
-		ReduceInterestPoints();
-	}
-
-	Keyframe::Keyframe(int _frame_id,
-					   Mat _intrinsics,
-					   vector<shared_ptr<InterestPoint>> _interest_points,
-					   Mat _R,
-					   Mat _t,
-					   double _average_depth) :
-		frame_id(_frame_id), 
-		intrinsics(_intrinsics), 
-		interest_points(_interest_points),
-		R(_R), t(_t),
-		average_depth(_average_depth) {}
-
-	void AREngine::AddKeyframe(Keyframe& kf) {
-		keyframe(++keyframe_seq_tail_) = kf;
-		if (keyframe_seq_tail_ >= (MAX_KEYFRAMES << 1))
-			keyframe_seq_tail_ -= MAX_KEYFRAMES;
-	}
-
-	ERROR_CODE AREngine::FeedScene(const Mat& raw_scene) {
-		++frame_id_;
-
-		last_raw_frame_ = raw_scene;
-		cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);
-
-		UpdateInterestPoints(raw_scene);
-
-		if (keyframe_seq_tail_ == -1)
-			// Initial keyframe.
-			AddKeyframe(Keyframe(frame_id_,
-								 intrinsics_,
-								 interest_points_,
-								 Mat::eye(3, 3, CV_64F),
-								 Mat::zeros(3, 1, CV_64F),
-								 0));
-		else {
-			auto& last_keyframe = keyframe(keyframe_seq_tail_);
-
-			// TODO: Estimate the fundamental matrix from the last keyframe.
-			Mat fundamental_matrix;
-
-			// Estimate the essential matrix.
-			Mat essential_matrix = intrinsics_.t() * fundamental_matrix * last_keyframe.intrinsics;
-
-			// Call RecoverRotAndTranslation to recover rotation and translation.
-			auto candidates = RecoverRotAndTranslation(essential_matrix);
-			Mat R, t;
-			Mat pts3d;
-			// Test for the only valid rotation and translation combination.
-			{
-				// Utilize at most 2 previous keyframes for bundled estimation.
-				// Find the interest points that are visible in these keyframes.
-				vector<int> utilized_interest_points;
-				utilized_interest_points.reserve(interest_points_.size());
-				for (int i = 0; i < interest_points_.size(); ++i) {
-					bool usable = true;
-					for (int j = 0; j <= max(1, keyframe_seq_tail_); ++j) {
-						int frame_id = keyframe(keyframe_seq_tail_ - j).frame_id;
-						if (!interest_points_[i]->observation(frame_id).visible) {
-							usable = false;
-							break;
-						}
-					}
-					if (usable)
-						utilized_interest_points.push_back(i);
-				}
-				// Fill the data for 3D reconstruction from the previous keyframes.
-				vector<pair<Mat, Mat>> data;
-				for (int i = 0; i < max(1, keyframe_seq_tail_); ++i) {
-					auto& kf = keyframe(keyframe_seq_tail_ - i);
-					int frame_id = kf.frame_id;
-					Mat pts(utilized_interest_points.size(), 2, CV_32F);
-					for (auto ip_id : utilized_interest_points)
-						pts.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id).pt.pt, false);
-					Mat extrinsics;
-					hconcat(kf.R, kf.t, extrinsics);
-					data.push_back(make_pair(kf.intrinsics * extrinsics, pts));
-				}
-				// Fill the data from the current frame.
-				Mat pts(utilized_interest_points.size(), 2, CV_32F);
-				for (auto ip_id : utilized_interest_points)
-					pts.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id_).pt.pt, false);
-				data.push_back(make_pair(Mat(), pts));
-				// Try each candidate of extrinsics.
-				Mat bestM2;
-				double least_error = DBL_MAX;
-				for (int i = 0; i < interest_points_.size(); ++i)
-					if (interest_points_[i]->observation(frame_id_).visible &&
-						interest_points_[i]->observation(frame_id_ - 1).visible &&
-						interest_points_[i]->observation(frame_id_ - 2).visible)
-						for (auto& M2 : candidates) {
-							data.back().first = intrinsics_ * M2;
-							Mat estimated_pts3d;
-							double err;
-							triangulate(data, estimated_pts3d, &err);
-							// These 3D points are valid if they are in front of the camera in the previous keyframes.
-							bool valid = true;
-							for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
-								auto& kf = keyframe(keyframe_seq_tail_ - j);
-								Mat transformed_pts3d = kf.R * estimated_pts3d + kf.t;
-								for (int k = 0; k < transformed_pts3d.rows; ++k)
-									if (transformed_pts3d.at<float>(k, 3) < 0) {
-										valid = false;
-										break;
-									}
-							}
-							if (valid)
-								if (err < least_error) {
-									least_error = err;
-									bestM2 = M2;
-									pts3d = estimated_pts3d;
-								}
-						}
-				R = bestM2.colRange(0, 2);
-				t = bestM2.col(3);
-			}
-
-			// Estimate the average depth.
-			Mat transformed_pts3d = R * pts3d + t;
-			int average_depth = sum(transformed_pts3d.col(2))[0];
-
-			// If the translation from the last keyframe is greater than some proportion of the depth, update the keyframes.
-			double distance = cv::norm(t, cv::NormTypes::NORM_L2);
-			if (distance > last_keyframe.average_depth / 5)
-				AddKeyframe(Keyframe(frame_id_,
-									 intrinsics_,
-									 interest_points_,
-									 last_keyframe.R * R,
-									 last_keyframe.t + t,
-									 average_depth));
-		}
-		return AR_SUCCESS;
-	}
-
-	ERROR_CODE AREngine::GetMixedScene(const Mat& raw_scene, Mat& mixed_scene) {
-		FeedScene(raw_scene);
-
-		// TODO: Accumulate the motion data.
-		accumulated_motion_data_.clear();
-
-		mixed_scene = raw_scene;
-		for (auto vobj : virtual_objects_) {
-			switch (vobj.second->GetType()) {
-			case VObjType::TV:
-				// TODO: Draw the virtual television on the mixed_scene.
-				//vobj.second->Draw(mixed_scene, camera_matrix);
-				break;
-			default:
-				return AR_UNIMPLEMENTED;
-			}
-		}
-
-		return AR_SUCCESS;
-	}
-
-	double InterestPoint::Observation::l2dist_sqr(const Observation& o) const {
-		return l2dist_sqr(o.pt.pt);
-	}
-
-	double InterestPoint::Observation::l2dist_sqr(const Point2f& p) const {
-		return pow(pt.pt.x - p.x, 2) + pow(pt.pt.y - p.y, 2);
-	}
-
-	ERROR_CODE AREngine::CreateTelevision(cv::Point location, FrameStream& content_stream) {
-		Canny(last_gray_frame_, last_canny_map_, 100, 200);
-		Mat dilated_canny;
-		dilate(last_canny_map_, dilated_canny, NULL);
-
-		// Find the interest points that roughly form a rectangle in the real world that surrounds the given location.
-		vector<pair<double, shared_ptr<InterestPoint>>> left_uppers, left_lowers, right_uppers, right_lowers;
-		for (auto& ip : interest_points_) {
-			double dist_sqr = ip->last_observation().l2dist_sqr(location);
-			if (dist_sqr > min(last_gray_frame_.rows, last_gray_frame_.cols) * VTelevision::MEAN_TV_SIZE_RATE) {
-				if (ip->last_loc().x < location.x && ip->last_loc().y < location.y)
-					left_uppers.push_back({ dist_sqr, ip });
-				else if (ip->last_loc().x > location.x && ip->last_loc().y < location.y)
-					right_uppers.push_back({ dist_sqr, ip });
-				else if (ip->last_loc().x < location.x && ip->last_loc().y > location.y)
-					left_lowers.push_back({ dist_sqr, ip });
-				else if (ip->last_loc().x > location.x && ip->last_loc().y > location.y)
-					right_lowers.push_back({ dist_sqr, ip });
-			}
-		}
-		sort(left_uppers.begin(), left_uppers.end());
-		sort(right_uppers.begin(), right_uppers.end());
-		sort(left_lowers.begin(), left_lowers.end());
-		sort(right_lowers.begin(), right_lowers.end());
-		auto CountEdgeOnLine = [dilated_canny](const Point2f& start, const Point2f& end) {
-			double dx = end.x - start.x;
-			double dy = end.y - start.y;
-			double dist = sqrt(dx * dx + dy * dy);
-			dx /= dist;
-			dy /= dist;
-			double x = start.x + dx;
-			double y = start.y + dy;
-			int edge_cnt = 0;
-			for (int i = 1; i < dist; ++i)
-				if (dilated_canny.at<double>(y, x) > DBL_EPSILON)
-					++edge_cnt;
-			return edge_cnt / dist;
-		};
-		shared_ptr<InterestPoint> lu_corner, ru_corner, ll_corner, rl_corner;
-		bool found = false;
-		for (auto& lu : left_uppers) {
-			if (found)
-				break;
-			for (auto& ru : right_uppers) {
-				if (found)
-					break;
-				if (CountEdgeOnLine(lu.second->last_loc(), ru.second->last_loc()) < 0.8)
-					break;
-				for (auto& ll : left_lowers) {
-					if (found)
-						break;
-					if (CountEdgeOnLine(lu.second->last_loc(), ll.second->last_loc()) < 0.8)
-						break;
-					for (auto& rl : right_lowers) {
-						if (CountEdgeOnLine(ru.second->last_loc(), rl.second->last_loc()) < 0.8)
-							break;
-						if (CountEdgeOnLine(ll.second->last_loc(), rl.second->last_loc()) < 0.8)
-							break;
-						found = true;
-						lu_corner = lu.second;
-						ru_corner = ru.second;
-						ll_corner = ll.second;
-						rl_corner = rl.second;
-					}
-				}
-			}
-		}
-
-		// Create a virtual television, and locate it with respect to these interest points.
-		int id = rand();
-		while (virtual_objects_.count(id))
-			id = rand();
-		auto handle = new VTelevision(*this, id, content_stream);
-		handle->locate(lu_corner, ll_corner, ru_corner, rl_corner);
-		virtual_objects_[id] = handle;
-
-		return AR_SUCCESS;
-	}
-
-	int AREngine::GetTopVObj(int x, int y) const {
-		int highest_level = 0;
-		int top = -1;
-		for (auto vobj : virtual_objects_) {
-			if (vobj.second->IsSelected(Point2f(x, y), frame_id_)) {
-				if (vobj.second->layer_ind_ > highest_level) {
-					top = vobj.first;
-					highest_level = vobj.second->layer_ind_;
-				}
-			}
-		}
-		return top;
-	}
-
-	//!	Drag a virtual object to a location. The virtual object is stripped from the
-	//	real world by then, and its shape and size in the scene remain the same during
-	//	the dragging. Call FixVObj to fix the virtual object onto the real world again.
-	ERROR_CODE AREngine::DragVObj(int id, int x, int y) {
-		// TODO: This is only a fake function. Need real implementation.
-		return AR_SUCCESS;
-	}
-
-	//! Fix a virtual object that is floating to the real world. The orientation
-	//	and size might be adjusted to fit the new location.
-	ERROR_CODE AREngine::FixVObj(int id) {
-		// TODO: This is only a fake function. Need real implementation.
-		return AR_SUCCESS;
-	}
-
-	InterestPoint::InterestPoint(int initial_frame_id): vis_cnt_(0), initial_frame_id_(initial_frame_id) {}
-
-	InterestPoint::InterestPoint(int initial_frame_id,
-								 const KeyPoint& initial_loc,
-								 const cv::Mat& initial_desc): vis_cnt_(1), initial_frame_id_(initial_frame_id) {
-		observation(++observation_seq_tail_) = Observation(initial_loc, initial_desc);
-		average_desc_ = initial_desc;
-	}
-
-	void InterestPoint::AddObservation(const Observation& p) {
-		// Remove the information of the discarded observation.
-		if (observation_seq_tail_ + 1 >= MAX_OBSERVATIONS) {
-			auto& old = observation(observation_seq_tail_ + 1);
-			if (old.visible) {
-				if (--vis_cnt_)
-					average_desc_ = (average_desc_ * (vis_cnt_ + 1) - p.desc) / vis_cnt_;
-				else
-					average_desc_ = Mat();
-			}
-		}
-		// Add the information of the new observation.
-		if (p.visible) {
-			if (average_desc_.empty())
-				average_desc_ = p.desc;
-			else
-				average_desc_ = (average_desc_ * vis_cnt_ + p.desc) / (vis_cnt_ + 1);
-			++vis_cnt_;
-		}
-		observation(++observation_seq_tail_) = p;
-		if (observation_seq_tail_ >= (MAX_OBSERVATIONS << 1))
-			observation_seq_tail_ -= MAX_OBSERVATIONS;
-	}
-
-	InterestPoint::Observation::Observation(): visible(false) {}
-
-	InterestPoint::Observation::Observation(const cv::KeyPoint& _pt,
-											const cv::Mat& _desc):
-		pt(_pt), desc(_desc), visible(true) {}
-}
-=======
-    const int AREngine::MAX_INTEREST_POINTS;
     const int AREngine::MAX_KEYFRAMES;
+    const int AREngine::MIN_POINTS_FOR_BA;
+    const int AREngine::MAX_POINTS_FOR_BA;
     const int InterestPoint::MAX_OBSERVATIONS;
     shared_ptr<InterestPoint::Observation> EMPTY_OBSERVATION = make_shared<InterestPoint::Observation>();
 
-    //! Estimate the 3D location of the interest points with the latest keyframe asynchronously.
-    //	Perform bundle adjustment based on the rough estimation of the extrinsics.
+    /// Estimate the 3D location of the interest points with the latest keyframe asynchronously.
+    ///	Perform bundle adjustment based on the rough estimation of the extrinsics.
     void AREngine::EstimateMap() {
-        while (!interest_points_mutex_.try_lock())
-            AR_SLEEP(1);
-        auto interest_points = interest_points_;
-        interest_points_mutex_.unlock();
 
-        // Remember to calculate the average depth!
-        auto last_frame1 = keyframe(keyframe_seq_tail_);
-        auto last_frame2 = keyframe(keyframe_seq_tail_ - 1);
-        int frame_id1 = last_frame1.frame_id;
-        int frame_id2 = last_frame2.frame_id;
-        auto K1 = last_frame1.intrinsics;
-        auto K2 = last_frame2.intrinsics;
-        Mat M1, M2;
-        hconcat(last_frame1.R, last_frame1.t, M1);
-        hconcat(last_frame2.R, last_frame2.t, M2);
+        interest_points_mutex_.lock();
 
-        vector<int> utilized_interest_points;
-        //find utilized_interest_points
-        utilized_interest_points.reserve(interest_points_.size());
-        for (int i = 0; i < interest_points_.size(); ++i) {
+        keyframe_mutex_.lock();
+        int keyframe_id = keyframe_id_;
+        keyframe_mutex_.unlock();
+        cout << "Key Frame #" << keyframe_id << endl;
+
+        vector<shared_ptr<InterestPoint>> used_points;
+        // Find usable interest points.
+        for (auto &interest_point : interest_points_) {
             bool usable = true;
-            for (int j = 0; j <= max(1, keyframe_seq_tail_); ++j) {
-                int frame_id = keyframe(keyframe_seq_tail_ - j).frame_id;
-                if (!interest_points_[i]->observation(frame_id)->visible) {
+            for (int j = 0; j <= 2; ++j) {
+                if (!interest_point->observation(keyframe_id_ - j)->visible) {
                     usable = false;
                     break;
                 }
             }
-            if (usable)
-                utilized_interest_points.push_back(i);
+            if (usable) {
+                used_points.push_back(interest_point);
+                if (used_points.size() >= MAX_POINTS_FOR_BA)
+                    break;
+            }
         }
-        //Fill the data
-        Mat pts1(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
-        Mat pts2(static_cast<int>(utilized_interest_points.size()), 2, CV_32F);
-        Mat Points3d(static_cast<int>(utilized_interest_points.size()), 3, CV_32F);
-        for (auto ip_id : utilized_interest_points) {
-            pts1.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id1)->pt.pt, false);
-            pts2.row(ip_id) = Mat(interest_points_[ip_id]->observation(frame_id2)->pt.pt, false);
-            Points3d.row(ip_id) = Mat(interest_points_[ip_id]->loc3d_, false);
+
+        if (used_points.size() < MIN_POINTS_FOR_BA) {
+            // There are not enough points for 3 camera BA. Try 2 cameras.
+            // Find usable interest points.
+            for (auto &interest_point : interest_points_)
+                if (interest_point->observation(keyframe_id_)->visible &&
+                    interest_point->observation(keyframe_id_ - 1)->visible) {
+                    used_points.push_back(interest_point);
+                    if (used_points.size() >= MAX_POINTS_FOR_BA)
+                        break;
+                }
+
+            if (used_points.size() < MIN_POINTS_FOR_BA) {
+                // There are not enough points for BA.
+                interest_points_mutex_.unlock();
+                return;
+            }
+
+            cout << "Using " << used_points.size() << " points for 2 camera BA." << endl;
+
+            const auto &last_frame1 = keyframe(keyframe_id - 1);
+            auto &last_frame2 = keyframe(keyframe_id);
+            auto K1 = last_frame1.intrinsics().clone();
+            auto K2 = last_frame2.intrinsics().clone();
+            auto M1 = last_frame1.extrinsics().clone();
+            auto M2 = last_frame2.extrinsics().clone();
+
+            // Fill the data.
+            auto *p1 = new double[used_points.size() << 1];
+            auto *p2 = new double[used_points.size() << 1];
+            auto *pts3d = new double[used_points.size() * 3];
+            int ind2d = 0, ind3d = 0;
+            for (auto &ip : used_points) {
+                assert(ip);
+                p1[ind2d] = ip->observation(keyframe_id - 1)->pt.pt.x;
+                p1[ind2d + 1] = ip->observation(keyframe_id - 1)->pt.pt.y;
+                p2[ind2d] = ip->observation(keyframe_id - 2)->pt.pt.x;
+                p2[ind2d + 1] = ip->observation(keyframe_id - 2)->pt.pt.y;
+                ind2d += 2;
+                pts3d[ind3d] = ip->loc3d().x;
+                pts3d[ind3d + 1] = ip->loc3d().y;
+                pts3d[ind3d + 2] = ip->loc3d().z;
+                ind3d += 3;
+            }
+            assert(ind3d == used_points.size() * 3);
+
+            interest_points_mutex_.unlock();
+            bool converged = BundleAdjustment(static_cast<int>(used_points.size()),
+                                              K1, M1, p1,
+                                              K2, M2, p2,
+                                              pts3d);
+            delete[] p1;
+            delete[] p2;
+
+            if (converged) {
+                last_frame2.extrinsics(M2);
+                // Recalculate the depth.
+                double total_depth = 0;
+                ind3d = 0;
+                for (auto &ip : used_points) {
+                    ip->loc3d(static_cast<float>(pts3d[ind3d]),
+                              static_cast<float>(pts3d[ind3d + 1]),
+                              static_cast<float>(pts3d[ind3d + 2]));
+                    ind3d += 3;
+                    float data[] = {ip->loc3d().x, ip->loc3d().y, ip->loc3d().z, 1};
+                    auto depth = Mat(M2.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                    total_depth += depth;
+                }
+                last_frame2.average_depth = total_depth / used_points.size();
+            }
+            delete[] pts3d;
+        } else {
+            cout << "Using " << used_points.size() << " points for 3 camera BA." << endl;
+
+            const auto &last_frame1 = keyframe(keyframe_id - 2);
+            auto &last_frame2 = keyframe(keyframe_id - 1);
+            auto &last_frame3 = keyframe(keyframe_id);
+            auto K1 = last_frame1.intrinsics().clone();
+            auto K2 = last_frame2.intrinsics().clone();
+            auto K3 = last_frame3.intrinsics().clone();
+            auto M1 = last_frame1.extrinsics().clone();
+            auto M2 = last_frame2.extrinsics().clone();
+            auto M3 = last_frame3.extrinsics().clone();
+
+            // Fill the data.
+            auto *p1 = new double[used_points.size() << 1];
+            auto *p2 = new double[used_points.size() << 1];
+            auto *p3 = new double[used_points.size() << 1];
+            auto *pts3d = new double[used_points.size() * 3];
+            int ind2d = 0, ind3d = 0;
+            for (auto &ip : used_points) {
+                assert(ip);
+                p1[ind2d] = ip->observation(keyframe_id - 2)->pt.pt.x;
+                p1[ind2d + 1] = ip->observation(keyframe_id - 2)->pt.pt.y;
+                p2[ind2d] = ip->observation(keyframe_id - 1)->pt.pt.x;
+                p2[ind2d + 1] = ip->observation(keyframe_id - 1)->pt.pt.y;
+                p3[ind2d] = ip->observation(keyframe_id)->pt.pt.x;
+                p3[ind2d + 1] = ip->observation(keyframe_id)->pt.pt.y;
+                ind2d += 2;
+                pts3d[ind3d] = ip->loc3d().x;
+                pts3d[ind3d + 1] = ip->loc3d().y;
+                pts3d[ind3d + 2] = ip->loc3d().z;
+                ind3d += 3;
+            }
+            assert(ind3d == used_points.size() * 3);
+
+            interest_points_mutex_.unlock();
+            bool converged = BundleAdjustment(static_cast<int>(used_points.size()),
+                                              K1, M1, p1,
+                                              K2, M2, p2,
+                                              K3, M3, p3,
+                                              pts3d);
+            delete[] p1;
+            delete[] p2;
+            delete[] p3;
+
+            if (converged) {
+                last_frame2.extrinsics(M2);
+                last_frame3.extrinsics(M3);
+                // Recalculate the depth.
+                double total_depth = 0;
+                ind3d = 0;
+                for (auto &ip : used_points) {
+                    ip->loc3d(static_cast<float>(pts3d[ind3d]),
+                              static_cast<float>(pts3d[ind3d + 1]),
+                              static_cast<float>(pts3d[ind3d + 2]));
+                    ind3d += 3;
+                    float data[] = {ip->loc3d().x, ip->loc3d().y, ip->loc3d().z, 1};
+                    auto depth = Mat(M3.row(2) * Mat(4, 1, CV_32F, data)).at<float>(0);
+                    total_depth += depth;
+                }
+                cout << "depth: " << last_frame3.average_depth << "->" << total_depth / used_points.size() << endl;
+                last_frame3.average_depth = total_depth / used_points.size();
+            }
+            delete[] pts3d;
         }
-        BundleAdjustment(K1, M1, pts1, K2, M2, pts2, Points3d);
     }
 
     void AREngine::MapEstimationLoop() {
-        ++thread_cnt_;
-        while (interest_points_.empty() && keyframe_seq_tail_ < 1 && !to_terminate_)
+        while ((interest_points_.empty() || keyframe_id_ < 2) && !to_terminate_)
             AR_SLEEP(1);
-        int last_keyframe_ind = keyframe_seq_tail_;
+        int last_keyframe_ind;
         while (!to_terminate_) {
-//            EstimateMap();
-            while (!to_terminate_ && last_keyframe_ind == keyframe_seq_tail_)
+            last_keyframe_ind = keyframe_id_;
+            EstimateMap();
+            while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
+            while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
                 AR_SLEEP(1);
         }
-
-        --thread_cnt_;
+        cout << "Exiting map estimation loop!" << endl;
     }
 
     void AREngine::CallMapEstimationLoop(AREngine *engine) {
@@ -478,14 +206,12 @@ namespace ar {
 
     AREngine::~AREngine() {
         to_terminate_ = true;
-        do {
-            AR_SLEEP(1);
-        } while (thread_cnt_);
+        mapping_thread_.join();
     }
 
-    shared_ptr<InterestPoint::Observation> InterestPoint::observation(int frame_id) const {
-        for (int i = 0; i < min(observation_seq_tail_, MAX_OBSERVATIONS); ++i)
-            if (observation_seq_[i]->frame_id == frame_id)
+    shared_ptr<InterestPoint::Observation> InterestPoint::observation(int keyframe_id) const {
+        for (int i = 0; i < min(observation_seq_tail_ + 1, MAX_OBSERVATIONS); ++i)
+            if (observation_seq_[i]->keyframe_id == keyframe_id)
                 return observation_seq_[i];
         return EMPTY_OBSERVATION;
     }
@@ -501,54 +227,153 @@ namespace ar {
         memcpy(intrinsics_.data, default_intrinsics, sizeof(float) * 3 * 3);
     }
 
-    //! If we have stored too many interest points, we remove the oldest location record
-    //	of the interest points, and remove the interest points that are determined not visible anymore.
-    void AREngine::ReduceInterestPoints() {
-        while (!interest_points_mutex_.try_lock())
-            AR_SLEEP(1);
-
-        if (interest_points_.size() > MAX_INTEREST_POINTS) {
-            auto new_size = interest_points_.size();
-            for (int i = 0; i < new_size; ++i) {
-                if (interest_points_[i]->ToDiscard()) {
-                    interest_points_[i] = interest_points_[--new_size];
-                    --i;
-                }
+    void InterestPoint::Combine(const shared_ptr<InterestPoint> &another) {
+        int last_keyframe_id = observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS]->keyframe_id;
+        for (int i = 0; i < MAX_OBSERVATIONS; ++i)
+            if (another->observation(last_keyframe_id - i)->visible &&
+                (!observation_seq_[(observation_seq_tail_ + MAX_OBSERVATIONS - i) % MAX_OBSERVATIONS] ||
+                 !observation_seq_[(observation_seq_tail_ + MAX_OBSERVATIONS - i) % MAX_OBSERVATIONS]->visible)) {
+                observation_seq_[(observation_seq_tail_ + MAX_OBSERVATIONS - i) % MAX_OBSERVATIONS] =
+                        another->observation(last_keyframe_id - i);
             }
-            interest_points_.resize(new_size);
-        }
+    }
+
+    /// If we have stored too many interest points, we remove the oldest location record
+    ///	of the interest points, and remove the interest points that are determined not visible anymore.
+    void AREngine::ReduceInterestPoints() {
+        interest_points_mutex_.lock();
+
+        auto new_size = interest_points_.size();
+        for (int i = 0; i < new_size; ++i)
+            // Check whether the interest point is not visible in several keyframes.
+            if (interest_points_[i]->ToDiscard())
+                interest_points_[i--] = interest_points_[--new_size];
+            else if (interest_points_[i]->has_estimated_3d_loc_) {
+                // Check whether the interest point can be combined to another existing point.
+                for (int j = 0; j < i; ++j)
+                    if ((interest_points_[j]->has_estimated_3d_loc_) &&
+                        norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 0.1) {
+//                        cout << "Combining points with distance " << norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) << endl;
+                        interest_points_[j]->Combine(interest_points_[i]);
+                        interest_points_[i--] = interest_points_[--new_size];
+                        break;
+                    }
+            }
+        interest_points_.resize(new_size);
+
         interest_points_mutex_.unlock();
 
         cout << "Currently there are " << interest_points_.size() << " points." << endl;
+
+        // Also remove virtual objects that are based on the removed interest points.
+        vector<int> to_remove;
+        to_remove.reserve(virtual_objects_.size());
+        for (auto &vobj : virtual_objects_)
+            if (!vobj.second->IsAlive())
+                to_remove.push_back(vobj.first);
+        for (auto id : to_remove)
+            virtual_objects_.erase(id);
     }
 
-    bool AREngine::IsKeyframe(int frame_id) {
-        for (int i = 0; i < min(keyframe_seq_tail_, MAX_KEYFRAMES); ++i) {
-            if (recent_keyframes_[i].frame_id == frame_id)
-                return true;
-        }
-        return false;
-    }
-
-    Keyframe::Keyframe(int _frame_id,
-                       Mat _intrinsics,
-                       Mat _R,
-                       Mat _t,
+    Keyframe::Keyframe(Mat _intrinsics,
+                       Mat _extrinsics,
                        double _average_depth) :
-            frame_id(_frame_id),
-            intrinsics(std::move(_intrinsics)),
-            R(std::move(_R)), t(std::move(_t)),
-            average_depth(_average_depth) {}
+            intrinsics_(_intrinsics.clone()),
+            extrinsics_(_extrinsics.clone()),
+            average_depth(_average_depth) {
+        assert(abs(determinant(extrinsics_.colRange(0, 3)) - 1) < 0.001);
+    }
 
     void AREngine::AddKeyframe(Keyframe &kf) {
-        keyframe(++keyframe_seq_tail_) = kf;
-        if (keyframe_seq_tail_ >= (MAX_KEYFRAMES << 1))
-            keyframe_seq_tail_ -= MAX_KEYFRAMES;
+        last_key_scene_ = last_raw_frame_.clone();
+
+        keyframe_mutex_.lock();
+        keyframe(++keyframe_id_) = kf;
+        if (keyframe_id_ >= (MAX_KEYFRAMES << 1))
+            keyframe_id_ -= MAX_KEYFRAMES;
+        keyframe_mutex_.unlock();
+    }
+
+    void AREngine::FindExtrinsics(const vector<Mat> &candidates,
+                                  const Mat &baseExtrinsics,
+                                  vector<pair<Mat, Mat>> &data,
+                                  Mat &M2,
+                                  Mat &pts3d,
+                                  Mat &mask) const {
+        // Try each candidate of extrinsics.
+        auto least_error = DBL_MAX;
+        for (auto &candidate : candidates) {
+            Mat combined = CombineExtrinsics(baseExtrinsics, candidate);
+            data.back().first = intrinsics_ * combined;
+            Mat estimated_pts3d;
+            double err = 0;
+
+#ifdef USE_OPENCV_TRIANGULATE
+            Mat pts4d;
+            triangulatePoints(data.front().first, data.back().first, data.front().second.t(), data.back().second.t(), pts4d);
+            for (int i = 0; i < 3; ++i)
+                Mat(pts4d.row(i) / pts4d.row(3)).copyTo(pts4d.row(i));
+            estimated_pts3d = pts4d.rowRange(0, 3).t();
+#else
+            Triangulate(data, estimated_pts3d, &err);
+#endif
+            assert(estimated_pts3d.rows == data.back().second.rows);
+            Mat inliers = Mat::ones(estimated_pts3d.rows, 1, CV_8U);
+            // These 3D points are valid if they are in front of the camera in the previous keyframes.
+            bool valid = true;
+            int invalid_cnt = 0;
+            for (int j = 0; j <= min(int(data.size() - 2), keyframe_id_); ++j) {
+                auto &kf = keyframe(keyframe_id_ - j);
+                Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+                for (int k = 0; k < estimated_pts3d.rows; ++k)
+                    ((Mat) kf.translation().t()).copyTo(T.row(k));
+                Mat transformed_pts3d = estimated_pts3d * kf.rotation().t() + T;
+
+                for (int k = 0; k < transformed_pts3d.rows; ++k)
+                    if (transformed_pts3d.at<float>(k, 2) < 1) {
+                        inliers.at<bool>(k) = false;
+                        ++invalid_cnt;
+                    }
+                if (invalid_cnt > transformed_pts3d.rows >> 2) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid) {
+                // Also check with the current frame.
+                Mat R = candidate.colRange(0, 3);
+                Mat t = candidate.col(3);
+                Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
+                for (int k = 0; k < estimated_pts3d.rows; ++k)
+                    ((Mat) t.t()).copyTo(T.row(k));
+                Mat transformed_pts3d = estimated_pts3d * R.t() + T;
+                for (int k = 0; k < transformed_pts3d.rows; ++k)
+                    if (transformed_pts3d.at<float>(k, 2) < 1) {
+                        inliers.at<bool>(k) = false;
+                        ++invalid_cnt;
+                    }
+                if (invalid_cnt > transformed_pts3d.rows >> 2)
+                    valid = false;
+
+                if (valid && err < least_error) {
+                    least_error = err;
+                    M2 = combined;
+                    pts3d = estimated_pts3d;
+                    mask = inliers;
+//                    cout << "Found a valid solution! Error=" << err << endl;
+                }
+            }
+        }
+    }
+
+    Point2f InterestPoint::loc(Mat camera_matrix) const {
+        float raw_homogenous[] = {loc3d_.x, loc3d_.y, loc3d_.z, 1};
+        Mat homogenous(4, 1, CV_32F, raw_homogenous);
+        auto proj = Mat(camera_matrix * homogenous);
+        return Point2f(proj.at<float>(0) / proj.at<float>(2), proj.at<float>(1) / proj.at<float>(2));
     }
 
     ERROR_CODE AREngine::FeedScene(const Mat &raw_scene) {
-        ++frame_id_;
-
         last_raw_frame_ = raw_scene;
         cvtColor(last_raw_frame_, last_gray_frame_, COLOR_BGR2GRAY);
 
@@ -568,183 +393,270 @@ namespace ar {
         }
 
         // Check whether this is the first frame.
-        if (keyframe_seq_tail_ == -1) {
+        if (keyframe_id_ == -1) {
             // Initial keyframe.
-            auto kf = Keyframe(frame_id_,
-                               intrinsics_,
-                               Mat::eye(3, 3, CV_32F),
-                               Mat::zeros(3, 1, CV_32F),
-                               0);
+            auto kf = Keyframe(intrinsics_,
+                               Mat::eye(3, 4, CV_32F),
+                               DBL_MAX);
             AddKeyframe(kf);
 
             // Make all keypoints as initial interest points.
             interest_points_.reserve(keypoints.size());
             for (int i = 0; i < keypoints.size(); ++i)
-                interest_points_.push_back(make_shared<InterestPoint>(frame_id_, keypoints[i], descriptors.row(i)));
+                interest_points_.push_back(make_shared<InterestPoint>(keyframe_id_, keypoints[i], descriptors.row(i)));
+
+            assert(interest_points_[0]->is_visible(0));
         } else {
             // Perform matching between the new keypoints and those in the last keyframes.
-            auto &last_keyframe = keyframe(keyframe_seq_tail_);
+            auto &last_keyframe = keyframe(keyframe_id_);
 
             Mat stored_descriptors(static_cast<int>(interest_points_.size()), desc_length_, CV_8U);
             for (int i = 0; i < interest_points_.size(); ++i)
                 interest_points_[i]->last_desc().copyTo(stored_descriptors.row(i));
             auto matches = interest_points_tracker_.MatchKeypoints(stored_descriptors, descriptors);
 
+            // Update all last observation.
+            vector<bool> matched_new(keypoints.size(), false);
+            for (auto& ip : interest_points_)
+                ip->visible_in_last_frame_ = false;
+            for (auto& match : matches) {
+                matched_new[match.second] = true;
+                interest_points_[match.first]->visible_in_last_frame_ = true;
+                interest_points_[match.first]->last_loc_ = keypoints[match.second].pt;
+            }
+            interest_points_mutex_.lock();
+            vector<shared_ptr<InterestPoint>> transient_interest_points;
+            transient_interest_points.reserve(keypoints.size());
+            // These interest points are not ever visible in the previous frames.
+            for (int i = 0; i < keypoints.size(); ++i)
+                if (!matched_new[i]) {
+                    auto ip = make_shared<InterestPoint>(-1, keypoints[i], descriptors.row(i));
+                    transient_interest_points.push_back(ip);
+                    interest_points_.push_back(ip);
+                }
+            interest_points_mutex_.unlock();
+
             // Estimate the fundamental matrix from the last keyframe.
             vector<Point2f> points1, points2;
             for (auto &match : matches) {
-                points1.emplace_back(interest_points_[match.first]->last_loc());
-                points2.emplace_back(keypoints[match.second].pt);
+                if (interest_points_[match.first]->is_visible(keyframe_id_)) {
+                    points1.emplace_back(interest_points_[match.first]->loc(keyframe_id_));
+                    points2.emplace_back(keypoints[match.second].pt);
+                }
             }
-            Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_8POINT);
+            // Too few matches. Skip this scene.
+            if (points1.size() < 8)
+                return AR_SUCCESS;
+
+            // Estimate the fundamental matrix using the matched points.
+            Mat inlier_mask;
+            Mat fundamental_matrix = findFundamentalMat(points1, points2, FM_RANSAC, 3., 0.99, inlier_mask);
+
+            // If fail to compute a solution of fundamental matrix, this scene might be problematic. We skip it.
+            if (fundamental_matrix.empty())
+                return AR_SUCCESS;
+            if (fundamental_matrix.rows > 3)
+                fundamental_matrix = fundamental_matrix.rowRange(0, 3);
             fundamental_matrix.convertTo(fundamental_matrix, CV_32F);
+
+            // Remove outliers from the matches.
+            size_t new_size = 0;
+            for (int i = 0; i < matches.size(); ++i)
+                if (inlier_mask.at<bool>(i))
+                    matches[new_size++] = matches[i];
+            // If there are too few inliers, this scene is problematic. Skip it.
+            if (new_size < 4)
+                return AR_SUCCESS;
+            matches.resize(new_size);
+            // The new matches consist of all inliers.
+            inlier_mask = Mat::ones(static_cast<int>(matches.size()), 1, CV_8U);
+
+            // Plot matches.
+            Mat plot;
+            PlotMatches(last_key_scene_, raw_scene, points1, points2, plot);
+            imshow("Matches", plot);
 
             // Estimate the essential matrix.
             Mat essential_matrix = intrinsics_.t() * fundamental_matrix * intrinsics_;
 
             // Call RecoverRotAndTranslation to recover rotation and translation.
             auto candidates = RecoverRotAndTranslation(essential_matrix);
-            Mat R, t;
+
             Mat pts3d;
-            // Test for the only valid rotation and translation combination.
-            {
-                // Fill the data for 3D reconstruction.
-                vector<pair<Mat, Mat>> data;
-                if (keyframe_seq_tail_ >= 1) {
-                    // We can use 2 keyframes.
-                    auto &last_keyframe2 = keyframe(keyframe_seq_tail_ - 1);
-                    int cnt = 0;
-                    for (auto &match : matches)
-                        if (interest_points_[match.first]->is_visible(last_keyframe2.frame_id))
-                            ++cnt;
+            vector<int> corresponding_match;
+            // Test for the valid rotation and translation combination.
+            bool done = false;
+#ifndef USE_OPENCV_TRIANGULATE
+            if (keyframe_id_ >= 1) {
+                // We maybe can use 2 keyframes.
+                auto &last_keyframe2 = keyframe(keyframe_id_ - 1);
+                int cnt = 0;
+                for (auto &match : matches)
+                    if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
+                        interest_points_[match.first]->is_visible(keyframe_id_))
+                        ++cnt;
+                if (cnt >= (matches.size() >> 3)) {
+                    // There are enough points for triangulate.
+                    // Fill the data for 3D reconstruction.
                     Mat stored_pts1(cnt, 2, CV_32F);
                     Mat stored_pts2(cnt, 2, CV_32F);
                     Mat new_pts(cnt, 2, CV_32F);
+                    corresponding_match.resize(static_cast<unsigned long>(cnt));
                     cnt = 0;
                     for (auto &match : matches)
-                        if (interest_points_[match.first]->is_visible(last_keyframe2.frame_id)) {
+                        if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
+                            interest_points_[match.first]->is_visible(keyframe_id_)) {
                             // Stored keypoints.
                             auto *dest1 = reinterpret_cast<float *>(stored_pts1.ptr(cnt));
-                            auto &pt1 = interest_points_[match.first]->loc(last_keyframe2.frame_id);
+                            auto &pt1 = interest_points_[match.first]->loc(keyframe_id_ - 1);
                             dest1[0] = pt1.x;
                             dest1[1] = pt1.y;
                             auto *dest2 = reinterpret_cast<float *>(stored_pts2.ptr(cnt));
-                            auto &pt2 = interest_points_[match.first]->loc(last_keyframe.frame_id);
+                            auto &pt2 = interest_points_[match.first]->loc(keyframe_id_);
                             dest2[0] = pt2.x;
                             dest2[1] = pt2.y;
                             // New keypoints.
                             auto *dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
                             dest[0] = keypoints[match.second].pt.x;
                             dest[1] = keypoints[match.second].pt.y;
+
+                            corresponding_match[cnt] = match.first;
+
                             ++cnt;
                         }
-                    assert(cnt > 0);
-                    data.emplace_back(
-                            ComputeCameraMatrix(last_keyframe2.intrinsics, last_keyframe2.R, last_keyframe2.t),
-                            stored_pts1);
-                    data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics, last_keyframe.R, last_keyframe.t),
+                    vector<pair<Mat, Mat>> data;
+                    data.emplace_back(last_keyframe2.intrinsics() * last_keyframe2.extrinsics(),
+                                      stored_pts1);
+                    data.emplace_back(last_keyframe.intrinsics() * last_keyframe.extrinsics(),
                                       stored_pts2);
                     data.emplace_back(Mat(), new_pts);
-                } else {
-                    // We can only use 1 keyframe.
-                    Mat stored_pts(static_cast<int>(matches.size()), 2, CV_32F);
-                    Mat new_pts(static_cast<int>(matches.size()), 2, CV_32F);
-                    for (int i = 0; i < matches.size(); ++i) {
-                        auto &match = matches[i];
-                        // Stored keypoints.
-                        auto *dest = reinterpret_cast<float *>(stored_pts.ptr(i));
-                        auto &pt = interest_points_[match.first]->last_loc();
-                        dest[0] = pt.x;
-                        dest[1] = pt.y;
-                        // New keypoints.
-                        dest = reinterpret_cast<float *>(new_pts.ptr(i));
-                        dest[0] = keypoints[match.second].pt.x;
-                        dest[1] = keypoints[match.second].pt.y;
-                    }
-                    data.emplace_back(ComputeCameraMatrix(last_keyframe.intrinsics, last_keyframe.R, last_keyframe.t),
-                                      stored_pts);
-                    data.emplace_back(Mat(), new_pts);
-                }
-                // Try each candidate of extrinsics.
-                Mat bestM2;
-                auto least_error = DBL_MAX;
-                for (auto &M2 : candidates) {
-                    data.back().first = intrinsics_ * M2;
-                    Mat estimated_pts3d;
-                    double err = 0;
 
-                    Triangulate(data, estimated_pts3d, &err);
-                    assert(estimated_pts3d.rows == data.back().second.rows);
-                    // These 3D points are valid if they are in front of the camera in the previous keyframes.
-                    bool valid = true;
-//                    for (int j = 0; j <= max(1, keyframe_seq_tail_) && valid; ++j) {
-//                        auto &kf = keyframe(keyframe_seq_tail_ - j);
-//                        Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
-//                        for (int k = 0; k < estimated_pts3d.rows; ++k)
-//                            ((Mat) kf.t.t()).copyTo(T.row(k));
-//                        Mat transformed_pts3d = estimated_pts3d * kf.R.t() + T;
-//                        for (int k = 0; k < transformed_pts3d.rows; ++k)
-//                            if (transformed_pts3d.at<float>(k, 3) < 0) {
-//                                valid = false;
-//                                break;
-//                            }
-//                    }
-                    if (valid) {
-                        if (err < least_error) {
-                            least_error = err;
-                            bestM2 = M2;
-                            pts3d = estimated_pts3d;
+                    Mat M2;
+                    FindExtrinsics(candidates, last_keyframe.extrinsics(), data, M2, pts3d, inlier_mask);
+                    if (!M2.empty()) {
+                        extrinsics_ = M2;
+                        done = true;
+                    }
+                }
+            }
+#endif
+
+            // We can only use 1 keyframe.
+            for (int i = 0; i <= min(2, keyframe_id_) && !done; ++i) {
+                // Try to use another keyframe.
+                int kf_id = keyframe_id_ - i;
+                int cnt = 0;
+                for (auto &match : matches)
+                    if (interest_points_[match.first]->is_visible(kf_id))
+                        ++cnt;
+                if (cnt) {
+                    // Fill the data for 3D reconstruction.
+                    Mat stored_pts = Mat(cnt, 2, CV_32F);
+                    Mat new_pts = Mat(cnt, 2, CV_32F);
+                    corresponding_match.resize(static_cast<unsigned long>(cnt));
+                    cnt = 0;
+                    for (auto &match : matches) {
+                        if (interest_points_[match.first]->is_visible(kf_id)) {
+                            // Stored keypoints.
+                            auto *dest = reinterpret_cast<float *>(stored_pts.ptr(cnt));
+                            auto &pt = interest_points_[match.first]->loc(kf_id);
+                            dest[0] = pt.x;
+                            dest[1] = pt.y;
+                            // New keypoints.
+                            dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
+                            dest[0] = keypoints[match.second].pt.x;
+                            dest[1] = keypoints[match.second].pt.y;
+
+                            corresponding_match[cnt] = match.first;
+
+                            ++cnt;
                         }
                     }
+                    vector<pair<Mat, Mat>> data;
+                    data.emplace_back(keyframe(kf_id).intrinsics() * keyframe(kf_id).extrinsics(),
+                                      stored_pts);
+                    data.emplace_back(Mat(), new_pts);
+
+                    Mat M2;
+                    FindExtrinsics(candidates, keyframe(kf_id).extrinsics(), data, M2, pts3d, inlier_mask);
+                    if (!M2.empty()) {
+                        extrinsics_ = M2;
+                        done = true;
+                    }
                 }
-                R = bestM2.colRange(0, 3);
-                t = bestM2.col(3);
             }
+
+            if (!done) {
+                // This frame is problematic. Skip it.
+                return AR_SUCCESS;
+            }
+
+            Mat R = extrinsics_.colRange(0, 3);
+            Mat t = extrinsics_.col(3);
+            assert(abs(determinant(R) - 1) < 0.001);
 
             // Estimate the average depth.
             Mat T = Mat(pts3d.rows, 3, CV_32F);
             for (int k = 0; k < pts3d.rows; ++k)
-                ((Mat) t.t()).copyTo(T.row(k));
+                Mat(t.t()).copyTo(T.row(k));
             Mat transformed_pts3d = pts3d * R.t() + T;
-            double average_depth = sum(transformed_pts3d.col(2))[0];
+            double average_depth = 0;
+            int cnt = 0;
+            for (int i = 0; i < pts3d.rows; ++i) {
+                double w = transformed_pts3d.at<float>(i, 2);
+                if (w < 0 || w > 1000)
+                    continue;
+                ++cnt;
+                average_depth += w;
+            }
+            average_depth /= cnt;
+//            double average_depth = sum(transformed_pts3d.col(2))[0] / pts3d.rows;
 
             // If the translation from the last keyframe is greater than some proportion of the depth,
             // this is a new keyframe!
-            double distance = cv::norm(t, cv::NormTypes::NORM_L2);
-            if (distance > last_keyframe.average_depth / 5) {
-                auto kf = Keyframe(frame_id_,
-                                   intrinsics_,
-                                   last_keyframe.R * R,
-                                   last_keyframe.t + t,
+            Mat t_rel = t - R * last_keyframe.rotation().t() * last_keyframe.translation();
+            double distance = cv::norm(t_rel, cv::NormTypes::NORM_L2);
+
+            if (distance / average_depth > 0.1) {
+                cout << "Distance=" << distance << " vs AverageDepth=" << average_depth << endl;
+                auto kf = Keyframe(intrinsics_,
+                                   extrinsics_,
                                    average_depth);
                 AddKeyframe(kf);
 
                 // Try to match new keypoints to the stored keypoints.
-                vector<bool> matched_new(keypoints.size(), 0);
-                vector<bool> matched_stored(interest_points_.size(), 0);
+                vector<bool> matched_stored(interest_points_.size(), false);
+
+                interest_points_mutex_.lock();
 
                 // Add an observation in this keyframe to the interest points.
-                for (auto match : matches) {
+                for (const auto &match : matches) {
                     matched_stored[match.first] = true;
-                    matched_new[match.second] = true;
                     interest_points_[match.first]->AddObservation(
-                            make_shared<InterestPoint::Observation>(frame_id_, keypoints[match.second],
+                            make_shared<InterestPoint::Observation>(keyframe_id_,
+                                                                    keypoints[match.second],
                                                                     descriptors.row(match.second)));
                 }
+
+                // Update 3D points.
+                for (int i = 0; i < pts3d.rows; ++i)
+                    if (inlier_mask.at<bool>(i))
+                        interest_points_[corresponding_match[i]]->loc3d(pts3d.at<float>(i, 0),
+                                                                        pts3d.at<float>(i, 1),
+                                                                        pts3d.at<float>(i, 2));
 
                 // These interest points are not visible at this frame.
                 for (int i = 0; i < interest_points_.size(); ++i)
                     if (!matched_stored[i])
                         interest_points_[i]->AddObservation(make_shared<InterestPoint::Observation>());
 
-                // These interest points are not ever visible in the previous frames.
-                for (int i = 0; i < keypoints.size(); ++i)
-                    if (!matched_new[i])
-                        interest_points_.push_back(
-                                make_shared<InterestPoint>(frame_id_, keypoints[i], descriptors.row(i)));
-            }
+                // Mark the transient interest points to belong to the keyframe.
+                for (auto& ip : transient_interest_points)
+                    ip->observation(-1)->keyframe_id = keyframe_id_;
 
-            ReduceInterestPoints();
+                interest_points_mutex_.unlock();
+                ReduceInterestPoints();
+            }
         }
 
         return AR_SUCCESS;
@@ -759,19 +671,12 @@ namespace ar {
         mixed_scene = raw_scene;
         for (auto vobj : virtual_objects_) {
             switch (vobj.second->GetType()) {
-                case VObjType::TV:
-                    // TODO: Draw the virtual television on the mixed_scene.
-                    break;
                 default:
-                    return AR_UNIMPLEMENTED;
+                    vobj.second->Draw(mixed_scene, intrinsics_ * extrinsics_);
             }
         }
 
         return AR_SUCCESS;
-    }
-
-    double InterestPoint::Observation::l2dist_sqr(const Observation &o) const {
-        return l2dist_sqr(o.loc());
     }
 
     double InterestPoint::Observation::l2dist_sqr(const Point2f &p) const {
@@ -782,7 +687,7 @@ namespace ar {
         int highest_level = 0;
         int top = -1;
         for (auto vobj : virtual_objects_) {
-            if (vobj.second->IsSelected(Point2f(x, y), frame_id_)) {
+            if (vobj.second->IsSelected(Point2f(x, y), keyframe_id_)) {
                 if (vobj.second->layer_ind_ > highest_level) {
                     top = vobj.first;
                     highest_level = vobj.second->layer_ind_;
@@ -792,35 +697,47 @@ namespace ar {
         return top;
     }
 
-    //!	Drag a virtual object to a location. The virtual object is stripped from the
-    //	real world by then, and its shape and size in the scene remain the same during
-    //	the dragging. Call FixVObj to fix the virtual object onto the real world again.
+    ///	Drag a virtual object to a location. The virtual object is stripped from the
+    ///	real world by then, and its shape and size in the scene remain the same during
+    ///	the dragging. Call FixVObj to fix the virtual object onto the real world again.
     ERROR_CODE AREngine::DragVObj(int id, int x, int y) {
         // TODO: This is only a fake function. Need real implementation.
         return AR_SUCCESS;
     }
 
-    //! Fix a virtual object that is floating to the real world. The orientation
-    //	and size might be adjusted to fit the new location.
+    /// Fix a virtual object that is floating to the real world. The orientation
+    ///	and size might be adjusted to fit the new location.
     ERROR_CODE AREngine::FixVObj(int id) {
         // TODO: This is only a fake function. Need real implementation.
         return AR_SUCCESS;
     }
 
-    InterestPoint::InterestPoint() : vis_cnt_(0), observation_seq_tail_(-1) {}
-
-    InterestPoint::InterestPoint(int initial_frame_id,
+    InterestPoint::InterestPoint(int initial_keyframe_id,
                                  const KeyPoint &initial_loc,
                                  const cv::Mat &initial_desc) :
             vis_cnt_(1), last_desc_(initial_desc) {
-        observation_seq_[observation_seq_tail_ = 0] = make_shared<Observation>(initial_frame_id, initial_loc,
+        observation_seq_[observation_seq_tail_ = 0] = make_shared<Observation>(initial_keyframe_id,
+                                                                               initial_loc,
                                                                                initial_desc);
+        visible_in_last_frame_ = true;
+        last_loc_ = initial_loc.pt;
     }
 
+    void InterestPoint::loc3d(float x, float y, float z) {
+        loc3d_.x = x;
+        loc3d_.y = y;
+        loc3d_.z = z;
+        assert(!(isnan(x) || isnan(y) || isnan(z)));
+        has_estimated_3d_loc_ = true;
+    }
+
+    /// Add an observation to the interest point.
+    /// In the current system setting, only observations from the keyframes shall be added.
     void InterestPoint::AddObservation(shared_ptr<Observation> p) {
+        ++observation_seq_tail_;
         // Remove the information of the discarded observation.
-        if (observation_seq_tail_ + 1 >= MAX_OBSERVATIONS) {
-            auto old = observation(observation_seq_tail_ + 1);
+        if (observation_seq_tail_ >= MAX_OBSERVATIONS) {
+            auto old = observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS];
             if (old->visible)
                 --vis_cnt_;
         }
@@ -829,16 +746,21 @@ namespace ar {
             ++vis_cnt_;
             last_desc_ = p->desc;
         }
-        observation_seq_[++observation_seq_tail_ % MAX_OBSERVATIONS] = p;
+        observation_seq_[observation_seq_tail_ % MAX_OBSERVATIONS] = p;
         if (observation_seq_tail_ >= (MAX_OBSERVATIONS << 1))
             observation_seq_tail_ -= MAX_OBSERVATIONS;
     }
 
+    void InterestPoint::loc3d(const Point3f &pt3d) {
+        loc3d_ = pt3d;
+        has_estimated_3d_loc_ = true;
+    }
+
     InterestPoint::Observation::Observation() : visible(false) {}
 
-    InterestPoint::Observation::Observation(int _frame_id,
+    InterestPoint::Observation::Observation(int _keyframe_id,
                                             const cv::KeyPoint &_pt,
                                             const cv::Mat &_desc) :
-            pt(_pt), desc(_desc), visible(true), frame_id(_frame_id) {}
+            pt(_pt), desc(_desc), visible(true), keyframe_id(_keyframe_id) {}
+
 }
->>>>>>> 1c716d60e31b8436c31ed358f15e8c939e2ca2cc

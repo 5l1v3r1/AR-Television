@@ -1,9 +1,9 @@
-///////////////////////////////////////////////////////////
-// AR Television
-// Copyright(c) 2017 Carnegie Mellon University
-// Licensed under The MIT License[see LICENSE for details]
-// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
-///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+/// AR Television
+/// Copyright(c) 2017 Carnegie Mellon University
+/// Licensed under The MIT License[see LICENSE for details]
+/// Written by Kai Yu, Zhongxu Wang, Ruoyuan Zhao, Qiqi Xiao
+////////////////////////////////////////////////////////////
 #include <chrono>
 
 #include <common/CVUtils.h>
@@ -58,6 +58,7 @@ namespace ar {
         vector<vector<DMatch>> dmatches;
         matcher_->knnMatch(descriptors1, descriptors2, dmatches, 2);
         for (auto &dmatch : dmatches)
+            // We only use the matches where the best match is much better than the second best match.
             if (dmatch[0].distance < NN_MATCH_RATIO * dmatch[1].distance)
                 matches.emplace_back(dmatch[0].queryIdx, dmatch[0].trainIdx);
         return matches;

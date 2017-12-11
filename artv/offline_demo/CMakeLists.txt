@@ -1,4 +1,4 @@
-file(GLOB tmp *.cpp)
+file(GLOB_RECURSE tmp *.cpp *.cc *.c *.hpp *.h)
 set(OFFLINE_DEMO_SRCS ${OFFLINE_DEMO_SRCS} ${tmp})
 
 add_executable(demo ${OFFLINE_DEMO_SRCS})
