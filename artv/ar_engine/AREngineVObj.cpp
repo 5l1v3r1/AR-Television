@@ -63,8 +63,8 @@ namespace ar {
         for (int i = 0; i < candidates.size(); ++i)
             for (int j = 0; j < candidates.size(); ++j)
                 if (i != j) {
-                    auto &a = candidates[i].second->last_loc_;
-                    auto &b = candidates[j].second->last_loc_;
+                    auto a = candidates[i].second->loc(camera_matrix);
+                    auto b = candidates[j].second->loc(camera_matrix);
                     if ((b - a).cross(location - b) > 0 &&
                         CountEdgeOnLine(a, b) >= 0.8)
                         next[i].push_back(j);
@@ -73,7 +73,7 @@ namespace ar {
         shared_ptr<InterestPoint> lu_corner, ru_corner, rl_corner, ll_corner;
         bool found = false;
         for (int lu =0; lu < candidates.size(); ++lu) {
-            auto &left_upper = candidates[lu].second->last_loc_;
+            auto left_upper = candidates[lu].second->loc(camera_matrix);
             if (left_upper.x >= location.x || left_upper.y >= location.y)
                 continue;
             for (int ru : next[lu]) {

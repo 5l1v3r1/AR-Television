@@ -53,10 +53,17 @@ namespace ar {
     void VTelevision::Draw(cv::Mat &scene, const cv::Mat &camera_matrix) {
         // Use the camera matrix to project the television and the
         // video content on the scene.
-        Point2f lu = left_upper_->last_loc_;
-        Point2f ll = left_lower_->last_loc_;
-        Point2f ru = right_upper_->last_loc_;
-        Point2f rl = right_lower_->last_loc_;
+
+//        Point2f lu = left_upper_->last_loc_;
+//        Point2f ll = left_lower_->last_loc_;
+//        Point2f ru = right_upper_->last_loc_;
+//        Point2f rl = right_lower_->last_loc_;
+
+        Point2f lu = left_upper_->loc(camera_matrix);
+        Point2f ll = left_lower_->loc(camera_matrix);
+        Point2f ru = right_upper_->loc(camera_matrix);
+        Point2f rl = right_lower_->loc(camera_matrix);
+
         Mat frame;
         AR_SAFE_CALL(content_stream_.NextFrame(frame));
         vector<Point2f> pts_src = {Point(0, 0), Point(frame.cols, 0), Point(0, frame.rows),

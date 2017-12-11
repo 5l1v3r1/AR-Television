@@ -137,8 +137,8 @@ namespace ar {
         bool to_terminate_ = false;
 
         static const int MAX_KEYFRAMES = 10;
-        static const int MIN_POINTS_FOR_BA = 16;
-        static const int MAX_POINTS_FOR_BA = 32;
+        static const int MIN_POINTS_FOR_BA = 12;
+        static const int MAX_POINTS_FOR_BA = 16;
 
         /// For objects in this engine, they should automatically disappear if not viewed
         ///	for this long period (in milliseconds). This period might be dynamically
