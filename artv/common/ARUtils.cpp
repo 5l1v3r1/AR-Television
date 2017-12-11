@@ -1,5 +1,6 @@
 //#include <omp.h>
 #include <common/ARUtils.h>
+#include "OSUtils.h"
 
 using namespace std;
 using namespace cv;
@@ -107,12 +108,14 @@ namespace ar {
             auto svd = SVD();
             svd.compute(A, W, U, VT);
             Mat p = VT.row(VT.rows - 1);
-            p = p / p.at<float>(0, 3);
+            assert(p.at<float>(3) != 0);
+            p = p / p.at<float>(3);
+            assert(!isnan(p.at<float>(0)) && !isnan(p.at<float>(1)) && !isnan(p.at<float>(2)));
             for (int k = 0; k < num_cameras; ++k) {
                 Mat proj = p * pts[k].first.t();
                 proj = proj.colRange(0, 2) / proj.at<float>(0, 2);
                 Mat diff = proj - pts[k].second.row(i);
-                double err = diff.at<float>(0, 0) * diff.at<float>(0, 0) + diff.at<float>(0, 1) * diff.at<float>(0, 1);
+                double err = diff.at<float>(0) * diff.at<float>(0) + diff.at<float>(1) * diff.at<float>(1);
                 *error += err;
             }
             p.colRange(0, 3).copyTo(points3d.row(i));
@@ -121,7 +124,7 @@ namespace ar {
     }
 
     template<typename T>
-    void Rodrigues(const T *const r, T *R) {
+    void InverseRodrigues(const T *const r, T *R) {
         T theta = T(0);
         for (int i = 0; i < 3; i++) {
             theta += r[i] * r[i];
@@ -148,56 +151,6 @@ namespace ar {
             R[8] = costheta + u[2] * u[2] * (T(1) - costheta);
         }
     }
-
-    struct BALResidual_1 {
-        BALResidual_1(double pts1[], int N, double K1[], double M1[]) : N_(N) {
-            pts1_ = new double[N * 2];
-            memcpy(pts1_, pts1, sizeof(double) * N * 2);
-            memcpy(K1_, K1, sizeof(double) * 9);
-            memcpy(M1_, M1, sizeof(double) * 9);
-        }
-
-        ~BALResidual_1() {
-            delete[] pts1_;
-        }
-
-        template<typename T>
-        bool operator()(T const *const *parameters, //3*N
-                        T *residuals) const {
-            T const *points = parameters[0];
-            T C1[3][4];
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 4; j++) {
-                    C1[i][j] = T(0);
-                    for (int k = 0; k < 3; k++) {
-                        C1[i][j] += K1_[i * 3 + k] * M1_[k * 4 + j];
-                    }
-                }
-            }
-            T p1_proj[3][N_];
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < N_; j++) {
-                    p1_proj[i][j] = T(0);
-                    for (int k = 0; k < 3; k++) {
-                        p1_proj[i][j] += C1[i][k] * points[j * 3 + k];
-                    }
-                    p1_proj[i][j] += C1[i][3];
-                }
-            }
-            for (int i = 0; i < N_; i++) {
-                residuals[i << 1] = pow(p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]), 2.);
-                residuals[(i << 1) | 1] = pow(p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]), 2.);
-            }
-            return true;
-        }
-
-    private:
-        // Observations for a sample.
-        double *pts1_;
-        const int N_;
-        double K1_[9]{};
-        double M1_[9]{};
-    };
 
     struct Residual3Cam {
         Residual3Cam(double C1[], double K2[], double K3[],
@@ -230,8 +183,8 @@ namespace ar {
             T const *pts3d = parameters[4]; //3*N
 
             T R2[9], R3[9];
-            Rodrigues(r2, R2);
-            Rodrigues(r3, R3);
+            InverseRodrigues(r2, R2);
+            InverseRodrigues(r3, R3);
             T C2[3][4], C3[3][4];
 
             for (int i = 0; i < 3; i++) {
@@ -270,12 +223,12 @@ namespace ar {
                                     C3[i][3];
                 }
             for (int i = 0; i < num_points_; i++) {
-                residuals[i * 6 + 0] = pow(p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]), 2);
-                residuals[i * 6 + 1] = pow(p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]), 2);
-                residuals[i * 6 + 2] = pow(p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]), 2.);
-                residuals[i * 6 + 3] = pow(p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]), 2);
-                residuals[i * 6 + 4] = pow(p3_proj[0][i] / p3_proj[2][i] - T(pts3_[i << 1]), 2.);
-                residuals[i * 6 + 5] = pow(p3_proj[1][i] / p3_proj[2][i] - T(pts3_[(i << 1) | 1]), 2);
+                residuals[i * 6 + 0] = p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]);
+                residuals[i * 6 + 1] = p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]);
+                residuals[i * 6 + 2] = p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]);
+                residuals[i * 6 + 3] = p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]);
+                residuals[i * 6 + 4] = p3_proj[0][i] / p3_proj[2][i] - T(pts3_[i << 1]);
+                residuals[i * 6 + 5] = p3_proj[1][i] / p3_proj[2][i] - T(pts3_[(i << 1) | 1]);
             }
             return true;
         }
@@ -316,7 +269,7 @@ namespace ar {
             T const *pts3d = parameters[2]; //3*N
 
             T R2[9];
-            Rodrigues(r2, R2);
+            InverseRodrigues(r2, R2);
             T C2[3][4];
 
             for (int i = 0; i < 3; i++) {
@@ -342,10 +295,10 @@ namespace ar {
                                     C2[i][3];
                 }
             for (int i = 0; i < num_points_; i++) {
-                residuals[i * 4 + 0] = pow(p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]), 2);
-                residuals[i * 4 + 1] = pow(p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]), 2);
-                residuals[i * 4 + 2] = pow(p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]), 2.);
-                residuals[i * 4 + 3] = pow(p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]), 2);
+                residuals[i * 4 + 0] = p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]);
+                residuals[i * 4 + 1] = p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]);
+                residuals[i * 4 + 2] = p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]);
+                residuals[i * 4 + 3] = p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]);
             }
             return true;
         }
@@ -466,6 +419,17 @@ namespace ar {
         cost_function->SetNumResiduals(num_points * 6);
         problem.AddResidualBlock(cost_function, nullptr, r2_raw, t2_raw, r3_raw, t3_raw, pts3d);
 
+        Residual3Cam local_res((double *) C1.data,
+                               (double *) K2.data, (double *) K3.data,
+                               num_points, p1, p2, p3);
+        const double *const param[] = {r2_raw, t2_raw, r3_raw, t3_raw, pts3d};
+        double residuals[num_points * 6];
+        local_res(param, residuals);
+        double loss = 0;
+        for (int i = 0; i < num_points * 2; ++i)
+            loss += residuals[i] * residuals[i];
+        cout << "Initial loss=" << loss << endl;
+
         cout << "Start solving..." << endl;
 
         ceres::Solver::Options options;
@@ -477,7 +441,8 @@ namespace ar {
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
 
-        std::cout << summary.FullReport() << endl;
+        cout << summary.FullReport() << endl;
+        cout.flush();
 
         if (summary.termination_type == ceres::TerminationType::CONVERGENCE) {
             Mat R2;
@@ -491,7 +456,8 @@ namespace ar {
             M3.convertTo(M3, CV_32F);
 
             return true;
-        } else
+        } else {
             return false;
+        }
     }
 }

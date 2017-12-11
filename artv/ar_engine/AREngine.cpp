@@ -29,15 +29,6 @@ namespace ar {
         int keyframe_id = keyframe_id_;
         keyframe_mutex_.unlock();
         cout << "Key Frame #" << keyframe_id << endl;
-        const auto &last_frame1 = keyframe(keyframe_id - 2);
-        auto &last_frame2 = keyframe(keyframe_id - 1);
-        auto &last_frame3 = keyframe(keyframe_id);
-        auto K1 = last_frame1.intrinsics().clone();
-        auto K2 = last_frame2.intrinsics().clone();
-        auto K3 = last_frame3.intrinsics().clone();
-        auto M1 = last_frame1.extrinsics().clone();
-        auto M2 = last_frame2.extrinsics().clone();
-        auto M3 = last_frame3.extrinsics().clone();
 
         vector<shared_ptr<InterestPoint>> used_points;
         // Find usable interest points.
@@ -93,9 +84,12 @@ namespace ar {
                 pts3d[ind3d + 2] = ip->loc3d().z;
                 ind3d += 3;
             }
+            assert(ind3d == used_points.size() * 3);
 
             interest_points_mutex_.unlock();
-            bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2,
+            bool converged = BundleAdjustment(static_cast<int>(used_points.size()),
+                                              K1, M1, p1,
+                                              K2, M2, p2,
                                               pts3d);
             delete[] p1;
             delete[] p2;
@@ -150,9 +144,13 @@ namespace ar {
                 pts3d[ind3d + 2] = ip->loc3d().z;
                 ind3d += 3;
             }
+            assert(ind3d == used_points.size() * 3);
 
             interest_points_mutex_.unlock();
-            bool converged = BundleAdjustment(static_cast<int>(used_points.size()), K1, M1, p1, K2, M2, p2, K3, M3, p3,
+            bool converged = BundleAdjustment(static_cast<int>(used_points.size()),
+                                              K1, M1, p1,
+                                              K2, M2, p2,
+                                              K3, M3, p3,
                                               pts3d);
             delete[] p1;
             delete[] p2;
@@ -244,7 +242,7 @@ namespace ar {
                 // Check whether the interest point can be combined to another existing point.
                 for (int j = 0; j < i; ++j)
                     if ((interest_points_[j]->has_estimated_3d_loc_) &&
-                        norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 0.01) {
+                        norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 0.1) {
 //                        cout << "Combining points with distance " << norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) << endl;
                         interest_points_[j]->Combine(interest_points_[i]);
                         interest_points_[i--] = interest_points_[--new_size];
@@ -314,7 +312,7 @@ namespace ar {
             // These 3D points are valid if they are in front of the camera in the previous keyframes.
             bool valid = true;
             int invalid_cnt = 0;
-            for (int j = 0; j <= min(int(data.size() - 2), keyframe_id_) && valid; ++j) {
+            for (int j = 0; j <= min(int(data.size() - 2), keyframe_id_); ++j) {
                 auto &kf = keyframe(keyframe_id_ - j);
                 Mat T = Mat(estimated_pts3d.rows, 3, CV_32F);
                 for (int k = 0; k < estimated_pts3d.rows; ++k)
@@ -460,6 +458,7 @@ namespace ar {
             auto candidates = RecoverRotAndTranslation(essential_matrix);
 
             Mat pts3d;
+            vector<int> corresponding_match;
             // Test for the only valid rotation and translation combination.
             {
                 // Fill the data for 3D reconstruction.
@@ -478,6 +477,7 @@ namespace ar {
                         Mat stored_pts1(cnt, 2, CV_32F);
                         Mat stored_pts2(cnt, 2, CV_32F);
                         Mat new_pts(cnt, 2, CV_32F);
+                        corresponding_match.resize(static_cast<unsigned long>(cnt));
                         cnt = 0;
                         for (auto &match : matches)
                             if (interest_points_[match.first]->is_visible(keyframe_id_ - 1) &&
@@ -495,6 +495,9 @@ namespace ar {
                                 auto *dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
                                 dest[0] = keypoints[match.second].pt.x;
                                 dest[1] = keypoints[match.second].pt.y;
+
+                                corresponding_match[cnt] = match.first;
+
                                 ++cnt;
                             }
                         vector<pair<Mat, Mat>> data;
@@ -517,36 +520,40 @@ namespace ar {
                 // We can only use 1 keyframe.
                 for (int i = 0; i <= min(2, keyframe_id_) && !done; ++i) {
                     // Try to use another keyframe.
-                    int id = keyframe_id_ - i;
+                    int kf_id = keyframe_id_ - i;
                     int cnt = 0;
                     for (auto &match : matches)
-                        if (interest_points_[match.first]->is_visible(id))
+                        if (interest_points_[match.first]->is_visible(kf_id))
                             ++cnt;
                     if (cnt) {
                         Mat stored_pts = Mat(cnt, 2, CV_32F);
                         Mat new_pts = Mat(cnt, 2, CV_32F);
+                        corresponding_match.resize(static_cast<unsigned long>(cnt));
                         cnt = 0;
                         for (auto &match : matches) {
-                            if (interest_points_[match.first]->is_visible(id)) {
+                            if (interest_points_[match.first]->is_visible(kf_id)) {
                                 // Stored keypoints.
                                 auto *dest = reinterpret_cast<float *>(stored_pts.ptr(cnt));
-                                auto &pt = interest_points_[match.first]->loc(id);
+                                auto &pt = interest_points_[match.first]->loc(kf_id);
                                 dest[0] = pt.x;
                                 dest[1] = pt.y;
                                 // New keypoints.
                                 dest = reinterpret_cast<float *>(new_pts.ptr(cnt));
                                 dest[0] = keypoints[match.second].pt.x;
                                 dest[1] = keypoints[match.second].pt.y;
+
+                                corresponding_match[cnt] = match.first;
+
                                 ++cnt;
                             }
                         }
                         vector<pair<Mat, Mat>> data;
-                        data.emplace_back(keyframe(id).intrinsics() * keyframe(id).extrinsics(),
+                        data.emplace_back(keyframe(kf_id).intrinsics() * keyframe(kf_id).extrinsics(),
                                           stored_pts);
                         data.emplace_back(Mat(), new_pts);
 
                         Mat M2;
-                        FindExtrinsics(candidates, keyframe(id).extrinsics(), data, M2, pts3d, inlier_mask);
+                        FindExtrinsics(candidates, keyframe(kf_id).extrinsics(), data, M2, pts3d, inlier_mask);
                         if (!M2.empty()) {
                             extrinsics_ = M2;
                             done = true;
@@ -560,20 +567,6 @@ namespace ar {
                     return AR_SUCCESS;
                 }
             }
-
-            // Remove outliers from the matches.
-            new_size = 0;
-            for (int i = 0; i < matches.size(); ++i)
-                if (inlier_mask.at<bool>(i))
-                    matches[new_size++] = matches[i];
-            // If there are too few inliers, this scene is problematic. Skip it.
-            if (new_size < 4) {
-//                cout << "Too few inliers!" << endl;
-                return AR_SUCCESS;
-            }
-            matches.resize(new_size);
-            // The new matches consist of all inliers.
-            inlier_mask = Mat::ones(static_cast<int>(matches.size()), 1, CV_8U);
 
             Mat R = extrinsics_.colRange(0, 3);
             Mat t = extrinsics_.col(3);
@@ -604,17 +597,23 @@ namespace ar {
                 interest_points_mutex_.lock();
 
                 // Add an observation in this keyframe to the interest points.
-                for (auto match :matches) {
-                    matched_stored[match.first] = true;
-                    matched_new[match.second] = true;
-                    interest_points_[match.first]->AddObservation(
-                            make_shared<InterestPoint::Observation>(keyframe_id_,
-                                                                    keypoints[match.second],
-                                                                    descriptors.row(match.second)));
-                    interest_points_[match.first]->loc3d(pts3d.at<float>(match.first, 0),
-                                                         pts3d.at<float>(match.first, 1),
-                                                         pts3d.at<float>(match.first, 2));
-                }
+                for (int i = 0; i < matches.size(); ++i)
+                    if (inlier_mask.at<bool>(i)) {
+                        const auto &match = matches[i];
+                        matched_stored[match.first] = true;
+                        matched_new[match.second] = true;
+                        interest_points_[match.first]->AddObservation(
+                                make_shared<InterestPoint::Observation>(keyframe_id_,
+                                                                        keypoints[match.second],
+                                                                        descriptors.row(match.second)));
+                    }
+
+                // Update 3D points.
+                for (int i = 0; i < pts3d.rows; ++i)
+                    if (inlier_mask.at<bool>(i))
+                        interest_points_[corresponding_match[i]]->loc3d(pts3d.at<float>(i, 0),
+                                                                        pts3d.at<float>(i, 1),
+                                                                        pts3d.at<float>(i, 2));
 
                 // These interest points are not visible at this frame.
                 for (int i = 0; i < interest_points_.size(); ++i)
@@ -698,6 +697,7 @@ namespace ar {
         loc3d_.x = x;
         loc3d_.y = y;
         loc3d_.z = z;
+        assert(!(isnan(x) || isnan(y) || isnan(z)));
         has_estimated_3d_loc_ = true;
     }
 

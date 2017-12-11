@@ -56,7 +56,7 @@ namespace ar {
                                       double *error = nullptr);
 
     template<typename T>
-    void Rodrigues(const T *const r, T *R);
+    void InverseRodrigues(const T *const r, T *R);
 
     bool COMMON_API BundleAdjustment(int num_points,
                                      cv::Mat K1, cv::Mat M1, double p1[],
