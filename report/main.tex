@@ -31,7 +31,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{fourier}
 
-\usepackage[english]{babel}                                                         % English language/hyphenation
+\usepackage[english]{babel}                                                                                                                     % English language/hyphenation
 \usepackage[protrusion=true,expansion=true]{microtype}  
 \usepackage{amsmath,amsfonts,amsthm} % Math packages
 \usepackage[pdftex]{graphicx}   
@@ -49,41 +49,41 @@
 %%% Custom headers/footers (fancyhdr package)
 \usepackage{fancyhdr}
 \pagestyle{fancyplain}
-\fancyhead{}                                            % No page header
-\fancyfoot[L]{}                                         % Empty 
-\fancyfoot[C]{}                                         % Empty
-\fancyfoot[R]{\thepage}                                 % Pagenumbering
-\renewcommand{\headrulewidth}{0pt}          % Remove header underlines
-\renewcommand{\footrulewidth}{0pt}              % Remove footer underlines
+\fancyhead{}                                                                                    % No page header
+\fancyfoot[L]{}                                                                                 % Empty 
+\fancyfoot[C]{}                                                                                 % Empty
+\fancyfoot[R]{\thepage}                                                                 % Pagenumbering
+\renewcommand{\headrulewidth}{0pt}                      % Remove header underlines
+\renewcommand{\footrulewidth}{0pt}                              % Remove footer underlines
 \setlength{\headheight}{13.6pt}
 
 
 %%% Equation and float numbering
-\numberwithin{equation}{section}        % Equationnumbering: section.eq#
-\numberwithin{figure}{section}          % Figurenumbering: section.fig#
-\numberwithin{table}{section}               % Tablenumbering: section.tab#
+\numberwithin{equation}{section}                % Equationnumbering: section.eq#
+\numberwithin{figure}{section}                  % Figurenumbering: section.fig#
+\numberwithin{table}{section}                           % Tablenumbering: section.tab#
 
 \setstretch{1.6}
 
 %%% Maketitle metadata
-\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}     % Horizontal rule
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}         % Horizontal rule
 
 \title{
-        %\vspace{-1in}  
-        \usefont{OT1}{bch}{b}{n}
-        \normalfont \normalsize \textsc{16811 Math Fundamentals for Robotics\\
+                %\vspace{-1in}  
+                \usefont{OT1}{bch}{b}{n}
+                \normalfont \normalsize \textsc{16811 Math Fundamentals for Robotics\\
         Final Project Report} \\ [25pt]
-        \horrule{0.5pt} \\[0.4cm]
-        \huge Real-time Virtual Television in Augmented Reality \\
-        \horrule{2pt} \\[0.5cm]
+                \horrule{0.5pt} \\[0.4cm]
+                \huge Real-time Virtual Television in Augmented Reality \\
+                \horrule{2pt} \\[0.5cm]
 }
 \author{
-        \normalfont
+                \normalfont
         %\normalsize
         Kai Yu (kaiy1)\\
         Zhongxu Wang (zhongxuw)\\
         Ruoyuan Zhao (ruoyuanz)\\
-        Qiqi Xiao (qiqix)\\[-3pt]       
+        Qiqi Xiao (qiqix)\\[-3pt]               
         \\
         \normalsize
         \today
@@ -147,15 +147,53 @@ And in section \ref{discussion}, we summarize our project and propose some furth
 \subsection{SLAM} estimate 3d points
 
 %xqq
-\subsection{BA}
+\subsection{Bundle Adjustment}
+Given a set of images depicting a number of 3D points from different viewpoints, bundle adjustment can be defined as the problem of simultaneously refining the 3D coordinates along with the parameters of the relative motion, and the optical characteristics of the cameras.
+It refines a visual reconstruction to produce jointly optimal 3D points and parameters.
+When we assume the intrinsic matrices of different frames stay still. Bundle Adjustment can be simplified to just optimize the 3D points and the the extrinsic matrix for each frame. 
+
+It means to find the set of parameters that most accurately predict the locations of the observed points in the available images. 
+So bundle adjustment is usually achieved by minimizing the re-projection error between the observed 2D points and the predicted 2D points, using nonlinear least-squares algorithms.
+
+Assume that $n$ 3D points are seen in $m$ views and let $x_{ij}$ be the projection of the $i$th point on image $j$.
+Let $v_{ij}$ denotes the binary variable that equals $1$ if point $i$ is visible in image $j$ and $0$ otherwise.
+The re-projection error can be specified as:
+\begin{align*}
+    \min_{a_j, b_i}\sum_{i=1}^n\sum_{j=1}^m v_{ij} d(\mathbf{Q}(\mathbf{a_j}, \mathbf{b_i}), x_{ij})^2
+\end{align*}
+where vector $\mathbf{a_j}$ expresses the extrinsic parameters and each 3D point is parameterized by a vector $\mathbf{b_i}$.
+And $\mathbf{Q}(\mathbf{a_j}, \mathbf{b_i})$ is the predicted projection of point $i$ on image $j$, while the $d(\mathbf{x}, \mathbf{y})$ denotes the Euclidean distance between $x$ and $y$.
+
+In order to minimize sum of the errors, non-linear least squares algorithm is applied. The fitting is a maximum likelihood estimation of the fitted parameters. There are four most popular techniques for non linear least square optimization: Gradient Descent Mehod, Newton-Rhapson Method, Gauss-Newton Method, Levenberg-Marquardt Method.
 
 %xqq
-\subsection{Canny} find edges, cross product
+\subsection{Canny Edge Detector}
+The canny edge detector is an edge detection operator that uses a multi-stage algorithm to detect edges in images.
+Canny edge detection is a technique to extract useful structural information from different vision objects and also reduces useless information.
+Among the edge detection methods so far, Canny edge detection algorithm is one of the most reliable and popular detection algorithms.
+
+The process of Canny edge detection algorithm is elaborated as follows.
+\begin{enumerate}
+    \item Apply Gaussian filter to smooth the image so that remove the noise;
+    \item Find the intensity gradients of the image;
+    \item Apply non-maximum suppression to get rid of spurious response to edge detection;
+    \item Apply double threshold to determine potential edges;
+    \item Finalize the edges by suppressing some weak edges that are not connected to strong edges.
+\end{enumerate}
 
 \section{Implementation Details}\label{implementation}
 %xqq
 \subsection{Pipeline}
-The pipeline contains several steps: record video and intrinsic matrix of camera; extract key points based on orb feature extractor; match key points using KNN method; pick up key frames according to distances; reconstruct 3d cloud points using triangulation; use bundle adjustment to optimize projection matrix and 3d points; project virtual television to the surface. Our implementation is based on Ptam-Orb-Slam Framework. This project is easily extendable as well as contains a lot of math knowledge.
+Our pipeline contains several steps: 
+\begin{enumerate}
+    \item Record video and intrinsic matrix of camera; 
+    \item Extract key points based on orb feature extractor; 
+    \item Match key points using KNN method; 
+    \item Pick up key frames according to distances; 
+    \item Reconstruct 3D cloud points using triangulation; 
+    \item Use bundle adjustment to optimize projection matrix and 3D points; 
+    \item Project virtual television to the surface. 
+\end{enumerate}
 
 %zry
 \subsection{ORB} find points
