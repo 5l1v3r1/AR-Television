@@ -4,23 +4,70 @@
 \@writefile{lof}{\select@language{english}}
 \@writefile{lot}{\select@language{english}}
 \@writefile{toc}{\contentsline {section}{\numberline {1}Abstract}{2}}
+\citation{mur2015orb}
+\citation{rublee2011orb}
+\citation{hartley1997triangulation}
 \@writefile{toc}{\contentsline {section}{\numberline {2}Introduction}{3}}
 \newlabel{intro}{{2}{3}}
-\@writefile{toc}{\contentsline {section}{\numberline {3}Background Knowledge}{4}}
-\newlabel{background}{{3}{4}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}ORB}{4}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}SLAM}{4}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Bundle Adjustment}{4}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Canny Edge Detector}{6}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}Implementation Details}{6}}
-\newlabel{implementation}{{4}{6}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Pipeline}{6}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2.1}{\ignorespaces The PTAM-ORB-SLAM framework}}{3}}
+\newlabel{fig:framework}{{2.1}{3}}
+\citation{triggs1999bundle}
+\citation{Hartley2004}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Background Knowledge}{5}}
+\newlabel{background}{{3}{5}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Camera Matrix}{5}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}SLAM}{6}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Bundle Adjustment}{6}}
+\citation{gill1978algorithms}
+\citation{canny1986computational}
+\citation{moeslund2009canny}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Canny Edge Detector}{7}}
+\citation{berger2009geometry}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Homography}{8}}
+\citation{horn1985cr}
+\citation{itseez2015opencv}
+\citation{ceres-solver}
+\citation{rosten2006machine}
+\citation{calonder2010brief}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Implementation Details}{10}}
+\newlabel{implementation}{{4}{10}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Pipeline}{10}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Extract key points with ORB}{10}}
+\citation{altman1992introduction}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.1}{\ignorespaces The ORB framework}}{11}}
+\newlabel{fig:framework}{{4.1}{11}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Match key points by KNN}{12}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Pick up key frames}{12}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Reconstruct 3D cloud points}{13}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2}{\ignorespaces Triangulation}}{13}}
+\newlabel{fig:framework}{{4.2}{13}}
+\citation{rodrigues1840lois}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}Bundle Adjustment}{14}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.7}Projection to the plane}{15}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Results}{17}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.1}{\ignorespaces One frame image of the input video}}{17}}
+\newlabel{fig:original}{{5.1}{17}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.2}{\ignorespaces The Result Using Canny Edge Detector.}}{17}}
+\newlabel{fig:canny}{{5.2}{17}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.3}{\ignorespaces One frame of final result.}}{18}}
+\newlabel{fig:final}{{5.3}{18}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Discussion}{19}}
+\newlabel{discussion}{{6}{19}}
 \bibstyle{plain}
 \bibdata{references}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}ORB}{7}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}SLAM}{7}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}BA}{7}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Canny}{7}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}Projection to the plane}{7}}
-\@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{7}}
-\newlabel{discussion}{{5}{7}}
+\bibcite{ceres-solver}{1}
+\bibcite{altman1992introduction}{2}
+\bibcite{berger2009geometry}{3}
+\bibcite{calonder2010brief}{4}
+\bibcite{canny1986computational}{5}
+\bibcite{gill1978algorithms}{6}
+\bibcite{Hartley2004}{7}
+\bibcite{hartley1997triangulation}{8}
+\bibcite{horn1985cr}{9}
+\bibcite{itseez2015opencv}{10}
+\bibcite{moeslund2009canny}{11}
+\bibcite{mur2015orb}{12}
+\bibcite{rodrigues1840lois}{13}
+\bibcite{rosten2006machine}{14}
+\bibcite{rublee2011orb}{15}
+\bibcite{triggs1999bundle}{16}

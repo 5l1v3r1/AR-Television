@@ -1,0 +1,90 @@
+\begin{thebibliography}{10}
+
+\bibitem{ceres-solver}
+Sameer Agarwal, Keir Mierle, and Others.
+\newblock Ceres solver.
+\newblock \url{http://ceres-solver.org}.
+
+\bibitem{altman1992introduction}
+Naomi~S Altman.
+\newblock An introduction to kernel and nearest-neighbor nonparametric
+  regression.
+\newblock {\em The American Statistician}, 46(3):175--185, 1992.
+
+\bibitem{berger2009geometry}
+Marcel Berger.
+\newblock {\em Geometry i}.
+\newblock Springer Science \& Business Media, 2009.
+
+\bibitem{calonder2010brief}
+Michael Calonder, Vincent Lepetit, Christoph Strecha, and Pascal Fua.
+\newblock Brief: Binary robust independent elementary features.
+\newblock {\em Computer Vision--ECCV 2010}, pages 778--792, 2010.
+
+\bibitem{canny1986computational}
+John Canny.
+\newblock A computational approach to edge detection.
+\newblock {\em IEEE Transactions on pattern analysis and machine intelligence},
+  (6):679--698, 1986.
+
+\bibitem{gill1978algorithms}
+Philip~E Gill and Walter Murray.
+\newblock Algorithms for the solution of the nonlinear least-squares problem.
+\newblock {\em SIAM Journal on Numerical Analysis}, 15(5):977--992, 1978.
+
+\bibitem{Hartley2004}
+R.~I. Hartley and A.~Zisserman.
+\newblock {\em Multiple View Geometry in Computer Vision}.
+\newblock Cambridge University Press, ISBN: 0521540518, second edition, 2004.
+
+\bibitem{hartley1997triangulation}
+Richard~I Hartley and Peter Sturm.
+\newblock Triangulation.
+\newblock {\em Computer vision and image understanding}, 68(2):146--157, 1997.
+
+\bibitem{horn1985cr}
+Roger~A Horn.
+\newblock Cr johnson matrix analysis.
+\newblock {\em Cambridge UP, New York}, 1985.
+
+\bibitem{itseez2015opencv}
+Itseez.
+\newblock Open source computer vision library.
+\newblock \url{https://github.com/itseez/opencv}, 2015.
+
+\bibitem{moeslund2009canny}
+Thomas Moeslund.
+\newblock Canny edge detection.
+\newblock {\em Retrieved December}, 3:2014, 2009.
+
+\bibitem{mur2015orb}
+Raul Mur-Artal, Jose Maria~Martinez Montiel, and Juan~D Tardos.
+\newblock Orb-slam: a versatile and accurate monocular slam system.
+\newblock {\em IEEE Transactions on Robotics}, 31(5):1147--1163, 2015.
+
+\bibitem{rodrigues1840lois}
+Olinde Rodrigues.
+\newblock {\em Des lois g{\'e}om{\'e}triques qui r{\'e}gissent les
+  d{\'e}placements d'un syst{\`e}me solide dans l'espace: et de la variation
+  des cordonn{\'e}es provenant de ces d{\'e}placements consid{\'e}r{\'e}s
+  ind{\'e}pendamment des causes qui peuvent les produire}.
+\newblock 1840.
+
+\bibitem{rosten2006machine}
+Edward Rosten and Tom Drummond.
+\newblock Machine learning for high-speed corner detection.
+\newblock {\em Computer Vision--ECCV 2006}, pages 430--443, 2006.
+
+\bibitem{rublee2011orb}
+Ethan Rublee, Vincent Rabaud, Kurt Konolige, and Gary Bradski.
+\newblock Orb: An efficient alternative to sift or surf.
+\newblock In {\em Computer Vision (ICCV), 2011 IEEE international conference
+  on}, pages 2564--2571. IEEE, 2011.
+
+\bibitem{triggs1999bundle}
+Bill Triggs, Philip~F McLauchlan, Richard~I Hartley, and Andrew~W Fitzgibbon.
+\newblock Bundle adjustment—a modern synthesis.
+\newblock In {\em International workshop on vision algorithms}, pages 298--372.
+  Springer, 1999.
+
+\end{thebibliography}
