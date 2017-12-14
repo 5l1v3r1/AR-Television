@@ -40,10 +40,16 @@ namespace ar {
 
     class COMMON_API NaiveFrameStream : public FrameStream {
         cv::VideoCapture cap_;
+        cv::Mat img;
     public:
+        NaiveFrameStream() {
+            img = cv::imread("/home/kyu/Documents/projects/AR-Television/test_data/rider.jpg");
+        }
+
         inline ERROR_CODE Open(const char *videoPath) { cap_.open(videoPath); return AR_SUCCESS; }
 
-        inline ERROR_CODE NextFrame(cv::Mat &outputBuf) override { cap_ >> outputBuf; return AR_SUCCESS; }
+//        inline ERROR_CODE NextFrame(cv::Mat &outputBuf) override { cap_ >> outputBuf; return AR_SUCCESS; }
+        inline ERROR_CODE NextFrame(cv::Mat &outputBuf) override { outputBuf = img; return AR_SUCCESS; }
     };
 
     class COMMON_API RealtimeLocalVideoStream : public FrameStream {
@@ -76,7 +82,7 @@ namespace ar {
 
     protected:
         /// Nearest-neighbour matching ratio.
-        const double NN_MATCH_RATIO = 0.7f;
+        const double NN_MATCH_RATIO = 0.5f;
         cv::Ptr<cv::Feature2D> detector_;
         cv::Ptr<cv::DescriptorMatcher> matcher_;
     };

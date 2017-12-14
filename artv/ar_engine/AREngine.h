@@ -137,8 +137,8 @@ namespace ar {
         bool to_terminate_ = false;
 
         static const int MAX_KEYFRAMES = 10;
-        static const int MIN_POINTS_FOR_BA = 16;
-        static const int MAX_POINTS_FOR_BA = 32;
+        static const int MIN_POINTS_FOR_BA = 12;
+        static const int MAX_POINTS_FOR_BA = 16;
 
         /// For objects in this engine, they should automatically disappear if not viewed
         ///	for this long period (in milliseconds). This period might be dynamically
@@ -157,10 +157,13 @@ namespace ar {
         Mat last_gray_frame_;
         Mat last_canny_map_;
 
+        bool to_screenshot_ = false;
+
         /// Descriptor length of interest points.
         int desc_length_ = 0;
         /// Interest points in recent frames.
         vector<shared_ptr<InterestPoint>> interest_points_;
+        vector<shared_ptr<InterestPoint>> transient_interest_points_;
         /// The vector of interest points are protected by mutex in case of concurrent reading
         ///	and writing across different threads.
         mutex interest_points_mutex_;

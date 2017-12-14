@@ -194,8 +194,8 @@ namespace ar {
             last_keyframe_ind = keyframe_id_;
             EstimateMap();
             while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
-            while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
-                AR_SLEEP(1);
+                while (!to_terminate_ && last_keyframe_ind == keyframe_id_)
+                    AR_SLEEP(1);
         }
         cout << "Exiting map estimation loop!" << endl;
     }
@@ -216,7 +216,7 @@ namespace ar {
         return EMPTY_OBSERVATION;
     }
 
-    AREngine::AREngine() : interest_points_tracker_(ORB::create(),
+    AREngine::AREngine() : interest_points_tracker_(ORB::create(1000, 1.2f, 8, 15, 0, 2, ORB::HARRIS_SCORE, 31, 10),
                                                     new BFMatcher(NORM_HAMMING)) {
         mapping_thread_ = thread(AREngine::CallMapEstimationLoop, this);
 
@@ -236,29 +236,35 @@ namespace ar {
                 observation_seq_[(observation_seq_tail_ + MAX_OBSERVATIONS - i) % MAX_OBSERVATIONS] =
                         another->observation(last_keyframe_id - i);
             }
+        if (!has_estimated_3d_loc_ && another->has_estimated_3d_loc_) {
+            has_estimated_3d_loc_ = true;
+            loc3d_ = another->loc3d_;
+        }
     }
 
     /// If we have stored too many interest points, we remove the oldest location record
     ///	of the interest points, and remove the interest points that are determined not visible anymore.
     void AREngine::ReduceInterestPoints() {
+        Mat camera_matrix = intrinsics_ * extrinsics_;
+
         interest_points_mutex_.lock();
 
         auto new_size = interest_points_.size();
+
         for (int i = 0; i < new_size; ++i)
             // Check whether the interest point is not visible in several keyframes.
             if (interest_points_[i]->ToDiscard())
                 interest_points_[i--] = interest_points_[--new_size];
-            else if (interest_points_[i]->has_estimated_3d_loc_) {
-                // Check whether the interest point can be combined to another existing point.
-                for (int j = 0; j < i; ++j)
-                    if ((interest_points_[j]->has_estimated_3d_loc_) &&
-                        norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) < 0.1) {
-//                        cout << "Combining points with distance " << norm(interest_points_[i]->loc3d() - interest_points_[j]->loc3d()) << endl;
+            else if (interest_points_[i].use_count() == 1) {
+                // A point can be combined to another point if it is not referenced somewhere else.
+                for (int j = 0; j < new_size; ++j)
+                    if (norm(interest_points_[i]->loc(camera_matrix) - interest_points_[j]->loc(camera_matrix)) < 4) {
                         interest_points_[j]->Combine(interest_points_[i]);
                         interest_points_[i--] = interest_points_[--new_size];
                         break;
                     }
             }
+
         interest_points_.resize(new_size);
 
         interest_points_mutex_.unlock();
@@ -367,10 +373,14 @@ namespace ar {
     }
 
     Point2f InterestPoint::loc(Mat camera_matrix) const {
-        float raw_homogenous[] = {loc3d_.x, loc3d_.y, loc3d_.z, 1};
-        Mat homogenous(4, 1, CV_32F, raw_homogenous);
-        auto proj = Mat(camera_matrix * homogenous);
-        return Point2f(proj.at<float>(0) / proj.at<float>(2), proj.at<float>(1) / proj.at<float>(2));
+        if (has_estimated_3d_loc_ && !visible_in_last_frame_) {
+            float raw_homogenous[] = {loc3d_.x, loc3d_.y, loc3d_.z, 1};
+            Mat homogenous(4, 1, CV_32F, raw_homogenous);
+            auto proj = Mat(camera_matrix * homogenous);
+            return Point2f(proj.at<float>(0) / proj.at<float>(2), proj.at<float>(1) / proj.at<float>(2));
+        } else {
+            return last_loc_;
+        }
     }
 
     ERROR_CODE AREngine::FeedScene(const Mat &raw_scene) {
@@ -417,22 +427,21 @@ namespace ar {
 
             // Update all last observation.
             vector<bool> matched_new(keypoints.size(), false);
-            for (auto& ip : interest_points_)
+            for (auto &ip : interest_points_)
                 ip->visible_in_last_frame_ = false;
-            for (auto& match : matches) {
+            for (auto &match : matches) {
                 matched_new[match.second] = true;
                 interest_points_[match.first]->visible_in_last_frame_ = true;
                 interest_points_[match.first]->last_loc_ = keypoints[match.second].pt;
             }
             interest_points_mutex_.lock();
-            vector<shared_ptr<InterestPoint>> transient_interest_points;
-            transient_interest_points.reserve(keypoints.size());
+            transient_interest_points_.clear();
+            transient_interest_points_.reserve(keypoints.size());
             // These interest points are not ever visible in the previous frames.
             for (int i = 0; i < keypoints.size(); ++i)
                 if (!matched_new[i]) {
                     auto ip = make_shared<InterestPoint>(-1, keypoints[i], descriptors.row(i));
-                    transient_interest_points.push_back(ip);
-                    interest_points_.push_back(ip);
+                    transient_interest_points_.push_back(ip);
                 }
             interest_points_mutex_.unlock();
 
@@ -465,7 +474,7 @@ namespace ar {
                 if (inlier_mask.at<bool>(i))
                     matches[new_size++] = matches[i];
             // If there are too few inliers, this scene is problematic. Skip it.
-            if (new_size < 4)
+            if (new_size < 8)
                 return AR_SUCCESS;
             matches.resize(new_size);
             // The new matches consist of all inliers.
@@ -650,9 +659,11 @@ namespace ar {
                     if (!matched_stored[i])
                         interest_points_[i]->AddObservation(make_shared<InterestPoint::Observation>());
 
-                // Mark the transient interest points to belong to the keyframe.
-                for (auto& ip : transient_interest_points)
+                // Mark the transient interest points to belong to the last keyframe.
+                for (auto &ip : transient_interest_points_) {
                     ip->observation(-1)->keyframe_id = keyframe_id_;
+                    interest_points_.push_back(ip);
+                }
 
                 interest_points_mutex_.unlock();
                 ReduceInterestPoints();
@@ -674,6 +685,12 @@ namespace ar {
                 default:
                     vobj.second->Draw(mixed_scene, intrinsics_ * extrinsics_);
             }
+        }
+
+        if (to_screenshot_) {
+            imwrite("Origin.jpg", raw_scene);
+            imwrite("Mixed.jpg", mixed_scene);
+            to_screenshot_ = false;
         }
 
         return AR_SUCCESS;

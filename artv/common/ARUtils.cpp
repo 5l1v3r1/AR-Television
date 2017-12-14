@@ -355,16 +355,17 @@ namespace ar {
 
         ceres::Solver::Options options;
 //        options.linear_solver_type = ceres::DENSE_SCHUR;
-        //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-        options.linear_solver_type = ceres::SPARSE_SCHUR;
-//        options.max_num_iterations = 100;
+        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+//        options.linear_solver_type = ceres::SPARSE_SCHUR;
+        options.max_num_iterations = 500;
         //options.minimizer_progress_to_stdout = true;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
 
         std::cout << summary.FullReport() << endl;
 
-        if (summary.termination_type == ceres::TerminationType::CONVERGENCE) {
+        if (summary.termination_type == ceres::TerminationType::CONVERGENCE ||
+            summary.termination_type == ceres::TerminationType::NO_CONVERGENCE) {
             Mat R2;
             Rodrigues(r2, R2);
             hconcat(R2, t2, M2);
@@ -439,9 +440,9 @@ namespace ar {
 
         ceres::Solver::Options options;
 //        options.linear_solver_type = ceres::DENSE_SCHUR;
-        //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-        options.linear_solver_type = ceres::SPARSE_SCHUR;
-//        options.max_num_iterations = 100;
+        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+//        options.linear_solver_type = ceres::SPARSE_SCHUR;
+        options.max_num_iterations = 500;
         //options.minimizer_progress_to_stdout = true;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
@@ -449,7 +450,8 @@ namespace ar {
         cout << summary.FullReport() << endl;
         cout.flush();
 
-        if (summary.termination_type == ceres::TerminationType::CONVERGENCE) {
+        if (summary.termination_type == ceres::TerminationType::CONVERGENCE ||
+            summary.termination_type == ceres::TerminationType::NO_CONVERGENCE) {
             Mat R2;
             Rodrigues(r2, R2);
             hconcat(R2, t2, M2);
