@@ -39,10 +39,38 @@ namespace ar
 					std::shared_ptr<InterestPoint> right_lower);
 
 		bool IsAlive() override;
+
 		inline VObjType GetType() { return TV; }
-		bool IsSelected(cv::Point2f pt2d, int frame_id);
-		void Draw(cv::Mat& scene, const cv::Mat& camera_matrix);
-		void DrawPolygon(Mat &src, Mat &frame, vector<Point2f> &pts_src, vector<Point2f> &pts_dst);
+
+		bool IsSelected(cv::Point2f pt2d, 
+						int frame_id);
+
+		void Draw(cv::Mat& scene, 
+				  const cv::Mat& camera_matrix);
+
+		void DrawPolygon(Mat &src, 
+						 Mat &frame, 
+						 vector<Point2f> &pts_src, 
+						 vector<Point2f> &pts_dst);
+
+		void DrawBoards(cv::Mat &scene, 
+						vector<Point2f> &pts_ori, 
+						vector<Point2f> &pts_dst, 
+						cv::Scalar color);
+
+		inline Point2f ProjectPoint(const cv::Mat& camera_matrix, 
+									cv::Point3f point3f);
+
+		inline vector<Point2f> ProjectCorners(const cv::Mat& camera_matrix, 
+											  vector<Point3f> &corners);
+
+		void normalize_vector(Point3f &v, 
+							  float width);
+
+		cv::Point3f get_normal_vector(const vector<Point3f> &ori);
+
+		inline vector<Point3f> add_vector(const vector<Point3f> &ori, 
+										  const Point3f &normal_vector);
 	};
 }
 
