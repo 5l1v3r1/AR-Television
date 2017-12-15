@@ -101,9 +101,9 @@ namespace ar {
 //            cout << "Points in 2D: " << endl;
             for (int j = 0; j < num_cameras; ++j) {
 //                cout << pts[j].second.row(i) << endl;
-                ((Mat) (pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2))).copyTo(
+                Mat(pts[j].first.row(0) - pts[j].second.at<float>(i, 0) * pts[j].first.row(2)).copyTo(
                         A.row(2 * j));
-                ((Mat) (pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2))).copyTo(
+                Mat(pts[j].first.row(1) - pts[j].second.at<float>(i, 1) * pts[j].first.row(2)).copyTo(
                         A.row(2 * j + 1));
             }
 //            cout << "~~~~~~~~~~~~~~~~~~~" << endl;
@@ -227,12 +227,12 @@ namespace ar {
                                     C3[i][3];
                 }
             for (int i = 0; i < num_points_; i++) {
-                residuals[i * 6 + 0] = p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]);
-                residuals[i * 6 + 1] = p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]);
-                residuals[i * 6 + 2] = p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]);
-                residuals[i * 6 + 3] = p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]);
-                residuals[i * 6 + 4] = p3_proj[0][i] / p3_proj[2][i] - T(pts3_[i << 1]);
-                residuals[i * 6 + 5] = p3_proj[1][i] / p3_proj[2][i] - T(pts3_[(i << 1) | 1]);
+                residuals[i * 6 + 0] = abs(p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]));
+                residuals[i * 6 + 1] = abs(p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]));
+                residuals[i * 6 + 2] = abs(p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]));
+                residuals[i * 6 + 3] = abs(p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]));
+                residuals[i * 6 + 4] = abs(p3_proj[0][i] / p3_proj[2][i] - T(pts3_[i << 1]));
+                residuals[i * 6 + 5] = abs(p3_proj[1][i] / p3_proj[2][i] - T(pts3_[(i << 1) | 1]));
             }
             return true;
         }
@@ -299,10 +299,10 @@ namespace ar {
                                     C2[i][3];
                 }
             for (int i = 0; i < num_points_; i++) {
-                residuals[i * 4 + 0] = p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]);
-                residuals[i * 4 + 1] = p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]);
-                residuals[i * 4 + 2] = p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]);
-                residuals[i * 4 + 3] = p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]);
+                residuals[i * 4 + 0] = abs(p1_proj[0][i] / p1_proj[2][i] - T(pts1_[i << 1]));
+                residuals[i * 4 + 1] = abs(p1_proj[1][i] / p1_proj[2][i] - T(pts1_[(i << 1) | 1]));
+                residuals[i * 4 + 2] = abs(p2_proj[0][i] / p2_proj[2][i] - T(pts2_[i << 1]));
+                residuals[i * 4 + 3] = abs(p2_proj[1][i] / p2_proj[2][i] - T(pts2_[(i << 1) | 1]));
             }
             return true;
         }

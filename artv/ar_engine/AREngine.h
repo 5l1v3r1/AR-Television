@@ -62,16 +62,6 @@ namespace ar {
         bool visible_in_last_frame_;
         Point2f last_loc_;
 
-        void Combine(const shared_ptr<InterestPoint> &another);
-
-        shared_ptr<Observation> observation(int keyframe_id) const;
-
-        inline auto is_visible(int keyframe_id) const { return observation(keyframe_id)->visible; }
-
-        inline auto &loc(int keyframe_id) { return observation(keyframe_id)->pt.pt; }
-
-        inline auto &loc(int keyframe_id) const { return observation(keyframe_id)->pt.pt; }
-
         InterestPoint(int initial_keyframe_id,
                       const KeyPoint &initial_loc,
                       const Mat &initial_desc);
@@ -82,15 +72,25 @@ namespace ar {
 
         inline bool ToDiscard() const { return !vis_cnt_; }
 
+        void Combine(const shared_ptr<InterestPoint> &another);
+
+        shared_ptr<Observation> observation(int keyframe_id) const;
+
+        inline const Mat &last_desc() const { return last_desc_; }
+
+        inline auto is_visible(int keyframe_id) const { return observation(keyframe_id)->visible; }
+
+        inline auto &loc(int keyframe_id) { return observation(keyframe_id)->pt.pt; }
+
+        inline auto &loc(int keyframe_id) const { return observation(keyframe_id)->pt.pt; }
+
+        Point2f loc(Mat camera_matrix) const;
+
         inline const Point3f &loc3d() const { return loc3d_; }
 
         void loc3d(float x, float y, float z);
 
         void loc3d(const Point3f &pt3d);
-
-        Point2f loc(Mat camera_matrix) const;
-
-        inline const Mat &last_desc() const { return last_desc_; }
 
         bool has_estimated_3d_loc_;
     private:

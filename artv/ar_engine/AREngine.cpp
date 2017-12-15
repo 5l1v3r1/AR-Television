@@ -600,6 +600,17 @@ namespace ar {
                 return AR_SUCCESS;
             }
 
+            Mat canvas = raw_scene.clone();
+            Mat camera_matrix = intrinsics_ * extrinsics_;
+            for (auto& ip : interest_points_)
+                circle(canvas, ip->loc(camera_matrix), 4, Scalar(255, 0, 0), 4);
+            for (auto& ip : transient_interest_points_)
+                circle(canvas, ip->loc(camera_matrix), 4, Scalar(0, 255, 0), 4);
+            for (auto& kp : keypoints)
+                circle(canvas, kp.pt, 4, Scalar(255, 255, 255), 4);
+            imshow("2D point comparison", canvas);
+            waitKey(1);
+
             Mat R = extrinsics_.colRange(0, 3);
             Mat t = extrinsics_.col(3);
             assert(abs(determinant(R) - 1) < 0.001);
